@@ -1,0 +1,8 @@
+---
+BasedOnStyle: LLVM
+ColumnLimit: 79
+IndentWidth: 4
+---
+Language: Cpp
+BreakStringLiterals: false
+...

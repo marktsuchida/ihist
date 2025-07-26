@@ -1,0 +1,13 @@
+packagecache/
+
+# Subprojects installed via wrap
+*-*/
+
+# Transitive dependency wraps
+*.wrap
+
+# Our wraps
+!catch2.wrap
+!google-benchmark.wrap
+
+!/.gitignore
