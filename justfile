@@ -81,3 +81,15 @@ benchmark *FLAGS: build test
 
 benchmark-only REGEXP:
     just benchmark --benchmark_filter={{quote(REGEXP)}}
+
+benchmark-set-baseline: build test
+    cp builddir/ihist_bench builddir/ihist_bench_baseline
+
+benchmark-compare *FLAGS: build test
+    #!/usr/bin/env sh
+    GB_VERSION=$(meson introspect --dependencies builddir |jq -r \
+        '.[] | select(.meson_variables[]? == "benchmark_dep") | .version')
+    GB_TOOLS=subprojects/benchmark-$GB_VERSION/tools
+    uv run --with=scipy "$GB_TOOLS/compare.py" \
+        benchmarks builddir/ihist_bench_baseline builddir/ihist_bench \
+        {{FLAGS}}
