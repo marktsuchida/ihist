@@ -46,39 +46,59 @@ auto generate_gaussian_data(std::size_t count, double stddev)
     return data;
 }
 
-template <auto Hist8> void hist8_gauss(benchmark::State &state) {
+template <typename T, auto Hist> void hist_gauss(benchmark::State &state) {
     auto const stddev = static_cast<double>(state.range(0));
     auto const size = state.range(1);
-    auto const data = generate_gaussian_data<std::uint8_t>(size, stddev);
+    auto const data = generate_gaussian_data<T>(size, stddev);
     for ([[maybe_unused]] auto _ : state) {
-        std::array<std::uint32_t, 256> hist{};
-        Hist8(data.data(), size, hist.data());
+        std::array<std::uint32_t, bin_count<T>()> hist{};
+        Hist(data.data(), size, hist.data());
         benchmark::DoNotOptimize(hist);
     }
     state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) * size *
-                            sizeof(std::uint8_t));
+                            sizeof(T));
 }
 
-// A standard deviation of 0 produces constant data, and 500 closely
+// A standard deviation of 0 produces constant data, and a large one closely
 // approximates uniformly random data. Generally data that is narrowly
 // distributed is more challenging due to store-to-load forwarding latencies on
 // the same bin or cache line.
-std::vector<std::int64_t> const stddevs{0, 2, 500};
+template <typename T>
+std::vector<std::int64_t> const stddevs{0, 1 << (8 * sizeof(T) + 1)};
 
 // Quite a large data size (16Mi = 1 << 26) is needed for the throughput to
 // plateau. But the trend over algorithms and input data stay the same.
-std::vector<std::int64_t> const data_sizes{1 << 20};
+template <typename T>
+std::vector<std::int64_t> const data_sizes{1 << (20 - sizeof(T))};
+
+using u8 = std::uint8_t;
+using u16 = std::uint16_t;
 
 } // namespace
 
-BENCHMARK(hist8_gauss<hist8_naive>)->ArgsProduct({stddevs, data_sizes});
+BENCHMARK(hist_gauss<u8, hist_naive<u8>>)
+    ->ArgsProduct({stddevs<u8>, data_sizes<u8>});
 
-BENCHMARK(hist8_gauss<hist8_striped<3>>)->ArgsProduct({stddevs, data_sizes});
+BENCHMARK(hist_gauss<u8, hist_striped<u8, 3>>)
+    ->ArgsProduct({stddevs<u8>, data_sizes<u8>});
 
-BENCHMARK(hist8_gauss<hist8_naive_mt>)->ArgsProduct({stddevs, data_sizes});
+BENCHMARK(hist_gauss<u8, hist_naive_mt<u8>>)
+    ->ArgsProduct({stddevs<u8>, data_sizes<u8>});
 
-BENCHMARK(hist8_gauss<hist8_striped_mt<3>>)
-    ->ArgsProduct({stddevs, data_sizes});
+BENCHMARK(hist_gauss<u8, hist_striped_mt<u8, 3>>)
+    ->ArgsProduct({stddevs<u8>, data_sizes<u8>});
+
+BENCHMARK(hist_gauss<u16, hist_naive<u16>>)
+    ->ArgsProduct({stddevs<u16>, data_sizes<u16>});
+
+BENCHMARK(hist_gauss<u16, hist_striped<u16, 2>>)
+    ->ArgsProduct({stddevs<u16>, data_sizes<u16>});
+
+BENCHMARK(hist_gauss<u16, hist_naive_mt<u16>>)
+    ->ArgsProduct({stddevs<u16>, data_sizes<u16>});
+
+BENCHMARK(hist_gauss<u16, hist_striped_mt<u16, 2>>)
+    ->ArgsProduct({stddevs<u16>, data_sizes<u16>});
 
 } // namespace ihist::bench
 
