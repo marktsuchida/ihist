@@ -121,9 +121,23 @@ template <typename T> auto hist_algo_func(hist_algo algo) -> hist_func<T> {
 
 } // namespace
 
-TEST_CASE("bin-count-for-type") {
-    CHECK(bin_count<std::uint8_t>() == 256);
-    CHECK(bin_count<std::uint16_t>() == 65536);
+TEST_CASE("bin_index_full_bits") {
+    STATIC_CHECK(internal::bin_index<std::uint8_t>(0) == 0);
+    STATIC_CHECK(internal::bin_index<std::uint8_t>(255) == 255);
+    STATIC_CHECK(internal::bin_index(std::uint8_t(255)) == 255);
+    STATIC_CHECK(internal::bin_index<std::uint16_t>(0) == 0);
+    STATIC_CHECK(internal::bin_index<std::uint16_t>(65535) == 65535);
+    STATIC_CHECK(internal::bin_index(std::uint16_t(65535)) == 65535);
+}
+
+TEST_CASE("bin_index_lo_bits") {
+    STATIC_CHECK(internal::bin_index<std::uint16_t, 12>(0x0fff) == 0x0fff);
+    STATIC_CHECK(internal::bin_index<std::uint16_t, 12>(0xffff) == 0x0fff);
+}
+
+TEST_CASE("bin_index_hi_bits") {
+    STATIC_CHECK(internal::bin_index<std::uint16_t, 12, 4>(0xfff0) == 0x0fff);
+    STATIC_CHECK(internal::bin_index<std::uint16_t, 12, 4>(0xffff) == 0x0fff);
 }
 
 TEMPLATE_TEST_CASE("empty-data", "", std::uint8_t, std::uint16_t) {
@@ -135,7 +149,7 @@ TEMPLATE_TEST_CASE("empty-data", "", std::uint8_t, std::uint16_t) {
     auto const hist_func = hist_algo_func<TestType>(algo);
     CAPTURE(algo);
 
-    static constexpr auto NBINS = bin_count<TestType>();
+    constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     std::array<std::uint32_t, NBINS> hist{};
     hist_func(nullptr, 0, hist.data());
     for (std::size_t i = 0; i < NBINS; ++i) {
@@ -151,7 +165,7 @@ TEMPLATE_TEST_CASE("const-data", "", std::uint8_t, std::uint16_t) {
                  hist_algo::STRIPED2_MT, hist_algo::STRIPED3_MT);
     auto const hist_func = hist_algo_func<TestType>(algo);
 
-    static constexpr auto NBINS = bin_count<TestType>();
+    constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     std::array<std::uint32_t, NBINS> hist{};
     std::size_t size = GENERATE(1, 7, 1000);
     TestType value = GENERATE(0, 1, NBINS - 1);
@@ -178,7 +192,7 @@ TEMPLATE_TEST_CASE("random-data", "", std::uint8_t, std::uint16_t) {
     auto const hist_func = hist_algo_func<TestType>(algo);
     CAPTURE(algo);
 
-    static constexpr auto NBINS = bin_count<TestType>();
+    constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     auto const data = test_data<TestType>(1 << (22 - sizeof(TestType)));
     std::array<std::uint32_t, NBINS> hist{};
     hist_func(data.data(), data.size(), hist.data());

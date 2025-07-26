@@ -15,20 +15,12 @@ namespace ihist::bench {
 
 namespace {
 
-template <typename T> constexpr auto midpoint_value() -> T {
-    if constexpr (std::is_signed_v<T>) {
-        return T(0);
-    } else {
-        return std::numeric_limits<T>::max() / 2;
-    }
-}
-
-template <typename T>
+template <typename T, unsigned BITS = 8 * sizeof(T)>
 auto generate_gaussian_data(std::size_t count, double stddev)
     -> std::vector<T> {
-    T const minimum = std::numeric_limits<T>::min();
-    T const maximum = std::numeric_limits<T>::max();
-    T const mean = midpoint_value<T>();
+    static_assert(std::is_unsigned_v<T>);
+    T const maximum = T(1uLL << BITS) - 1;
+    T const mean = maximum / 2;
 
     std::mt19937 engine;
     std::normal_distribution<double> dist(static_cast<double>(mean), stddev);
@@ -38,7 +30,7 @@ auto generate_gaussian_data(std::size_t count, double stddev)
     std::generate(data.begin(), data.end(), [&] {
         for (;;) {
             double v = dist(engine);
-            if (v >= minimum && v <= maximum) {
+            if (v >= 0.0 && v <= maximum) {
                 return static_cast<T>(v);
             }
         }
@@ -46,12 +38,13 @@ auto generate_gaussian_data(std::size_t count, double stddev)
     return data;
 }
 
-template <typename T, auto Hist> void hist_gauss(benchmark::State &state) {
+template <typename T, auto Hist, unsigned BITS = 8 * sizeof(T)>
+void hist_gauss(benchmark::State &state) {
     auto const stddev = static_cast<double>(state.range(0));
     auto const size = state.range(1);
-    auto const data = generate_gaussian_data<T>(size, stddev);
+    auto const data = generate_gaussian_data<T, BITS>(size, stddev);
     for ([[maybe_unused]] auto _ : state) {
-        std::array<std::uint32_t, bin_count<T>()> hist{};
+        std::array<std::uint32_t, (1 << (8 * sizeof(T)))> hist{};
         Hist(data.data(), size, hist.data());
         benchmark::DoNotOptimize(hist);
     }
@@ -87,6 +80,18 @@ BENCHMARK(hist_gauss<u8, hist_naive_mt<u8>>)
 
 BENCHMARK(hist_gauss<u8, hist_striped_mt<u8, 3>>)
     ->ArgsProduct({stddevs<u8>, data_sizes<u8>});
+
+BENCHMARK(hist_gauss<u16, hist_naive<u16, 12>, 12>)
+    ->ArgsProduct({stddevs<u16>, data_sizes<u16>});
+
+BENCHMARK(hist_gauss<u16, hist_striped<u16, 2, 12>, 12>)
+    ->ArgsProduct({stddevs<u16>, data_sizes<u16>});
+
+BENCHMARK(hist_gauss<u16, hist_naive_mt<u16, 12>, 12>)
+    ->ArgsProduct({stddevs<u16>, data_sizes<u16>});
+
+BENCHMARK(hist_gauss<u16, hist_striped_mt<u16, 2, 12>, 12>)
+    ->ArgsProduct({stddevs<u16>, data_sizes<u16>});
 
 BENCHMARK(hist_gauss<u16, hist_naive<u16>>)
     ->ArgsProduct({stddevs<u16>, data_sizes<u16>});

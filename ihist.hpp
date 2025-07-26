@@ -33,27 +33,44 @@
 
 namespace ihist {
 
-template <typename T> constexpr std::size_t bin_count() {
-    return 1 << (8 * sizeof(T));
+namespace internal {
+
+// N.B. This will discard high bits of value, effectively wrapping around if
+// values exceed the (BITS + LO_BIT)-bit range. To histogram data while leaving
+// out samples that exceed the expected range, masking should be used (once we
+// support it).
+// (Checking for such high bits, and skipping the histogramming of such values,
+// can cause a ~10% overhead, at least under some conditions.)
+template <typename T, unsigned BITS = 8 * sizeof(T), unsigned LO_BIT = 0>
+constexpr auto bin_index(T value) -> std::size_t {
+    static_assert(std::is_unsigned_v<T>);
+    static_assert(BITS > 0);
+    static_assert(BITS <= 8 * sizeof(T));
+    static_assert(LO_BIT < 8 * sizeof(T));
+    static_assert(BITS + LO_BIT <= 8 * sizeof(T));
+    constexpr T MASK = ((1uLL << BITS) - 1) << LO_BIT;
+    return (value & MASK) >> LO_BIT;
 }
 
-template <typename T>
+} // namespace internal
+
+template <typename T, unsigned BITS = 8 * sizeof(T), unsigned LO_BIT = 0>
 void hist_naive(T const *IHIST_RESTRICT data, std::size_t size,
                 std::uint32_t *IHIST_RESTRICT histogram) {
-    static_assert(std::is_unsigned_v<T>);
+    assert(size < std::numeric_limits<std::uint32_t>::max());
     for (std::size_t i = 0; i < size; ++i) {
-        ++histogram[data[i]];
+        ++histogram[internal::bin_index<T, BITS, LO_BIT>(data[i])];
     }
 }
 
-template <typename T, std::size_t P>
+template <typename T, std::size_t P, unsigned BITS = 8 * sizeof(T),
+          unsigned LO_BIT = 0>
 void hist_striped(T const *IHIST_RESTRICT data, std::size_t size,
                   std::uint32_t *IHIST_RESTRICT histogram) {
-    static_assert(std::is_unsigned_v<T>);
     // 4 * 2^P needs to comfortably fit in L1D cache.
     static_assert(P < 16, "P should not be too big");
-    static constexpr std::size_t NLANES = 1 << P;
-    static constexpr std::size_t NBINS = bin_count<T>();
+    constexpr std::size_t NLANES = 1 << P;
+    constexpr std::size_t NBINS = 1 << BITS;
 
     assert(size < std::numeric_limits<std::uint32_t>::max());
 
@@ -63,7 +80,7 @@ void hist_striped(T const *IHIST_RESTRICT data, std::size_t size,
 #pragma unroll
     for (std::size_t i = 0; i < size; ++i) {
         auto const lane = i & (NLANES - 1);
-        ++hists[lane * NBINS + data[i]];
+        ++hists[lane * NBINS + internal::bin_index<T, BITS, LO_BIT>(data[i])];
     }
 
     for (std::size_t bin = 0; bin < NBINS; ++bin) {
@@ -77,10 +94,10 @@ void hist_striped(T const *IHIST_RESTRICT data, std::size_t size,
 
 namespace internal {
 
-template <typename T, auto Hist>
+template <typename T, auto Hist, unsigned BITS = 8 * sizeof(T)>
 void hist_mt(T const *IHIST_RESTRICT data, std::size_t size,
              std::uint32_t *IHIST_RESTRICT histogram) {
-    static constexpr std::size_t NBINS = bin_count<T>();
+    constexpr std::size_t NBINS = 1 << BITS;
 
     tbb::combinable<std::array<uint32_t, NBINS>> local_hists(
         [] { return std::array<uint32_t, NBINS>{}; });
@@ -88,7 +105,7 @@ void hist_mt(T const *IHIST_RESTRICT data, std::size_t size,
     // TODO Grain size is empirical on Apple M1; investigate elsewhere.
     // u8 -> 1 << 14
     // u16 -> 1 << 17
-    static constexpr auto grain_size = 1 << (sizeof(T) > 1 ? 17 : 14);
+    constexpr auto grain_size = 1 << (sizeof(T) > 1 ? 17 : 14);
     tbb::parallel_for(tbb::blocked_range<std::size_t>(0, size, grain_size),
                       [&](const tbb::blocked_range<std::size_t> &r) {
                           auto &h = local_hists.local();
@@ -104,16 +121,19 @@ void hist_mt(T const *IHIST_RESTRICT data, std::size_t size,
 
 } // namespace internal
 
-template <typename T>
+template <typename T, unsigned BITS = 8 * sizeof(T), unsigned LO_BIT = 0>
 void hist_naive_mt(T const *IHIST_RESTRICT data, std::size_t size,
                    std::uint32_t *IHIST_RESTRICT histogram) {
-    internal::hist_mt<T, hist_naive<T>>(data, size, histogram);
+    internal::hist_mt<T, hist_naive<T, BITS, LO_BIT>, BITS>(data, size,
+                                                            histogram);
 }
 
-template <typename T, std::size_t P>
+template <typename T, std::size_t P, unsigned BITS = 8 * sizeof(T),
+          unsigned LO_BIT = 0>
 void hist_striped_mt(T const *IHIST_RESTRICT data, std::size_t size,
                      std::uint32_t *IHIST_RESTRICT histogram) {
-    internal::hist_mt<T, hist_striped<T, P>>(data, size, histogram);
+    internal::hist_mt<T, hist_striped<T, P, BITS, LO_BIT>, BITS>(data, size,
+                                                                 histogram);
 }
 
 } // namespace ihist
