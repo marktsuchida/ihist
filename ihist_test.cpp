@@ -8,6 +8,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <ostream>
 #include <random>
@@ -18,11 +19,12 @@ namespace ihist::test {
 namespace {
 
 // This produces portably deterministic data given the same seed.
-template <typename T>
+template <typename T, unsigned BITS = 8 * sizeof(T)>
 auto generate_random_data(std::size_t count, std::uint32_t seed)
     -> std::vector<T> {
     static_assert(std::is_integral_v<T>);
     static_assert(sizeof(T) <= 8);
+    static_assert(BITS <= 8 * sizeof(T));
 
     // We cannot use std::uniform_int_distribution because it may behave
     // differently depending on the platform, and also does not support 8-bit
@@ -31,97 +33,23 @@ auto generate_random_data(std::size_t count, std::uint32_t seed)
     std::mt19937_64 engine(seed);
     std::vector<T> data;
     data.resize(count);
+    constexpr auto MASK = (1uLL << BITS) - 1;
     std::generate(data.begin(), data.end(),
-                  [&] { return static_cast<T>(engine()); });
+                  [&] { return static_cast<T>(engine() & MASK); });
     return data;
 }
 
 // Reproducible tests!
 constexpr std::uint32_t TEST_SEED = 1343208745u;
 
-template <typename T> auto test_data(std::size_t count) -> std::vector<T> {
-    return generate_random_data<T>(count, TEST_SEED);
-}
-
-enum class hist_algo {
-    NAIVE,
-    STRIPED0,
-    STRIPED1,
-    STRIPED2,
-    STRIPED3,
-    STRIPED4,
-    NAIVE_MT,
-    STRIPED0_MT,
-    STRIPED1_MT,
-    STRIPED2_MT,
-    STRIPED3_MT,
-    STRIPED4_MT,
-};
-
-auto operator<<(std::ostream &s, hist_algo const &algo) -> std::ostream & {
-    switch (algo) {
-    case hist_algo::NAIVE:
-        return s << "hist_naive<T>";
-    case hist_algo::STRIPED0:
-        return s << "hist_striped<T, 0>";
-    case hist_algo::STRIPED1:
-        return s << "hist_striped<T, 1>";
-    case hist_algo::STRIPED2:
-        return s << "hist_striped<T, 2>";
-    case hist_algo::STRIPED3:
-        return s << "hist_striped<T, 3>";
-    case hist_algo::STRIPED4:
-        return s << "hist_striped<T, 4>";
-    case hist_algo::NAIVE_MT:
-        return s << "hist_naive_mt<T>";
-    case hist_algo::STRIPED0_MT:
-        return s << "hist_striped_mt<T, 0>";
-    case hist_algo::STRIPED1_MT:
-        return s << "hist_striped_mt<T, 1>";
-    case hist_algo::STRIPED2_MT:
-        return s << "hist_striped_mt<T, 2>";
-    case hist_algo::STRIPED3_MT:
-        return s << "hist_striped_mt<T, 3>";
-    case hist_algo::STRIPED4_MT:
-        return s << "hist_striped_mt<T, 4>";
-    }
-}
-
-template <typename T>
-using hist_func = void (*)(T const *, std::size_t, std::uint32_t *);
-
-template <typename T> auto hist_algo_func(hist_algo algo) -> hist_func<T> {
-    switch (algo) {
-    case hist_algo::NAIVE:
-        return hist_naive<T>;
-    case hist_algo::STRIPED0:
-        return hist_striped<T, 0>;
-    case hist_algo::STRIPED1:
-        return hist_striped<T, 1>;
-    case hist_algo::STRIPED2:
-        return hist_striped<T, 2>;
-    case hist_algo::STRIPED3:
-        return hist_striped<T, 3>;
-    case hist_algo::STRIPED4:
-        return hist_striped<T, 4>;
-    case hist_algo::NAIVE_MT:
-        return hist_naive_mt<T>;
-    case hist_algo::STRIPED0_MT:
-        return hist_striped_mt<T, 0>;
-    case hist_algo::STRIPED1_MT:
-        return hist_striped_mt<T, 1>;
-    case hist_algo::STRIPED2_MT:
-        return hist_striped_mt<T, 2>;
-    case hist_algo::STRIPED3_MT:
-        return hist_striped_mt<T, 3>;
-    case hist_algo::STRIPED4_MT:
-        return hist_striped_mt<T, 4>;
-    }
+template <typename T, unsigned BITS = 8 * sizeof(T)>
+auto test_data(std::size_t count) -> std::vector<T> {
+    return generate_random_data<T, BITS>(count, TEST_SEED);
 }
 
 } // namespace
 
-TEST_CASE("bin_index_full_bits") {
+TEST_CASE("bin_index-full-bits") {
     STATIC_CHECK(internal::bin_index<std::uint8_t>(0) == 0);
     STATIC_CHECK(internal::bin_index<std::uint8_t>(255) == 255);
     STATIC_CHECK(internal::bin_index(std::uint8_t(255)) == 255);
@@ -130,24 +58,62 @@ TEST_CASE("bin_index_full_bits") {
     STATIC_CHECK(internal::bin_index(std::uint16_t(65535)) == 65535);
 }
 
-TEST_CASE("bin_index_lo_bits") {
+TEST_CASE("bin_index-lo-bits") {
     STATIC_CHECK(internal::bin_index<std::uint16_t, 12>(0x0fff) == 0x0fff);
     STATIC_CHECK(internal::bin_index<std::uint16_t, 12>(0xffff) == 0x0fff);
 }
 
-TEST_CASE("bin_index_hi_bits") {
+TEST_CASE("bin_index-hi-bits") {
     STATIC_CHECK(internal::bin_index<std::uint16_t, 12, 4>(0xfff0) == 0x0fff);
     STATIC_CHECK(internal::bin_index<std::uint16_t, 12, 4>(0xffff) == 0x0fff);
 }
 
+TEST_CASE("bin_index_himask-lo-bits") {
+    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 12>(0, 0) == 0);
+    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 12>(1, 0) == 1);
+    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 12>(4095, 0) ==
+                 4095);
+    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 12>(4096, 0) ==
+                 4096);
+    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 12>(4097, 0) ==
+                 4096);
+    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 12>(65535, 0) ==
+                 4096);
+
+    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 12>(0xaffd, 0xa) ==
+                 0x0ffd);
+    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 12>(0xbffd, 0xa) ==
+                 0x1000);
+}
+
+TEST_CASE("bin_index_himask-mid-bits") {
+    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 8, 4>(0x0000, 0) ==
+                 0);
+    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 8, 4>(0x0010, 0) ==
+                 1);
+    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 8, 4>(0x0ff0, 0) ==
+                 0xff);
+    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 8, 4>(0x1000, 0) ==
+                 256);
+    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 8, 4>(0x1010, 0) ==
+                 256);
+    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 8, 4>(0xffff, 0) ==
+                 256);
+}
+
 TEMPLATE_TEST_CASE("empty-data", "", std::uint8_t, std::uint16_t) {
-    auto const algo =
-        GENERATE(hist_algo::NAIVE, hist_algo::STRIPED0, hist_algo::STRIPED1,
-                 hist_algo::STRIPED2, hist_algo::STRIPED3, hist_algo::NAIVE_MT,
-                 hist_algo::STRIPED0_MT, hist_algo::STRIPED1_MT,
-                 hist_algo::STRIPED2_MT, hist_algo::STRIPED3_MT);
-    auto const hist_func = hist_algo_func<TestType>(algo);
-    CAPTURE(algo);
+    auto const hist_func = GENERATE(hist_naive_unfiltered<TestType>,
+                                    hist_striped_unfiltered<TestType, 0>,
+                                    hist_striped_unfiltered<TestType, 1>,
+                                    hist_striped_unfiltered<TestType, 2>,
+                                    hist_striped_unfiltered<TestType, 3>,
+                                    hist_striped_unfiltered<TestType, 4>,
+                                    hist_naive_mt_unfiltered<TestType>,
+                                    hist_striped_mt_unfiltered<TestType, 0>,
+                                    hist_striped_mt_unfiltered<TestType, 1>,
+                                    hist_striped_mt_unfiltered<TestType, 2>,
+                                    hist_striped_mt_unfiltered<TestType, 3>,
+                                    hist_striped_mt_unfiltered<TestType, 4>);
 
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     std::array<std::uint32_t, NBINS> hist{};
@@ -158,18 +124,24 @@ TEMPLATE_TEST_CASE("empty-data", "", std::uint8_t, std::uint16_t) {
 }
 
 TEMPLATE_TEST_CASE("const-data", "", std::uint8_t, std::uint16_t) {
-    auto const algo =
-        GENERATE(hist_algo::NAIVE, hist_algo::STRIPED0, hist_algo::STRIPED1,
-                 hist_algo::STRIPED2, hist_algo::STRIPED3, hist_algo::NAIVE_MT,
-                 hist_algo::STRIPED0_MT, hist_algo::STRIPED1_MT,
-                 hist_algo::STRIPED2_MT, hist_algo::STRIPED3_MT);
-    auto const hist_func = hist_algo_func<TestType>(algo);
+    auto const hist_func = GENERATE(hist_naive_unfiltered<TestType>,
+                                    hist_striped_unfiltered<TestType, 0>,
+                                    hist_striped_unfiltered<TestType, 1>,
+                                    hist_striped_unfiltered<TestType, 2>,
+                                    hist_striped_unfiltered<TestType, 3>,
+                                    hist_striped_unfiltered<TestType, 4>,
+                                    hist_naive_mt_unfiltered<TestType>,
+                                    hist_striped_mt_unfiltered<TestType, 0>,
+                                    hist_striped_mt_unfiltered<TestType, 1>,
+                                    hist_striped_mt_unfiltered<TestType, 2>,
+                                    hist_striped_mt_unfiltered<TestType, 3>,
+                                    hist_striped_mt_unfiltered<TestType, 4>);
 
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     std::array<std::uint32_t, NBINS> hist{};
     std::size_t size = GENERATE(1, 7, 1000);
     TestType value = GENERATE(0, 1, NBINS - 1);
-    CAPTURE(algo, size, value);
+    CAPTURE(size, value);
 
     std::vector<TestType> data(size, value);
     hist_func(data.data(), data.size(), hist.data());
@@ -183,21 +155,76 @@ TEMPLATE_TEST_CASE("const-data", "", std::uint8_t, std::uint16_t) {
 }
 
 TEMPLATE_TEST_CASE("random-data", "", std::uint8_t, std::uint16_t) {
-    auto const algo =
-        GENERATE(hist_algo::NAIVE, hist_algo::STRIPED0, hist_algo::STRIPED1,
-                 hist_algo::STRIPED2, hist_algo::STRIPED3, hist_algo::STRIPED4,
-                 hist_algo::NAIVE_MT, hist_algo::STRIPED0_MT,
-                 hist_algo::STRIPED1_MT, hist_algo::STRIPED2_MT,
-                 hist_algo::STRIPED3_MT, hist_algo::STRIPED4_MT);
-    auto const hist_func = hist_algo_func<TestType>(algo);
-    CAPTURE(algo);
+    auto const hist_func = GENERATE(hist_naive_unfiltered<TestType>,
+                                    hist_striped_unfiltered<TestType, 0>,
+                                    hist_striped_unfiltered<TestType, 1>,
+                                    hist_striped_unfiltered<TestType, 2>,
+                                    hist_striped_unfiltered<TestType, 3>,
+                                    hist_striped_unfiltered<TestType, 4>,
+                                    hist_naive_mt_unfiltered<TestType>,
+                                    hist_striped_mt_unfiltered<TestType, 0>,
+                                    hist_striped_mt_unfiltered<TestType, 1>,
+                                    hist_striped_mt_unfiltered<TestType, 2>,
+                                    hist_striped_mt_unfiltered<TestType, 3>,
+                                    hist_striped_mt_unfiltered<TestType, 4>);
+    auto const ref_func = hist_naive_unfiltered<TestType>;
 
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     auto const data = test_data<TestType>(1 << (22 - sizeof(TestType)));
     std::array<std::uint32_t, NBINS> hist{};
     hist_func(data.data(), data.size(), hist.data());
     std::array<std::uint32_t, NBINS> ref{};
-    hist_naive(data.data(), data.size(), ref.data());
+    ref_func(data.data(), data.size(), ref.data());
+    assert(hist == ref);
+}
+
+TEMPLATE_TEST_CASE("low-bits-random-data-clean-safe", "", std::uint8_t,
+                   std::uint16_t) {
+    constexpr auto BITS = 8 * sizeof(TestType) - 4;
+    auto hist_func = GENERATE(hist_naive_himask<TestType, BITS>,
+                              hist_striped_himask<TestType, 2, BITS>,
+                              hist_naive_mt_himask<TestType, BITS>,
+                              hist_striped_mt_himask<TestType, 2, BITS>);
+    auto ref_func = hist_naive_unfiltered<TestType, BITS>;
+
+    constexpr auto NBINS = 1 << BITS;
+    auto const data = test_data<TestType, BITS>(1 << (22 - sizeof(TestType)));
+    std::array<std::uint32_t, NBINS> hist{};
+    hist_func(data.data(), data.size(), 0, hist.data());
+    std::array<std::uint32_t, NBINS> ref{};
+    ref_func(data.data(), data.size(), ref.data());
+    assert(hist == ref);
+}
+
+TEMPLATE_TEST_CASE("low-bits-random-data-unclean-safe", "", std::uint8_t,
+                   std::uint16_t) {
+    constexpr auto BITS = 8 * sizeof(TestType) - 4;
+    auto hist_func = GENERATE(hist_naive_himask<TestType, BITS>,
+                              hist_striped_himask<TestType, 2, BITS>,
+                              hist_naive_mt_himask<TestType, BITS>,
+                              hist_striped_mt_himask<TestType, 2, BITS>);
+    auto ref_func = hist_naive_unfiltered<TestType, BITS>;
+
+    constexpr auto NBINS = 1 << BITS;
+
+    // Test with 6/14-bit data, exceeding the histogram range:
+    auto const data =
+        test_data<TestType, BITS + 2>(1 << (22 - sizeof(TestType)));
+
+    // Cleaned data (limited to values in 4/12-bit range) should produce same
+    // result as hi_to_match=0.
+    auto const clean_data = [&] {
+        std::vector<TestType> clean;
+        clean.reserve(data.size() / 3);
+        std::copy_if(data.begin(), data.end(), std::back_inserter(clean),
+                     [&](TestType v) { return v < (1 << BITS); });
+        return clean;
+    }();
+
+    std::array<std::uint32_t, NBINS> hist{};
+    hist_func(data.data(), data.size(), 0, hist.data());
+    std::array<std::uint32_t, NBINS> ref{};
+    ref_func(clean_data.data(), clean_data.size(), ref.data());
     assert(hist == ref);
 }
 
