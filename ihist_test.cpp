@@ -178,31 +178,32 @@ TEMPLATE_TEST_CASE("random-data", "", std::uint8_t, std::uint16_t) {
     assert(hist == ref);
 }
 
-TEMPLATE_TEST_CASE("low-bits-random-data-clean-safe", "", std::uint8_t,
+TEMPLATE_TEST_CASE("random-data-clean-filtered", "", std::uint8_t,
                    std::uint16_t) {
     constexpr auto BITS = 8 * sizeof(TestType) - 4;
-    auto hist_func = GENERATE(hist_himask_naive<TestType, BITS>,
-                              hist_himask_striped<2, TestType, BITS>,
-                              hist_himask_naive_mt<TestType, BITS>,
-                              hist_himask_striped_mt<2, TestType, BITS>);
+    auto hist_func = GENERATE(hist_filtered_naive<TestType, BITS>,
+                              hist_filtered_striped<2, TestType, BITS>,
+                              hist_filtered_naive_mt<TestType, BITS>,
+                              hist_filtered_striped_mt<2, TestType, BITS>);
     auto ref_func = hist_unfiltered_naive<TestType, BITS>;
 
     constexpr auto NBINS = 1 << BITS;
+    // Test with 4/12-bit data with no spurious high bits:
     auto const data = test_data<TestType, BITS>(1 << (22 - sizeof(TestType)));
     std::array<std::uint32_t, NBINS> hist{};
-    hist_func(data.data(), data.size(), 0, hist.data());
+    hist_func(data.data(), data.size(), hist.data());
     std::array<std::uint32_t, NBINS> ref{};
     ref_func(data.data(), data.size(), ref.data());
     assert(hist == ref);
 }
 
-TEMPLATE_TEST_CASE("low-bits-random-data-unclean-safe", "", std::uint8_t,
+TEMPLATE_TEST_CASE("random-data-unclean-filtered", "", std::uint8_t,
                    std::uint16_t) {
     constexpr auto BITS = 8 * sizeof(TestType) - 4;
-    auto hist_func = GENERATE(hist_himask_naive<TestType, BITS>,
-                              hist_himask_striped<2, TestType, BITS>,
-                              hist_himask_naive_mt<TestType, BITS>,
-                              hist_himask_striped_mt<2, TestType, BITS>);
+    auto hist_func = GENERATE(hist_filtered_naive<TestType, BITS>,
+                              hist_filtered_striped<2, TestType, BITS>,
+                              hist_filtered_naive_mt<TestType, BITS>,
+                              hist_filtered_striped_mt<2, TestType, BITS>);
     auto ref_func = hist_unfiltered_naive<TestType, BITS>;
 
     constexpr auto NBINS = 1 << BITS;
@@ -222,7 +223,7 @@ TEMPLATE_TEST_CASE("low-bits-random-data-unclean-safe", "", std::uint8_t,
     }();
 
     std::array<std::uint32_t, NBINS> hist{};
-    hist_func(data.data(), data.size(), 0, hist.data());
+    hist_func(data.data(), data.size(), hist.data());
     std::array<std::uint32_t, NBINS> ref{};
     ref_func(clean_data.data(), clean_data.size(), ref.data());
     assert(hist == ref);
