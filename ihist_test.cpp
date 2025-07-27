@@ -15,7 +15,8 @@
 #include <type_traits>
 #include <vector>
 
-namespace ihist::test {
+namespace ihist {
+
 namespace {
 
 // This produces portably deterministic data given the same seed.
@@ -49,57 +50,49 @@ auto test_data(std::size_t count) -> std::vector<T> {
 
 } // namespace
 
+namespace internal {
+
 TEST_CASE("bin_index-full-bits") {
-    STATIC_CHECK(internal::bin_index<std::uint8_t>(0) == 0);
-    STATIC_CHECK(internal::bin_index<std::uint8_t>(255) == 255);
-    STATIC_CHECK(internal::bin_index(std::uint8_t(255)) == 255);
-    STATIC_CHECK(internal::bin_index<std::uint16_t>(0) == 0);
-    STATIC_CHECK(internal::bin_index<std::uint16_t>(65535) == 65535);
-    STATIC_CHECK(internal::bin_index(std::uint16_t(65535)) == 65535);
+    STATIC_CHECK(bin_index<std::uint8_t>(0) == 0);
+    STATIC_CHECK(bin_index<std::uint8_t>(255) == 255);
+    STATIC_CHECK(bin_index(std::uint8_t(255)) == 255);
+    STATIC_CHECK(bin_index<std::uint16_t>(0) == 0);
+    STATIC_CHECK(bin_index<std::uint16_t>(65535) == 65535);
+    STATIC_CHECK(bin_index(std::uint16_t(65535)) == 65535);
 }
 
 TEST_CASE("bin_index-lo-bits") {
-    STATIC_CHECK(internal::bin_index<std::uint16_t, 12>(0x0fff) == 0x0fff);
-    STATIC_CHECK(internal::bin_index<std::uint16_t, 12>(0xffff) == 0x0fff);
+    STATIC_CHECK(bin_index<std::uint16_t, 12>(0x0fff) == 0x0fff);
+    STATIC_CHECK(bin_index<std::uint16_t, 12>(0xffff) == 0x0fff);
 }
 
 TEST_CASE("bin_index-hi-bits") {
-    STATIC_CHECK(internal::bin_index<std::uint16_t, 12, 4>(0xfff0) == 0x0fff);
-    STATIC_CHECK(internal::bin_index<std::uint16_t, 12, 4>(0xffff) == 0x0fff);
+    STATIC_CHECK(bin_index<std::uint16_t, 12, 4>(0xfff0) == 0x0fff);
+    STATIC_CHECK(bin_index<std::uint16_t, 12, 4>(0xffff) == 0x0fff);
 }
 
 TEST_CASE("bin_index_himask-lo-bits") {
-    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 12>(0, 0) == 0);
-    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 12>(1, 0) == 1);
-    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 12>(4095, 0) ==
-                 4095);
-    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 12>(4096, 0) ==
-                 4096);
-    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 12>(4097, 0) ==
-                 4096);
-    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 12>(65535, 0) ==
-                 4096);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(0, 0) == 0);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(1, 0) == 1);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(4095, 0) == 4095);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(4096, 0) == 4096);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(4097, 0) == 4096);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(65535, 0) == 4096);
 
-    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 12>(0xaffd, 0xa) ==
-                 0x0ffd);
-    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 12>(0xbffd, 0xa) ==
-                 0x1000);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(0xaffd, 0xa) == 0x0ffd);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(0xbffd, 0xa) == 0x1000);
 }
 
 TEST_CASE("bin_index_himask-mid-bits") {
-    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 8, 4>(0x0000, 0) ==
-                 0);
-    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 8, 4>(0x0010, 0) ==
-                 1);
-    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 8, 4>(0x0ff0, 0) ==
-                 0xff);
-    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 8, 4>(0x1000, 0) ==
-                 256);
-    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 8, 4>(0x1010, 0) ==
-                 256);
-    STATIC_CHECK(internal::bin_index_himask<std::uint16_t, 8, 4>(0xffff, 0) ==
-                 256);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x0000, 0) == 0);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x0010, 0) == 1);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x0ff0, 0) == 0xff);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x1000, 0) == 256);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x1010, 0) == 256);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0xffff, 0) == 256);
 }
+
+} // namespace internal
 
 TEMPLATE_TEST_CASE("empty-data", "", std::uint8_t, std::uint16_t) {
     auto const hist_func = GENERATE(hist_unfiltered_naive<TestType>,
