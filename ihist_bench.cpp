@@ -73,49 +73,49 @@ using u16 = std::uint16_t;
 BENCHMARK(hist_gauss<u8, hist_naive_unfiltered<u8>>)
     ->ArgsProduct({stddevs<8>, data_sizes<u8>});
 
-BENCHMARK(hist_gauss<u8, hist_striped_unfiltered<u8, 3>>)
+BENCHMARK(hist_gauss<u8, hist_striped_unfiltered<3, u8>>)
     ->ArgsProduct({stddevs<8>, data_sizes<u8>});
 
 BENCHMARK(hist_gauss<u8, hist_naive_mt_unfiltered<u8>>)
     ->ArgsProduct({stddevs<8>, data_sizes<u8>});
 
-BENCHMARK(hist_gauss<u8, hist_striped_mt_unfiltered<u8, 3>>)
+BENCHMARK(hist_gauss<u8, hist_striped_mt_unfiltered<3, u8>>)
     ->ArgsProduct({stddevs<8>, data_sizes<u8>});
 
 BENCHMARK(hist_gauss<u16, hist_naive_unfiltered<u16, 12>, 12>)
     ->ArgsProduct({stddevs<12>, data_sizes<u16>});
 
-BENCHMARK(hist_gauss<u16, hist_striped_unfiltered<u16, 2, 12>, 12>)
+BENCHMARK(hist_gauss<u16, hist_striped_unfiltered<2, u16, 12>, 12>)
     ->ArgsProduct({stddevs<12>, data_sizes<u16>});
 
 BENCHMARK(hist_gauss<u16, hist_naive_mt_unfiltered<u16, 12>, 12>)
     ->ArgsProduct({stddevs<12>, data_sizes<u16>});
 
-BENCHMARK(hist_gauss<u16, hist_striped_mt_unfiltered<u16, 2, 12>, 12>)
+BENCHMARK(hist_gauss<u16, hist_striped_mt_unfiltered<2, u16, 12>, 12>)
     ->ArgsProduct({stddevs<12>, data_sizes<u16>});
 
 BENCHMARK(hist_gauss<u16, hist_naive_filtered<u16, 12>, 12>)
     ->ArgsProduct({stddevs<12>, data_sizes<u16>});
 
-BENCHMARK(hist_gauss<u16, hist_striped_filtered<u16, 2, 12>, 12>)
+BENCHMARK(hist_gauss<u16, hist_striped_filtered<2, u16, 12>, 12>)
     ->ArgsProduct({stddevs<12>, data_sizes<u16>});
 
 BENCHMARK(hist_gauss<u16, hist_naive_mt_filtered<u16, 12>, 12>)
     ->ArgsProduct({stddevs<12>, data_sizes<u16>});
 
-BENCHMARK(hist_gauss<u16, hist_striped_mt_filtered<u16, 2, 12>, 12>)
+BENCHMARK(hist_gauss<u16, hist_striped_mt_filtered<2, u16, 12>, 12>)
     ->ArgsProduct({stddevs<12>, data_sizes<u16>});
 
 BENCHMARK(hist_gauss<u16, hist_naive_unfiltered<u16>>)
     ->ArgsProduct({stddevs<16>, data_sizes<u16>});
 
-BENCHMARK(hist_gauss<u16, hist_striped_unfiltered<u16, 2>>)
+BENCHMARK(hist_gauss<u16, hist_striped_unfiltered<2, u16>>)
     ->ArgsProduct({stddevs<16>, data_sizes<u16>});
 
 BENCHMARK(hist_gauss<u16, hist_naive_mt_unfiltered<u16>>)
     ->ArgsProduct({stddevs<16>, data_sizes<u16>});
 
-BENCHMARK(hist_gauss<u16, hist_striped_mt_unfiltered<u16, 2>>)
+BENCHMARK(hist_gauss<u16, hist_striped_mt_unfiltered<2, u16>>)
     ->ArgsProduct({stddevs<16>, data_sizes<u16>});
 
 } // namespace ihist::bench
