@@ -182,9 +182,26 @@ void hist_filtered_striped(T const *IHIST_RESTRICT data, std::size_t size,
 
 namespace internal {
 
-template <typename T, auto Hist, unsigned BITS = 8 * sizeof(T)>
+template <typename T> struct first_parameter;
+
+template <typename R, typename First, typename... Args>
+struct first_parameter<R(First, Args...)> {
+    using type = First;
+};
+
+template <typename R, typename First, typename... Args>
+struct first_parameter<R (*)(First, Args...)> {
+    using type = First;
+};
+
+template <typename T>
+using first_parameter_t = typename first_parameter<T>::type;
+
+template <auto Hist, typename T, unsigned BITS = 8 * sizeof(T)>
 void hist_mt(T const *IHIST_RESTRICT data, std::size_t size,
              std::uint32_t *IHIST_RESTRICT histogram) {
+    static_assert(
+        std::is_same_v<T const *, first_parameter_t<decltype(Hist)>>);
     constexpr std::size_t NBINS = 1 << BITS;
     using hist_array = std::array<std::uint32_t, NBINS>;
 
@@ -207,9 +224,11 @@ void hist_mt(T const *IHIST_RESTRICT data, std::size_t size,
     });
 }
 
-template <typename T, auto HistHiMasked, unsigned BITS>
+template <auto HistHimask, typename T, unsigned BITS = 8 * sizeof(T)>
 void hist_himask_mt(T const *IHIST_RESTRICT data, std::size_t size, T hi_mask,
                     std::uint32_t *IHIST_RESTRICT histogram) {
+    static_assert(
+        std::is_same_v<T const *, first_parameter_t<decltype(HistHimask)>>);
     constexpr std::size_t NBINS = 1 << BITS;
     using hist_array = std::array<std::uint32_t, NBINS>;
 
@@ -219,8 +238,8 @@ void hist_himask_mt(T const *IHIST_RESTRICT data, std::size_t size, T hi_mask,
     tbb::parallel_for(tbb::blocked_range<std::size_t>(0, size, grain_size),
                       [&](const tbb::blocked_range<std::size_t> &r) {
                           auto &h = local_hists.local();
-                          HistHiMasked(data + r.begin(), r.size(), hi_mask,
-                                       h.data());
+                          HistHimask(data + r.begin(), r.size(), hi_mask,
+                                     h.data());
                       });
 
     local_hists.combine_each([&](const hist_array &h) {
@@ -235,7 +254,7 @@ void hist_himask_mt(T const *IHIST_RESTRICT data, std::size_t size, T hi_mask,
 template <typename T, unsigned BITS = 8 * sizeof(T), unsigned LO_BIT = 0>
 void hist_unfiltered_naive_mt(T const *IHIST_RESTRICT data, std::size_t size,
                               std::uint32_t *IHIST_RESTRICT histogram) {
-    internal::hist_mt<T, hist_unfiltered_naive<T, BITS, LO_BIT>, BITS>(
+    internal::hist_mt<hist_unfiltered_naive<T, BITS, LO_BIT>, T, BITS>(
         data, size, histogram);
 }
 
@@ -243,14 +262,14 @@ template <std::size_t P, typename T, unsigned BITS = 8 * sizeof(T),
           unsigned LO_BIT = 0>
 void hist_unfiltered_striped_mt(T const *IHIST_RESTRICT data, std::size_t size,
                                 std::uint32_t *IHIST_RESTRICT histogram) {
-    internal::hist_mt<T, hist_unfiltered_striped<P, T, BITS, LO_BIT>, BITS>(
+    internal::hist_mt<hist_unfiltered_striped<P, T, BITS, LO_BIT>, T, BITS>(
         data, size, histogram);
 }
 
 template <typename T, unsigned BITS, unsigned LO_BIT = 0>
 void hist_himask_naive_mt(T const *IHIST_RESTRICT data, std::size_t size,
                           T hi_mask, std::uint32_t *IHIST_RESTRICT histogram) {
-    internal::hist_himask_mt<T, hist_himask_naive<T, BITS, LO_BIT>, BITS>(
+    internal::hist_himask_mt<hist_himask_naive<T, BITS, LO_BIT>, T, BITS>(
         data, size, hi_mask, histogram);
 }
 
@@ -258,7 +277,7 @@ template <std::size_t P, typename T, unsigned BITS, unsigned LO_BIT = 0>
 void hist_himask_striped_mt(T const *IHIST_RESTRICT data, std::size_t size,
                             T hi_mask,
                             std::uint32_t *IHIST_RESTRICT histogram) {
-    internal::hist_himask_mt<T, hist_himask_striped<P, T, BITS, LO_BIT>, BITS>(
+    internal::hist_himask_mt<hist_himask_striped<P, T, BITS, LO_BIT>, T, BITS>(
         data, size, hi_mask, histogram);
 }
 
