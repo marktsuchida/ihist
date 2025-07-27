@@ -85,19 +85,22 @@ void hist_unfiltered_naive(T const *IHIST_RESTRICT data, std::size_t size,
     }
 }
 
+namespace internal {
+
 template <typename T, unsigned BITS, unsigned LO_BIT = 0>
 void hist_himask_naive(T const *IHIST_RESTRICT data, std::size_t size,
                        T hi_mask, std::uint32_t *IHIST_RESTRICT histogram) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
     constexpr std::size_t MASKED_BIN = 1uLL << (BITS + LO_BIT);
     for (std::size_t i = 0; i < size; ++i) {
-        auto const bin =
-            internal::bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
+        auto const bin = bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
         if (bin != MASKED_BIN) {
             ++histogram[bin];
         }
     }
 }
+
+} // namespace internal
 
 template <typename T, unsigned BITS = 8 * sizeof(T), unsigned LO_BIT = 0>
 void hist_filtered_naive(T const *IHIST_RESTRICT data, std::size_t size,
@@ -105,7 +108,7 @@ void hist_filtered_naive(T const *IHIST_RESTRICT data, std::size_t size,
     if constexpr (BITS + LO_BIT == 8 * sizeof(T)) {
         hist_unfiltered_naive<T, BITS, LO_BIT>(data, size, histogram);
     } else {
-        hist_himask_naive<T, BITS, LO_BIT>(data, size, 0, histogram);
+        internal::hist_himask_naive<T, BITS, LO_BIT>(data, size, 0, histogram);
     }
 }
 
@@ -138,6 +141,8 @@ void hist_unfiltered_striped(T const *IHIST_RESTRICT data, std::size_t size,
     }
 }
 
+namespace internal {
+
 template <std::size_t P, typename T, unsigned BITS, unsigned LO_BIT = 0>
 void hist_himask_striped(T const *IHIST_RESTRICT data, std::size_t size,
                          T hi_mask, std::uint32_t *IHIST_RESTRICT histogram) {
@@ -153,8 +158,7 @@ void hist_himask_striped(T const *IHIST_RESTRICT data, std::size_t size,
 #pragma unroll
     for (std::size_t i = 0; i < size; ++i) {
         auto const lane = i & (NLANES - 1);
-        auto const bin =
-            internal::bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
+        auto const bin = bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
         if (bin != MASKED_BIN) {
             ++hists[lane * NBINS + bin];
         }
@@ -169,6 +173,8 @@ void hist_himask_striped(T const *IHIST_RESTRICT data, std::size_t size,
     }
 }
 
+} // namespace internal
+
 template <std::size_t P, typename T, unsigned BITS = 8 * sizeof(T),
           unsigned LO_BIT = 0>
 void hist_filtered_striped(T const *IHIST_RESTRICT data, std::size_t size,
@@ -176,7 +182,8 @@ void hist_filtered_striped(T const *IHIST_RESTRICT data, std::size_t size,
     if constexpr (BITS + LO_BIT == 8 * sizeof(T)) {
         hist_unfiltered_striped<P, T, BITS, LO_BIT>(data, size, histogram);
     } else {
-        hist_himask_striped<P, T, BITS, LO_BIT>(data, size, 0, histogram);
+        internal::hist_himask_striped<P, T, BITS, LO_BIT>(data, size, 0,
+                                                          histogram);
     }
 }
 
@@ -266,10 +273,12 @@ void hist_unfiltered_striped_mt(T const *IHIST_RESTRICT data, std::size_t size,
         data, size, histogram);
 }
 
+namespace internal {
+
 template <typename T, unsigned BITS, unsigned LO_BIT = 0>
 void hist_himask_naive_mt(T const *IHIST_RESTRICT data, std::size_t size,
                           T hi_mask, std::uint32_t *IHIST_RESTRICT histogram) {
-    internal::hist_himask_mt<hist_himask_naive<T, BITS, LO_BIT>, T, BITS>(
+    hist_himask_mt<hist_himask_naive<T, BITS, LO_BIT>, T, BITS>(
         data, size, hi_mask, histogram);
 }
 
@@ -277,9 +286,11 @@ template <std::size_t P, typename T, unsigned BITS, unsigned LO_BIT = 0>
 void hist_himask_striped_mt(T const *IHIST_RESTRICT data, std::size_t size,
                             T hi_mask,
                             std::uint32_t *IHIST_RESTRICT histogram) {
-    internal::hist_himask_mt<hist_himask_striped<P, T, BITS, LO_BIT>, T, BITS>(
+    hist_himask_mt<hist_himask_striped<P, T, BITS, LO_BIT>, T, BITS>(
         data, size, hi_mask, histogram);
 }
+
+} // namespace internal
 
 template <typename T, unsigned BITS = 8 * sizeof(T), unsigned LO_BIT = 0>
 void hist_filtered_naive_mt(T const *IHIST_RESTRICT data, std::size_t size,
@@ -287,7 +298,8 @@ void hist_filtered_naive_mt(T const *IHIST_RESTRICT data, std::size_t size,
     if constexpr (BITS + LO_BIT == 8 * sizeof(T)) {
         hist_unfiltered_naive_mt<T, BITS, LO_BIT>(data, size, histogram);
     } else {
-        hist_himask_naive_mt<T, BITS, LO_BIT>(data, size, 0, histogram);
+        internal::hist_himask_naive_mt<T, BITS, LO_BIT>(data, size, 0,
+                                                        histogram);
     }
 }
 
@@ -298,7 +310,8 @@ void hist_filtered_striped_mt(T const *IHIST_RESTRICT data, std::size_t size,
     if constexpr (BITS + LO_BIT == 8 * sizeof(T)) {
         hist_unfiltered_striped_mt<P, T, BITS, LO_BIT>(data, size, histogram);
     } else {
-        hist_himask_striped_mt<P, T, BITS, LO_BIT>(data, size, 0, histogram);
+        internal::hist_himask_striped_mt<P, T, BITS, LO_BIT>(data, size, 0,
+                                                             histogram);
     }
 }
 
