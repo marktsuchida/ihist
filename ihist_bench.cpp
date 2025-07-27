@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -19,7 +20,7 @@ template <typename T, unsigned BITS = 8 * sizeof(T)>
 auto generate_gaussian_data(std::size_t count, double stddev)
     -> std::vector<T> {
     static_assert(std::is_unsigned_v<T>);
-    T const maximum = T(1uLL << BITS) - 1;
+    T const maximum = (1uLL << BITS) - 1;
     T const mean = maximum / 2;
 
     std::mt19937 engine;
@@ -29,7 +30,7 @@ auto generate_gaussian_data(std::size_t count, double stddev)
     data.resize(count);
     std::generate(data.begin(), data.end(), [&] {
         for (;;) {
-            double v = dist(engine);
+            double v = std::round(dist(engine));
             if (v >= 0.0 && v <= maximum) {
                 return static_cast<T>(v);
             }
