@@ -81,7 +81,8 @@ void hist_unfiltered_naive(T const *IHIST_RESTRICT data, std::size_t size,
                            std::uint32_t *IHIST_RESTRICT histogram) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
     for (std::size_t i = 0; i < size; ++i) {
-        ++histogram[internal::bin_index<T, BITS, LO_BIT>(data[i])];
+        auto const bin = internal::bin_index<T, BITS, LO_BIT>(data[i]);
+        ++histogram[bin];
     }
 }
 
@@ -91,7 +92,7 @@ template <typename T, unsigned BITS, unsigned LO_BIT = 0>
 void hist_himask_naive(T const *IHIST_RESTRICT data, std::size_t size,
                        T hi_mask, std::uint32_t *IHIST_RESTRICT histogram) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
-    constexpr std::size_t MASKED_BIN = 1uLL << (BITS + LO_BIT);
+    constexpr std::size_t MASKED_BIN = 1uLL << BITS;
     for (std::size_t i = 0; i < size; ++i) {
         auto const bin = bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
         if (bin != MASKED_BIN) {
@@ -129,7 +130,8 @@ void hist_unfiltered_striped(T const *IHIST_RESTRICT data, std::size_t size,
 #pragma unroll
     for (std::size_t i = 0; i < size; ++i) {
         auto const lane = i & (NLANES - 1);
-        ++hists[lane * NBINS + internal::bin_index<T, BITS, LO_BIT>(data[i])];
+        auto const bin = internal::bin_index<T, BITS, LO_BIT>(data[i]);
+        ++hists[lane * NBINS + bin];
     }
 
     for (std::size_t bin = 0; bin < NBINS; ++bin) {
@@ -149,7 +151,7 @@ void hist_himask_striped(T const *IHIST_RESTRICT data, std::size_t size,
     static_assert(P < 16, "P should not be too big");
     constexpr std::size_t NLANES = 1 << P;
     constexpr std::size_t NBINS = 1 << BITS;
-    constexpr std::size_t MASKED_BIN = 1uLL << (BITS + LO_BIT);
+    constexpr std::size_t MASKED_BIN = 1uLL << BITS;
 
     assert(size < std::numeric_limits<std::uint32_t>::max());
 

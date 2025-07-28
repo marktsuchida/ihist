@@ -22,10 +22,15 @@ tbb_dir := 'oneTBB-' + tbb_version
 build-tbb BUILD_TYPE:
     #!/usr/bin/env sh
     set -e
+    CMAKE_CXX_FLAGS=''
     case {{BUILD_TYPE}} in
         "release") CMAKE_BUILD_TYPE=Release;;
         "debugoptimized") CMAKE_BUILD_TYPE=RelWithDebInfo;;
         "debug") CMAKE_BUILD_TYPE=Debug;;
+        "sanitize")
+            CMAKE_BUILD_TYPE=DEBUG
+            CMAKE_CXX_FLAGS='-fsanitize=address -fsanitize=undefined'
+            ;;
         *) echo "Unknown build type: {{BUILD_TYPE}}" >&2; return 1;;
     esac
     mkdir -p dependencies
@@ -40,6 +45,7 @@ build-tbb BUILD_TYPE:
     cmake -G Ninja -S . -B build \
       -DCMAKE_INSTALL_PREFIX="$(pwd)/../oneTBB-{{BUILD_TYPE}}" \
       -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
+      -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" \
       -DBUILD_SHARED_LIBS=OFF \
       -DTBB_TEST=OFF \
       -DTBBMALLOC_BUILD=OFF \
@@ -50,10 +56,18 @@ clean-tbb:
     rm -rf dependencies/oneTBB-*
 
 configure BUILD_TYPE *FLAGS:
-    if [ ! -d dependencies/oneTBB-{{BUILD_TYPE}} ]; then \
-        just build-tbb {{BUILD_TYPE}}; fi
+    #!/usr/bin/env sh
+    if [ ! -d dependencies/oneTBB-{{BUILD_TYPE}} ]; then
+        just build-tbb {{BUILD_TYPE}}
+    fi
+    BUILD_TYPE={{BUILD_TYPE}}
+    SANITIZE_FLAGS="-Db_sanitize=none -Db_lundef=true"
+    if [ "$BUILD_TYPE" = "sanitize" ]; then
+        BUILD_TYPE=debug
+        SANITIZE_FLAGS="-Db_sanitize=address,undefined -Db_lundef=false"
+    fi
     meson setup --reconfigure builddir \
-        --buildtype={{BUILD_TYPE}} \
+        --buildtype=$BUILD_TYPE $SANITIZE_FLAGS \
         --pkg-config-path=dependencies/oneTBB-Release/lib/pkgconfig \
         -Dcatch2:tests=false -Dgoogle-benchmark:tests=disabled \
         {{FLAGS}}

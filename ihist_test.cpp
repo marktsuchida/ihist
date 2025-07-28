@@ -111,9 +111,8 @@ TEMPLATE_TEST_CASE("empty-data", "", std::uint8_t, std::uint16_t) {
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     std::array<std::uint32_t, NBINS> hist{};
     hist_func(nullptr, 0, hist.data());
-    for (std::size_t i = 0; i < NBINS; ++i) {
-        REQUIRE(hist[i] == 0);
-    }
+    std::array<std::uint32_t, NBINS> ref{};
+    CHECK(hist == ref);
 }
 
 TEMPLATE_TEST_CASE("const-data", "", std::uint8_t, std::uint16_t) {
@@ -131,21 +130,62 @@ TEMPLATE_TEST_CASE("const-data", "", std::uint8_t, std::uint16_t) {
                                     hist_unfiltered_striped_mt<4, TestType>);
 
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
-    std::array<std::uint32_t, NBINS> hist{};
     std::size_t size = GENERATE(1, 7, 1000);
     TestType value = GENERATE(0, 1, NBINS - 1);
     CAPTURE(size, value);
 
     std::vector<TestType> data(size, value);
+    std::array<std::uint32_t, NBINS> hist{};
     hist_func(data.data(), data.size(), hist.data());
-    for (std::size_t i = 0; i < NBINS; ++i) {
-        if (i == value) {
-            CHECK(hist[i] == size);
-        } else {
-            CHECK(hist[i] == 0);
-        }
+    std::array<std::uint32_t, NBINS> ref{};
+    ref[value] = size;
+    CHECK(hist == ref);
+}
+
+namespace internal {
+
+TEMPLATE_TEST_CASE("const-data-himask-discard-low", "", std::uint8_t,
+                   std::uint16_t) {
+    constexpr auto BITS = 8 * sizeof(TestType) / 2;
+    constexpr auto LO_BIT = BITS / 2;
+    auto const hist_func =
+        GENERATE(hist_himask_naive<TestType, BITS, LO_BIT>,
+                 hist_himask_striped<0, TestType, BITS, LO_BIT>,
+                 hist_himask_striped<1, TestType, BITS, LO_BIT>,
+                 hist_himask_striped<2, TestType, BITS, LO_BIT>,
+                 hist_himask_naive_mt<TestType, BITS, LO_BIT>,
+                 hist_himask_striped_mt<0, TestType, BITS, LO_BIT>,
+                 hist_himask_striped_mt<1, TestType, BITS, LO_BIT>,
+                 hist_himask_striped_mt<2, TestType, BITS, LO_BIT>);
+
+    constexpr auto NBINS = 1 << BITS;
+    std::size_t size = GENERATE(1, 7, 100);
+    TestType lo_bits = GENERATE(0, 1, (1 << LO_BIT) - 1);
+    TestType sample = GENERATE(0, 1, NBINS - 1);
+    TestType hi_bits =
+        GENERATE(0, 1, (1 << (8 * sizeof(TestType) - (BITS + LO_BIT))) - 1);
+    TestType value = ((((hi_bits) << BITS) | sample) << LO_BIT) | lo_bits;
+    CAPTURE(size, hi_bits, sample, lo_bits, value);
+
+    std::vector<TestType> data(size, value);
+
+    SECTION("matching-hi-mask") {
+        std::array<std::uint32_t, NBINS> hist{};
+        hist_func(data.data(), data.size(), hi_bits, hist.data());
+        std::array<std::uint32_t, NBINS> ref{};
+        ref[sample] = size;
+        CHECK(hist == ref);
+    }
+
+    SECTION("non-matching-hi-mask") {
+        std::array<std::uint32_t, NBINS> hist{};
+        hist_func(data.data(), data.size(), hi_bits + 1, hist.data());
+        std::array<std::uint32_t, NBINS> ref{};
+        CHECK(hist == ref);
     }
 }
+
+} // namespace internal
 
 TEMPLATE_TEST_CASE("random-data", "", std::uint8_t, std::uint16_t) {
     auto const hist_func = GENERATE(hist_unfiltered_naive<TestType>,
@@ -163,12 +203,12 @@ TEMPLATE_TEST_CASE("random-data", "", std::uint8_t, std::uint16_t) {
     auto const ref_func = hist_unfiltered_naive<TestType>;
 
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
-    auto const data = test_data<TestType>(1 << (22 - sizeof(TestType)));
+    auto const data = test_data<TestType>(1 << (20 - sizeof(TestType)));
     std::array<std::uint32_t, NBINS> hist{};
     hist_func(data.data(), data.size(), hist.data());
     std::array<std::uint32_t, NBINS> ref{};
     ref_func(data.data(), data.size(), ref.data());
-    assert(hist == ref);
+    CHECK(hist == ref);
 }
 
 TEMPLATE_TEST_CASE("random-data-clean-filtered", "", std::uint8_t,
@@ -182,12 +222,12 @@ TEMPLATE_TEST_CASE("random-data-clean-filtered", "", std::uint8_t,
 
     constexpr auto NBINS = 1 << BITS;
     // Test with 4/12-bit data with no spurious high bits:
-    auto const data = test_data<TestType, BITS>(1 << (22 - sizeof(TestType)));
+    auto const data = test_data<TestType, BITS>(1 << (20 - sizeof(TestType)));
     std::array<std::uint32_t, NBINS> hist{};
     hist_func(data.data(), data.size(), hist.data());
     std::array<std::uint32_t, NBINS> ref{};
     ref_func(data.data(), data.size(), ref.data());
-    assert(hist == ref);
+    CHECK(hist == ref);
 }
 
 TEMPLATE_TEST_CASE("random-data-unclean-filtered", "", std::uint8_t,
@@ -203,7 +243,7 @@ TEMPLATE_TEST_CASE("random-data-unclean-filtered", "", std::uint8_t,
 
     // Test with 6/14-bit data, exceeding the histogram range:
     auto const data =
-        test_data<TestType, BITS + 2>(1 << (22 - sizeof(TestType)));
+        test_data<TestType, BITS + 2>(1 << (20 - sizeof(TestType)));
 
     // Cleaned data (limited to values in 4/12-bit range) should produce same
     // result as hi_to_match=0.
@@ -219,7 +259,7 @@ TEMPLATE_TEST_CASE("random-data-unclean-filtered", "", std::uint8_t,
     hist_func(data.data(), data.size(), hist.data());
     std::array<std::uint32_t, NBINS> ref{};
     ref_func(clean_data.data(), clean_data.size(), ref.data());
-    assert(hist == ref);
+    CHECK(hist == ref);
 }
 
-} // namespace ihist::test
+} // namespace ihist
