@@ -88,13 +88,11 @@ wipe:
 test: _configure_if_not_configured
     meson test -C builddir
 
+[positional-arguments]
 benchmark *FLAGS: build test
     builddir/ihist_bench --benchmark_time_unit=us \
         --benchmark_counters_tabular=true \
-        {{FLAGS}}
-
-benchmark-only REGEXP:
-    just benchmark --benchmark_filter={{quote(REGEXP)}}
+        "$@"
 
 benchmark-set-baseline: build test
     cp builddir/ihist_bench builddir/ihist_bench_baseline

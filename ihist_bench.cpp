@@ -112,6 +112,9 @@ BENCHMARK(hist_gauss<u16, hist_unfiltered_naive<u16>>)
 BENCHMARK(hist_gauss<u16, hist_unfiltered_striped<2, u16>>)
     ->ArgsProduct({stddevs<16>, data_sizes<u16>});
 
+BENCHMARK(hist_gauss<u16, hist_unfiltered_radixpartition<8, u16>>)
+    ->ArgsProduct({stddevs<16>, data_sizes<u16>});
+
 BENCHMARK(hist_gauss<u16, hist_unfiltered_naive_mt<u16>>)
     ->ArgsProduct({stddevs<16>, data_sizes<u16>});
 

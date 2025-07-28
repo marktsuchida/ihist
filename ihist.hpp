@@ -189,6 +189,83 @@ void hist_filtered_striped(T const *IHIST_RESTRICT data, std::size_t size,
     }
 }
 
+template <std::size_t R, typename T, unsigned BITS = 8 * sizeof(T),
+          unsigned LO_BIT = 0>
+void hist_unfiltered_radixmultipass(T const *IHIST_RESTRICT data,
+                                    std::size_t size,
+                                    std::uint32_t *IHIST_RESTRICT histogram) {
+    static_assert(BITS + LO_BIT <= 8 * sizeof(T));
+    static_assert(LO_BIT < 8 * sizeof(T));
+    static_assert(R > 0);
+    static_assert(R < BITS);
+    constexpr std::size_t N_HI_BINS = 1 << (BITS - R);
+    assert(size <= std::numeric_limits<std::uint32_t>::max());
+
+    for (std::size_t hi = 0; hi < N_HI_BINS; ++hi) {
+        // TODO Selectable func. Consider passing in a class template via
+        // template template parameter, from which the function (pointer) can
+        // be obtained.
+        internal::hist_himask_striped<3, T, R, LO_BIT>(
+            data, size, hi, histogram + hi * (1 << R));
+    }
+}
+
+// Split BITS into (BITS - R) high bits and R low bits; partition the latter by
+// the former.
+template <std::size_t R, typename T, unsigned BITS = 8 * sizeof(T),
+          unsigned LO_BIT = 0>
+void hist_unfiltered_radixpartition(T const *IHIST_RESTRICT data,
+                                    std::size_t size,
+                                    std::uint32_t *IHIST_RESTRICT histogram) {
+    static_assert(BITS + LO_BIT <= 8 * sizeof(T));
+    static_assert(LO_BIT < 8 * sizeof(T));
+    static_assert(R > 0);
+    static_assert(R < BITS);
+    constexpr std::size_t N_HI_BINS = 1 << (BITS - R);
+    assert(size <= std::numeric_limits<std::uint32_t>::max());
+
+    using hihist_array = std::array<std::uint32_t, N_HI_BINS>;
+    hihist_array const hi_counts = [&] {
+        hihist_array h{};
+        // TODO Selectable func
+        hist_unfiltered_striped<3, T, BITS - R, R + LO_BIT>(data, size,
+                                                            h.data());
+        return h;
+    }();
+
+    hihist_array const offsets = [&] {
+        hihist_array o;
+        o[0] = 0;
+        for (std::size_t i = 1; i < N_HI_BINS; ++i) {
+            o[i] = o[i - 1] + hi_counts[i - 1];
+        }
+        return o;
+    }();
+
+    constexpr T LO_MASK = (1 << R) - 1;
+    static_assert(R <= 16); // For now, at least.
+    using U = std::conditional_t<(R <= 8), std::uint8_t, std::uint16_t>;
+
+    auto partitioned = std::vector<U>(size);
+    hihist_array cur_offsets(offsets);
+#pragma unroll
+    for (std::size_t i = 0; i < size; ++i) {
+        T const hi = data[i] >> (R + LO_BIT);
+        T const lo = (data[i] >> LO_BIT) & LO_MASK;
+        partitioned[cur_offsets[hi]++] = lo;
+    }
+
+    for (std::size_t hi = 0; hi < N_HI_BINS; ++hi) {
+        std::size_t const start = offsets[hi];
+        std::size_t const count = hi_counts[hi];
+        if (count == 0) // TODO Use fallback wrapper instead
+            continue;
+        // TODO Selectable func
+        hist_unfiltered_striped<3, U, R>(partitioned.data() + start, count,
+                                         histogram + hi * (1 << R));
+    }
+}
+
 namespace internal {
 
 template <typename T> struct first_parameter;
@@ -256,6 +333,18 @@ void hist_himask_mt(T const *IHIST_RESTRICT data, std::size_t size, T hi_mask,
             histogram[bin] += h[bin];
         }
     });
+}
+
+template <auto Hist, typename T,
+          std::size_t CHUNK_SIZE = (1 << 12) / sizeof(T)>
+void hist_chunked(T const *IHIST_RESTRICT data, std::size_t size,
+                  std::uint32_t *IHIST_RESTRICT histogram) {
+    static_assert(
+        std::is_same_v<T const *, first_parameter_t<decltype(Hist)>>);
+    for (std::size_t i = 0; i < size; i += CHUNK_SIZE) {
+        auto const siz = std::min(CHUNK_SIZE, size - i);
+        Hist(data + i, siz, histogram);
+    }
 }
 
 } // namespace internal
