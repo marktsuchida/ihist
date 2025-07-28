@@ -20,8 +20,8 @@ tbb_tgz := 'oneapi-tbb-' + tbb_version + '.tar.gz'
 tbb_dir := 'oneTBB-' + tbb_version
 
 build-tbb BUILD_TYPE:
-    #!/usr/bin/env sh
-    set -e
+    #!/usr/bin/env bash
+    set -euxo pipefail
     CMAKE_CXX_FLAGS=''
     case {{BUILD_TYPE}} in
         "release") CMAKE_BUILD_TYPE=Release;;
@@ -50,13 +50,14 @@ build-tbb BUILD_TYPE:
       -DTBB_TEST=OFF \
       -DTBBMALLOC_BUILD=OFF \
       -DTBBMALLOC_PROXY_BUILD=OFF
-    cmake --build build --target install >/dev/null
+    cmake --build build --target install
 
 clean-tbb:
     rm -rf dependencies/oneTBB-*
 
 configure BUILD_TYPE *FLAGS:
-    #!/usr/bin/env sh
+    #!/usr/bin/env bash
+    set -euxo pipefail
     if [ ! -d dependencies/oneTBB-{{BUILD_TYPE}} ]; then
         just build-tbb {{BUILD_TYPE}}
     fi
@@ -68,7 +69,7 @@ configure BUILD_TYPE *FLAGS:
     fi
     meson setup --reconfigure builddir \
         --buildtype=$BUILD_TYPE $SANITIZE_FLAGS \
-        --pkg-config-path=dependencies/oneTBB-Release/lib/pkgconfig \
+        --pkg-config-path=dependencies/oneTBB-{{BUILD_TYPE}}/lib/pkgconfig \
         -Dcatch2:tests=false -Dgoogle-benchmark:tests=disabled \
         {{FLAGS}}
 
@@ -99,7 +100,8 @@ benchmark-set-baseline: build test
 
 [positional-arguments]
 _benchmark-compare *ARGS:
-    #!/usr/bin/env sh
+    #!/usr/bin/env bash
+    set -euxo pipefail
     GB_VERSION=$(meson introspect --dependencies builddir |jq -r \
         '.[] | select(.meson_variables[]? == "benchmark_dep") | .version')
     GB_TOOLS=subprojects/benchmark-$GB_VERSION/tools
