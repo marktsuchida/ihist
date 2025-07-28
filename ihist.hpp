@@ -126,8 +126,10 @@ void hist_unfiltered_striped(T const *IHIST_RESTRICT data, std::size_t size,
 
     std::vector<std::uint32_t> hists(NLANES * NBINS, 0);
 
-    // The #pragma unroll makes a big difference on Apple M1. TODO Others?
+#if defined(__APPLE__) && defined(__aarch64__)
+// Improves performance on Apple M1:
 #pragma unroll
+#endif
     for (std::size_t i = 0; i < size; ++i) {
         auto const lane = i & (NLANES - 1);
         auto const bin = internal::bin_index<T, BITS, LO_BIT>(data[i]);
@@ -157,7 +159,10 @@ void hist_himask_striped(T const *IHIST_RESTRICT data, std::size_t size,
 
     std::vector<std::uint32_t> hists(NLANES * NBINS, 0);
 
+#if defined(__APPLE__) && defined(__aarch64__)
+// Improves performance on Apple M1:
 #pragma unroll
+#endif
     for (std::size_t i = 0; i < size; ++i) {
         auto const lane = i & (NLANES - 1);
         auto const bin = bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
