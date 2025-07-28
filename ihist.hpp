@@ -136,6 +136,9 @@ void hist_unfiltered_striped(T const *IHIST_RESTRICT data, std::size_t size,
         ++hists[lane * NBINS + bin];
     }
 
+    // Clang and GCC typically vectorize this loop. Making the lane the outer
+    // loop (and bin the inner loop) appears to have either a negative or
+    // negligible/unpredictable effect on performance, for most cases.
     for (std::size_t bin = 0; bin < NBINS; ++bin) {
         std::uint32_t sum = 0;
         for (std::size_t lane = 0; lane < NLANES; ++lane) {
@@ -171,6 +174,9 @@ void hist_himask_striped(T const *IHIST_RESTRICT data, std::size_t size,
         }
     }
 
+    // Clang and GCC typically vectorize this loop. Making the lane the outer
+    // loop (and bin the inner loop) appears to have either a negative or
+    // negligible/unpredictable effect on performance, for most cases.
     for (std::size_t bin = 0; bin < NBINS; ++bin) {
         std::uint32_t sum = 0;
         for (std::size_t lane = 0; lane < NLANES; ++lane) {
