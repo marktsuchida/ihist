@@ -122,7 +122,7 @@ void hist_naive_impl(T const *IHIST_RESTRICT data, std::size_t size, T hi_mask,
                     ++component_hist[bin];
                 }
             } else {
-                auto const bin = internal::bin_index<T, BITS, LO_BIT>(data[i]);
+                auto const bin = bin_index<T, BITS, LO_BIT>(data[i]);
                 ++component_hist[bin];
             }
         }
@@ -174,7 +174,7 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
                     ++component_lanes[lane * NBINS + bin];
                 }
             } else {
-                auto const bin = internal::bin_index<T, BITS, LO_BIT>(data[i]);
+                auto const bin = bin_index<T, BITS, LO_BIT>(data[i]);
                 ++component_lanes[lane * NBINS + bin];
             }
         }
