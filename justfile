@@ -69,7 +69,7 @@ configure BUILD_TYPE *FLAGS:
     fi
     meson setup --reconfigure builddir \
         --buildtype=$BUILD_TYPE $SANITIZE_FLAGS \
-        --pkg-config-path=dependencies/oneTBB-{{BUILD_TYPE}}/lib/pkgconfig \
+        --pkg-config-path='{{justfile_directory()}}/dependencies/oneTBB-{{BUILD_TYPE}}/lib/pkgconfig' \
         -Dcatch2:tests=false -Dgoogle-benchmark:tests=disabled \
         {{FLAGS}}
 
