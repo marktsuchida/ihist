@@ -95,18 +95,18 @@ TEST_CASE("bin_index_himask-mid-bits") {
 } // namespace internal
 
 TEMPLATE_TEST_CASE("empty-data", "", std::uint8_t, std::uint16_t) {
-    auto const hist_func = GENERATE(
-        hist_unfiltered_naive<TestType>, hist_unfiltered_striped<0, TestType>,
-        hist_unfiltered_striped<1, TestType>,
-        hist_unfiltered_striped<2, TestType>,
-        hist_unfiltered_striped<3, TestType>,
-        hist_unfiltered_striped<4, TestType>,
-        hist_unfiltered_naive_mt<TestType>,
-        hist_unfiltered_striped_mt<0, TestType>,
-        hist_unfiltered_striped_mt<1, TestType>,
-        hist_unfiltered_striped_mt<2, TestType>,
-        hist_unfiltered_striped_mt<3, TestType>,
-        hist_unfiltered_striped_mt<4, TestType>);
+    auto const hist_func = GENERATE(hist_unfiltered_naive_st<TestType>,
+                                    hist_unfiltered_striped_st<0, TestType>,
+                                    hist_unfiltered_striped_st<1, TestType>,
+                                    hist_unfiltered_striped_st<2, TestType>,
+                                    hist_unfiltered_striped_st<3, TestType>,
+                                    hist_unfiltered_striped_st<4, TestType>,
+                                    hist_unfiltered_naive_mt<TestType>,
+                                    hist_unfiltered_striped_mt<0, TestType>,
+                                    hist_unfiltered_striped_mt<1, TestType>,
+                                    hist_unfiltered_striped_mt<2, TestType>,
+                                    hist_unfiltered_striped_mt<3, TestType>,
+                                    hist_unfiltered_striped_mt<4, TestType>);
 
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     std::array<std::uint32_t, NBINS> hist{};
@@ -116,18 +116,18 @@ TEMPLATE_TEST_CASE("empty-data", "", std::uint8_t, std::uint16_t) {
 }
 
 TEMPLATE_TEST_CASE("const-data", "", std::uint8_t, std::uint16_t) {
-    auto const hist_func = GENERATE(
-        hist_unfiltered_naive<TestType>, hist_unfiltered_striped<0, TestType>,
-        hist_unfiltered_striped<1, TestType>,
-        hist_unfiltered_striped<2, TestType>,
-        hist_unfiltered_striped<3, TestType>,
-        hist_unfiltered_striped<4, TestType>,
-        hist_unfiltered_naive_mt<TestType>,
-        hist_unfiltered_striped_mt<0, TestType>,
-        hist_unfiltered_striped_mt<1, TestType>,
-        hist_unfiltered_striped_mt<2, TestType>,
-        hist_unfiltered_striped_mt<3, TestType>,
-        hist_unfiltered_striped_mt<4, TestType>);
+    auto const hist_func = GENERATE(hist_unfiltered_naive_st<TestType>,
+                                    hist_unfiltered_striped_st<0, TestType>,
+                                    hist_unfiltered_striped_st<1, TestType>,
+                                    hist_unfiltered_striped_st<2, TestType>,
+                                    hist_unfiltered_striped_st<3, TestType>,
+                                    hist_unfiltered_striped_st<4, TestType>,
+                                    hist_unfiltered_naive_mt<TestType>,
+                                    hist_unfiltered_striped_mt<0, TestType>,
+                                    hist_unfiltered_striped_mt<1, TestType>,
+                                    hist_unfiltered_striped_mt<2, TestType>,
+                                    hist_unfiltered_striped_mt<3, TestType>,
+                                    hist_unfiltered_striped_mt<4, TestType>);
 
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     std::size_t size = GENERATE(1, 7, 1000);
@@ -150,9 +150,9 @@ TEMPLATE_TEST_CASE("const-data-himask-discard-low", "", std::uint8_t,
     constexpr auto LO_BIT = BITS / 2;
     auto const hist_func =
         GENERATE(hist_himask_naive<TestType, BITS, LO_BIT>,
-                 hist_himask_striped<0, TestType, BITS, LO_BIT>,
-                 hist_himask_striped<1, TestType, BITS, LO_BIT>,
-                 hist_himask_striped<2, TestType, BITS, LO_BIT>,
+                 hist_himask_striped_st<0, TestType, BITS, LO_BIT>,
+                 hist_himask_striped_st<1, TestType, BITS, LO_BIT>,
+                 hist_himask_striped_st<2, TestType, BITS, LO_BIT>,
                  hist_himask_naive_mt<TestType, BITS, LO_BIT>,
                  hist_himask_striped_mt<0, TestType, BITS, LO_BIT>,
                  hist_himask_striped_mt<1, TestType, BITS, LO_BIT>,
@@ -188,19 +188,19 @@ TEMPLATE_TEST_CASE("const-data-himask-discard-low", "", std::uint8_t,
 } // namespace internal
 
 TEMPLATE_TEST_CASE("random-data", "", std::uint8_t, std::uint16_t) {
-    auto const hist_func = GENERATE(
-        hist_unfiltered_naive<TestType>, hist_unfiltered_striped<0, TestType>,
-        hist_unfiltered_striped<1, TestType>,
-        hist_unfiltered_striped<2, TestType>,
-        hist_unfiltered_striped<3, TestType>,
-        hist_unfiltered_striped<4, TestType>,
-        hist_unfiltered_naive_mt<TestType>,
-        hist_unfiltered_striped_mt<0, TestType>,
-        hist_unfiltered_striped_mt<1, TestType>,
-        hist_unfiltered_striped_mt<2, TestType>,
-        hist_unfiltered_striped_mt<3, TestType>,
-        hist_unfiltered_striped_mt<4, TestType>);
-    auto const ref_func = hist_unfiltered_naive<TestType>;
+    auto const hist_func = GENERATE(hist_unfiltered_naive_st<TestType>,
+                                    hist_unfiltered_striped_st<0, TestType>,
+                                    hist_unfiltered_striped_st<1, TestType>,
+                                    hist_unfiltered_striped_st<2, TestType>,
+                                    hist_unfiltered_striped_st<3, TestType>,
+                                    hist_unfiltered_striped_st<4, TestType>,
+                                    hist_unfiltered_naive_mt<TestType>,
+                                    hist_unfiltered_striped_mt<0, TestType>,
+                                    hist_unfiltered_striped_mt<1, TestType>,
+                                    hist_unfiltered_striped_mt<2, TestType>,
+                                    hist_unfiltered_striped_mt<3, TestType>,
+                                    hist_unfiltered_striped_mt<4, TestType>);
+    auto const ref_func = hist_unfiltered_naive_st<TestType>;
 
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     auto const data = test_data<TestType>(1 << (20 - sizeof(TestType)));
@@ -214,11 +214,11 @@ TEMPLATE_TEST_CASE("random-data", "", std::uint8_t, std::uint16_t) {
 TEMPLATE_TEST_CASE("random-data-clean-filtered", "", std::uint8_t,
                    std::uint16_t) {
     constexpr auto BITS = 8 * sizeof(TestType) - 4;
-    auto hist_func = GENERATE(hist_filtered_naive<TestType, BITS>,
-                              hist_filtered_striped<2, TestType, BITS>,
+    auto hist_func = GENERATE(hist_filtered_naive_st<TestType, BITS>,
+                              hist_filtered_striped_st<2, TestType, BITS>,
                               hist_filtered_naive_mt<TestType, BITS>,
                               hist_filtered_striped_mt<2, TestType, BITS>);
-    auto ref_func = hist_unfiltered_naive<TestType, BITS>;
+    auto ref_func = hist_unfiltered_naive_st<TestType, BITS>;
 
     constexpr auto NBINS = 1 << BITS;
     // Test with 4/12-bit data with no spurious high bits:
@@ -234,16 +234,16 @@ TEMPLATE_TEST_CASE("random-data-clean-discard-low", "", std::uint8_t,
                    std::uint16_t) {
     constexpr auto BITS = 8 * sizeof(TestType) / 2;
     constexpr auto LO_BIT = BITS / 2;
-    auto hist_func = GENERATE(
-        hist_filtered_naive<TestType, BITS, LO_BIT>,
-        hist_filtered_striped<2, TestType, BITS, LO_BIT>,
-        hist_filtered_naive_mt<TestType, BITS, LO_BIT>,
-        hist_filtered_striped_mt<2, TestType, BITS, LO_BIT>,
-        hist_unfiltered_naive<TestType, BITS, LO_BIT>,
-        hist_unfiltered_striped<2, TestType, BITS, LO_BIT>,
-        hist_unfiltered_naive_mt<TestType, BITS, LO_BIT>,
-        hist_unfiltered_striped_mt<2, TestType, BITS, LO_BIT>);
-    auto ref_func = hist_unfiltered_naive<TestType, BITS, LO_BIT>;
+    auto hist_func =
+        GENERATE(hist_filtered_naive_st<TestType, BITS, LO_BIT>,
+                 hist_filtered_striped_st<2, TestType, BITS, LO_BIT>,
+                 hist_filtered_naive_mt<TestType, BITS, LO_BIT>,
+                 hist_filtered_striped_mt<2, TestType, BITS, LO_BIT>,
+                 hist_unfiltered_naive_st<TestType, BITS, LO_BIT>,
+                 hist_unfiltered_striped_st<2, TestType, BITS, LO_BIT>,
+                 hist_unfiltered_naive_mt<TestType, BITS, LO_BIT>,
+                 hist_unfiltered_striped_mt<2, TestType, BITS, LO_BIT>);
+    auto ref_func = hist_unfiltered_naive_st<TestType, BITS, LO_BIT>;
 
     constexpr auto NBINS = 1 << BITS;
     // Test with 6/12-bit data with no spurious high bits (but random low
@@ -260,11 +260,11 @@ TEMPLATE_TEST_CASE("random-data-clean-discard-low", "", std::uint8_t,
 TEMPLATE_TEST_CASE("random-data-unclean-filtered", "", std::uint8_t,
                    std::uint16_t) {
     constexpr auto BITS = 8 * sizeof(TestType) - 4;
-    auto hist_func = GENERATE(hist_filtered_naive<TestType, BITS>,
-                              hist_filtered_striped<2, TestType, BITS>,
+    auto hist_func = GENERATE(hist_filtered_naive_st<TestType, BITS>,
+                              hist_filtered_striped_st<2, TestType, BITS>,
                               hist_filtered_naive_mt<TestType, BITS>,
                               hist_filtered_striped_mt<2, TestType, BITS>);
-    auto ref_func = hist_unfiltered_naive<TestType, BITS>;
+    auto ref_func = hist_unfiltered_naive_st<TestType, BITS>;
 
     constexpr auto NBINS = 1 << BITS;
 
