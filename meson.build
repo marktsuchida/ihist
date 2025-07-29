@@ -26,15 +26,15 @@ onetbb_dep = dependency(
 catch2_with_main_dep = dependency(
     'catch2-with-main',
     allow_fallback: true,
-    disabler: true,
     include_type: 'system',
+    static: true,
 )
 
 benchmark_dep = dependency(
     'benchmark',
     allow_fallback: true,
-    disabler: true,
     include_type: 'system',
+    static: true,
 )
 
 dependencies = [
