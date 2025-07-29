@@ -70,261 +70,30 @@ using u16 = std::uint16_t;
 
 } // namespace
 
-BENCHMARK(hist_gauss<u8, hist_unfiltered_striped_st<0, u8>>)
-    ->Name("8b-striped0-st")
-    ->ArgsProduct({stddevs<8>, data_sizes<u8>});
+#define HIST_BENCH(bits, filt, T, P, threading)                               \
+    BENCHMARK(hist_gauss<T, hist_##filt##_striped_##threading<P, T>>)         \
+        ->Name(#bits "b-" #T "-" #filt "-striped" #P "-" #threading)          \
+        ->ArgsProduct({stddevs<bits>, data_sizes<T>});
 
-BENCHMARK(hist_gauss<u8, hist_unfiltered_striped_st<1, u8>>)
-    ->Name("8b-striped1-st")
-    ->ArgsProduct({stddevs<8>, data_sizes<u8>});
+#define HIST_BENCH_SET(bits, filt, T)                                         \
+    HIST_BENCH(bits, filt, T, 0, st)                                          \
+    HIST_BENCH(bits, filt, T, 1, st)                                          \
+    HIST_BENCH(bits, filt, T, 2, st)                                          \
+    HIST_BENCH(bits, filt, T, 3, st)                                          \
+    HIST_BENCH(bits, filt, T, 0, mt)                                          \
+    HIST_BENCH(bits, filt, T, 1, mt)                                          \
+    HIST_BENCH(bits, filt, T, 2, mt)                                          \
+    HIST_BENCH(bits, filt, T, 3, mt)
 
-BENCHMARK(hist_gauss<u8, hist_unfiltered_striped_st<2, u8>>)
-    ->Name("8b-striped2-st")
-    ->ArgsProduct({stddevs<8>, data_sizes<u8>});
-
-BENCHMARK(hist_gauss<u8, hist_unfiltered_striped_st<3, u8>>)
-    ->Name("8b-striped3-st")
-    ->ArgsProduct({stddevs<8>, data_sizes<u8>});
-
-BENCHMARK(hist_gauss<u8, hist_unfiltered_striped_mt<0, u8>>)
-    ->Name("8b-striped0-mt")
-    ->ArgsProduct({stddevs<8>, data_sizes<u8>});
-
-BENCHMARK(hist_gauss<u8, hist_unfiltered_striped_mt<1, u8>>)
-    ->Name("8b-striped1-mt")
-    ->ArgsProduct({stddevs<8>, data_sizes<u8>});
-
-BENCHMARK(hist_gauss<u8, hist_unfiltered_striped_mt<2, u8>>)
-    ->Name("8b-striped2-mt")
-    ->ArgsProduct({stddevs<8>, data_sizes<u8>});
-
-BENCHMARK(hist_gauss<u8, hist_unfiltered_striped_mt<3, u8>>)
-    ->Name("8b-striped3-mt")
-    ->ArgsProduct({stddevs<8>, data_sizes<u8>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_st<0, u16, 9>, 9>)
-    ->Name("9b-unfiltered-striped0-st")
-    ->ArgsProduct({stddevs<9>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_st<1, u16, 9>, 9>)
-    ->Name("9b-unfiltered-striped1-st")
-    ->ArgsProduct({stddevs<9>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_st<2, u16, 9>, 9>)
-    ->Name("9b-unfiltered-striped2-st")
-    ->ArgsProduct({stddevs<9>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_st<3, u16, 9>, 9>)
-    ->Name("9b-unfiltered-striped3-st")
-    ->ArgsProduct({stddevs<9>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_mt<0, u16, 9>, 9>)
-    ->Name("9b-unfiltered-striped0-mt")
-    ->ArgsProduct({stddevs<9>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_mt<1, u16, 9>, 9>)
-    ->Name("9b-unfiltered-striped1-mt")
-    ->ArgsProduct({stddevs<9>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_mt<2, u16, 9>, 9>)
-    ->Name("9b-unfiltered-striped2-mt")
-    ->ArgsProduct({stddevs<9>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_mt<3, u16, 9>, 9>)
-    ->Name("9b-unfiltered-striped3-mt")
-    ->ArgsProduct({stddevs<9>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_st<0, u16, 9>, 9>)
-    ->Name("9b-filtered-striped0-st")
-    ->ArgsProduct({stddevs<9>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_st<1, u16, 9>, 9>)
-    ->Name("9b-filtered-striped1-st")
-    ->ArgsProduct({stddevs<9>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_st<2, u16, 9>, 9>)
-    ->Name("9b-filtered-striped2-st")
-    ->ArgsProduct({stddevs<9>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_st<3, u16, 9>, 9>)
-    ->Name("9b-filtered-striped3-st")
-    ->ArgsProduct({stddevs<9>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_mt<0, u16, 9>, 9>)
-    ->Name("9b-filtered-striped0-mt")
-    ->ArgsProduct({stddevs<9>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_mt<1, u16, 9>, 9>)
-    ->Name("9b-filtered-striped1-mt")
-    ->ArgsProduct({stddevs<9>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_mt<2, u16, 9>, 9>)
-    ->Name("9b-filtered-striped2-mt")
-    ->ArgsProduct({stddevs<9>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_mt<3, u16, 9>, 9>)
-    ->Name("9b-filtered-striped3-mt")
-    ->ArgsProduct({stddevs<9>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_st<0, u16, 12>, 12>)
-    ->Name("12b-unfiltered-striped0-st")
-    ->ArgsProduct({stddevs<12>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_st<1, u16, 12>, 12>)
-    ->Name("12b-unfiltered-striped1-st")
-    ->ArgsProduct({stddevs<12>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_st<2, u16, 12>, 12>)
-    ->Name("12b-unfiltered-striped2-st")
-    ->ArgsProduct({stddevs<12>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_st<3, u16, 12>, 12>)
-    ->Name("12b-unfiltered-striped3-st")
-    ->ArgsProduct({stddevs<12>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_mt<0, u16, 12>, 12>)
-    ->Name("12b-unfiltered-striped0-mt")
-    ->ArgsProduct({stddevs<12>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_mt<1, u16, 12>, 12>)
-    ->Name("12b-unfiltered-striped1-mt")
-    ->ArgsProduct({stddevs<12>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_mt<2, u16, 12>, 12>)
-    ->Name("12b-unfiltered-striped2-mt")
-    ->ArgsProduct({stddevs<12>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_mt<3, u16, 12>, 12>)
-    ->Name("12b-unfiltered-striped3-mt")
-    ->ArgsProduct({stddevs<12>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_st<0, u16, 12>, 12>)
-    ->Name("12b-filtered-striped0-st")
-    ->ArgsProduct({stddevs<12>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_st<1, u16, 12>, 12>)
-    ->Name("12b-filtered-striped1-st")
-    ->ArgsProduct({stddevs<12>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_st<2, u16, 12>, 12>)
-    ->Name("12b-filtered-striped2-st")
-    ->ArgsProduct({stddevs<12>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_st<3, u16, 12>, 12>)
-    ->Name("12b-filtered-striped3-st")
-    ->ArgsProduct({stddevs<12>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_mt<0, u16, 12>, 12>)
-    ->Name("12b-filtered-striped0-mt")
-    ->ArgsProduct({stddevs<12>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_mt<1, u16, 12>, 12>)
-    ->Name("12b-filtered-striped1-mt")
-    ->ArgsProduct({stddevs<12>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_mt<2, u16, 12>, 12>)
-    ->Name("12b-filtered-striped2-mt")
-    ->ArgsProduct({stddevs<12>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_mt<3, u16, 12>, 12>)
-    ->Name("12b-filtered-striped3-mt")
-    ->ArgsProduct({stddevs<12>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_st<0, u16, 14>, 14>)
-    ->Name("14b-unfiltered-striped0-st")
-    ->ArgsProduct({stddevs<14>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_st<1, u16, 14>, 14>)
-    ->Name("14b-unfiltered-striped1-st")
-    ->ArgsProduct({stddevs<14>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_st<2, u16, 14>, 14>)
-    ->Name("14b-unfiltered-striped2-st")
-    ->ArgsProduct({stddevs<14>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_st<3, u16, 14>, 14>)
-    ->Name("14b-unfiltered-striped3-st")
-    ->ArgsProduct({stddevs<14>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_mt<0, u16, 14>, 14>)
-    ->Name("14b-unfiltered-striped0-mt")
-    ->ArgsProduct({stddevs<14>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_mt<1, u16, 14>, 14>)
-    ->Name("14b-unfiltered-striped1-mt")
-    ->ArgsProduct({stddevs<14>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_mt<2, u16, 14>, 14>)
-    ->Name("14b-unfiltered-striped2-mt")
-    ->ArgsProduct({stddevs<14>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_mt<3, u16, 14>, 14>)
-    ->Name("14b-unfiltered-striped3-mt")
-    ->ArgsProduct({stddevs<14>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_st<0, u16, 14>, 14>)
-    ->Name("14b-filtered-striped0-st")
-    ->ArgsProduct({stddevs<14>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_st<1, u16, 14>, 14>)
-    ->Name("14b-filtered-striped1-st")
-    ->ArgsProduct({stddevs<14>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_st<2, u16, 14>, 14>)
-    ->Name("14b-filtered-striped2-st")
-    ->ArgsProduct({stddevs<14>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_st<3, u16, 14>, 14>)
-    ->Name("14b-filtered-striped3-st")
-    ->ArgsProduct({stddevs<14>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_mt<0, u16, 14>, 14>)
-    ->Name("14b-filtered-striped0-mt")
-    ->ArgsProduct({stddevs<14>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_mt<1, u16, 14>, 14>)
-    ->Name("14b-filtered-striped1-mt")
-    ->ArgsProduct({stddevs<14>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_mt<2, u16, 14>, 14>)
-    ->Name("14b-filtered-striped2-mt")
-    ->ArgsProduct({stddevs<14>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_filtered_striped_mt<3, u16, 14>, 14>)
-    ->Name("14b-filtered-striped3-mt")
-    ->ArgsProduct({stddevs<14>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_st<0, u16>>)
-    ->Name("16b-striped0-st")
-    ->ArgsProduct({stddevs<16>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_st<1, u16>>)
-    ->Name("16b-striped1-st")
-    ->ArgsProduct({stddevs<16>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_st<2, u16>>)
-    ->Name("16b-striped2-st")
-    ->ArgsProduct({stddevs<16>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_st<3, u16>>)
-    ->Name("16b-striped3-st")
-    ->ArgsProduct({stddevs<16>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_mt<0, u16>>)
-    ->Name("16b-striped0-mt")
-    ->ArgsProduct({stddevs<16>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_mt<1, u16>>)
-    ->Name("16b-striped1-mt")
-    ->ArgsProduct({stddevs<16>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_mt<2, u16>>)
-    ->Name("16b-striped2-mt")
-    ->ArgsProduct({stddevs<16>, data_sizes<u16>});
-
-BENCHMARK(hist_gauss<u16, hist_unfiltered_striped_mt<3, u16>>)
-    ->Name("16b-striped3-mt")
-    ->ArgsProduct({stddevs<16>, data_sizes<u16>});
+HIST_BENCH_SET(8, unfiltered, u8)
+HIST_BENCH_SET(8, unfiltered, u16)
+HIST_BENCH_SET(9, unfiltered, u16)
+HIST_BENCH_SET(9, filtered, u16)
+HIST_BENCH_SET(12, unfiltered, u16)
+HIST_BENCH_SET(12, filtered, u16)
+HIST_BENCH_SET(14, unfiltered, u16)
+HIST_BENCH_SET(14, filtered, u16)
+HIST_BENCH_SET(16, unfiltered, u16)
 
 } // namespace ihist::bench
 
