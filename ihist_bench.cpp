@@ -51,6 +51,9 @@ void hist_gauss(benchmark::State &state) {
     }
     state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) * size *
                             sizeof(T));
+    state.counters["pixels_per_second"] =
+        benchmark::Counter(static_cast<int64_t>(state.iterations()) * size,
+                           benchmark::Counter::kIsRate);
 }
 
 // A standard deviation of 0 produces constant data, and a large one closely
