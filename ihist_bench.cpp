@@ -74,7 +74,8 @@ using u16 = std::uint16_t;
 } // namespace
 
 #define HIST_BENCH(bits, filt, T, P, threading)                               \
-    BENCHMARK(hist_gauss<T, hist_##filt##_striped_##threading<P, T>>)         \
+    BENCHMARK(                                                                \
+        hist_gauss<T, hist_##filt##_striped_##threading<P, T, bits>, bits>)   \
         ->Name(#bits "b-" #T "-" #filt "-striped" #P "-" #threading)          \
         ->ArgsProduct({stddevs<bits>, data_sizes<T>});
 
