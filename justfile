@@ -69,7 +69,7 @@ configure BUILD_TYPE *FLAGS:
     fi
     meson setup --reconfigure builddir \
         --buildtype=$BUILD_TYPE $SANITIZE_FLAGS \
-        --pkg-config-path='{{justfile_directory()}}/dependencies/oneTBB-{{BUILD_TYPE}}/lib/pkgconfig' \
+        --cmake-prefix-path='{{justfile_directory()}}/dependencies/oneTBB-{{BUILD_TYPE}}/lib/cmake' \
         -Dcatch2:tests=false -Dgoogle-benchmark:tests=disabled \
         {{FLAGS}}
 
