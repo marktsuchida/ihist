@@ -192,89 +192,12 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
     }
 }
 
-template <std::size_t P, typename T, unsigned BITS, unsigned LO_BIT,
-          bool HI_MASK, std::size_t STRIDE, bool... COMPONENTS>
-void hist_batchstriped_impl(T const *IHIST_RESTRICT data, std::size_t size,
-                            T hi_mask,
-                            std::uint32_t *IHIST_RESTRICT histogram) {
-    assert(size < std::numeric_limits<std::uint32_t>::max());
-    assert(size % STRIDE == 0);
-
-    // 4 * 2^P needs to comfortably fit in L1D cache.
-    static_assert(P < 16, "P should not be too big");
-    constexpr std::size_t NLANES = 1 << P;
-    constexpr std::size_t NBINS = 1 << BITS;
-    constexpr std::array<bool, STRIDE> component_mask{COMPONENTS...};
-    constexpr std::array<std::size_t, STRIDE> component_indices =
-        make_component_indices(component_mask);
-    constexpr std::size_t NCOMPONENTS = component_count(component_mask);
-
-    std::vector<std::uint8_t> hists(NCOMPONENTS * NLANES * NBINS, 0);
-
-    bool is_full = false;
-    for (std::size_t i = 0; i < size; i += STRIDE) {
-        for (std::size_t offset = 0; offset < STRIDE; ++offset) {
-            if (not component_mask[offset]) {
-                continue;
-            }
-            auto const lane = i & (NLANES - 1);
-            auto const component = component_indices[offset];
-            auto *const component_lanes =
-                hists.data() + component * NLANES * NBINS;
-            if constexpr (HI_MASK) {
-                auto const bin =
-                    bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
-                if (bin != NBINS) {
-                    ++component_lanes[lane * NBINS + bin];
-                    if (component_lanes[lane * NBINS + bin] == 255) {
-                        is_full = true;
-                    }
-                }
-            } else {
-                auto const bin = bin_index<T, BITS, LO_BIT>(data[i]);
-                ++component_lanes[lane * NBINS + bin];
-                if (component_lanes[lane * NBINS + bin] == 255) {
-                    is_full = true;
-                }
-            }
-        }
-        if (is_full) {
-            for (std::size_t bin = 0; bin < NBINS; ++bin) {
-                std::uint32_t sum = 0;
-                for (std::size_t lane = 0; lane < NCOMPONENTS * NLANES;
-                     ++lane) {
-                    sum += hists[lane * NBINS + bin];
-                    hists[lane * NBINS + bin] = 0;
-                }
-                histogram[bin] += sum;
-            }
-            is_full = false;
-        }
-    }
-
-    for (std::size_t bin = 0; bin < NBINS; ++bin) {
-        std::uint32_t sum = 0;
-        for (std::size_t lane = 0; lane < NCOMPONENTS * NLANES; ++lane) {
-            sum += hists[lane * NBINS + bin];
-        }
-        histogram[bin] += sum;
-    }
-}
-
 template <std::size_t P, typename T, unsigned BITS, unsigned LO_BIT = 0>
 void hist_himask_striped_st(T const *IHIST_RESTRICT data, std::size_t size,
                             T hi_mask,
                             std::uint32_t *IHIST_RESTRICT histogram) {
     hist_striped_impl<P, T, BITS, LO_BIT, true, 1, true>(data, size, hi_mask,
                                                          histogram);
-}
-
-template <std::size_t P, typename T, unsigned BITS, unsigned LO_BIT = 0>
-void hist_himask_batchstriped_st(T const *IHIST_RESTRICT data,
-                                 std::size_t size, T hi_mask,
-                                 std::uint32_t *IHIST_RESTRICT histogram) {
-    hist_batchstriped_impl<P, T, BITS, LO_BIT, true, 1, true>(
-        data, size, hi_mask, histogram);
 }
 
 } // namespace internal
@@ -313,29 +236,6 @@ void hist_filtered_striped_st(T const *IHIST_RESTRICT data, std::size_t size,
     } else {
         internal::hist_himask_striped_st<P, T, BITS, LO_BIT>(data, size, 0,
                                                              histogram);
-    }
-}
-
-template <std::size_t P, typename T, unsigned BITS = 8 * sizeof(T),
-          unsigned LO_BIT = 0>
-void hist_unfiltered_batchstriped_st(T const *IHIST_RESTRICT data,
-                                     std::size_t size,
-                                     std::uint32_t *IHIST_RESTRICT histogram) {
-    internal::hist_batchstriped_impl<P, T, BITS, LO_BIT, false, 1, true>(
-        data, size, 0, histogram);
-}
-
-template <std::size_t P, typename T, unsigned BITS = 8 * sizeof(T),
-          unsigned LO_BIT = 0>
-void hist_filtered_batchstriped_st(T const *IHIST_RESTRICT data,
-                                   std::size_t size,
-                                   std::uint32_t *IHIST_RESTRICT histogram) {
-    if constexpr (BITS + LO_BIT == 8 * sizeof(T)) {
-        hist_unfiltered_batchstriped_st<P, T, BITS, LO_BIT>(data, size,
-                                                            histogram);
-    } else {
-        internal::hist_himask_batchstriped_st<P, T, BITS, LO_BIT>(
-            data, size, 0, histogram);
     }
 }
 
@@ -423,14 +323,6 @@ void hist_himask_striped_mt(T const *IHIST_RESTRICT data, std::size_t size,
         data, size, hi_mask, histogram);
 }
 
-template <std::size_t P, typename T, unsigned BITS, unsigned LO_BIT = 0>
-void hist_himask_batchstriped_mt(T const *IHIST_RESTRICT data,
-                                 std::size_t size, T hi_mask,
-                                 std::uint32_t *IHIST_RESTRICT histogram) {
-    hist_himask_mt<hist_himask_batchstriped_st<P, T, BITS, LO_BIT>, T, BITS>(
-        data, size, hi_mask, histogram);
-}
-
 } // namespace internal
 
 template <typename T, unsigned BITS = 8 * sizeof(T), unsigned LO_BIT = 0>
@@ -446,15 +338,6 @@ void hist_unfiltered_striped_mt(T const *IHIST_RESTRICT data, std::size_t size,
                                 std::uint32_t *IHIST_RESTRICT histogram) {
     internal::hist_mt<hist_unfiltered_striped_st<P, T, BITS, LO_BIT>, T, BITS>(
         data, size, histogram);
-}
-
-template <std::size_t P, typename T, unsigned BITS = 8 * sizeof(T),
-          unsigned LO_BIT = 0>
-void hist_unfiltered_batchstriped_mt(T const *IHIST_RESTRICT data,
-                                     std::size_t size,
-                                     std::uint32_t *IHIST_RESTRICT histogram) {
-    internal::hist_mt<hist_unfiltered_batchstriped_st<P, T, BITS, LO_BIT>, T,
-                      BITS>(data, size, histogram);
 }
 
 template <typename T, unsigned BITS = 8 * sizeof(T), unsigned LO_BIT = 0>
@@ -477,20 +360,6 @@ void hist_filtered_striped_mt(T const *IHIST_RESTRICT data, std::size_t size,
     } else {
         internal::hist_himask_striped_mt<P, T, BITS, LO_BIT>(data, size, 0,
                                                              histogram);
-    }
-}
-
-template <std::size_t P, typename T, unsigned BITS = 8 * sizeof(T),
-          unsigned LO_BIT = 0>
-void hist_filtered_batchstriped_mt(T const *IHIST_RESTRICT data,
-                                   std::size_t size,
-                                   std::uint32_t *IHIST_RESTRICT histogram) {
-    if constexpr (BITS + LO_BIT == 8 * sizeof(T)) {
-        hist_unfiltered_batchstriped_mt<P, T, BITS, LO_BIT>(data, size,
-                                                            histogram);
-    } else {
-        internal::hist_himask_batchstriped_mt<P, T, BITS, LO_BIT>(
-            data, size, 0, histogram);
     }
 }
 

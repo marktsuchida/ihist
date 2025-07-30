@@ -79,30 +79,15 @@ using u16 = std::uint16_t;
         ->Name(#bits "b-" #T "-" #filt "-striped" #P "-" #threading)          \
         ->ArgsProduct({stddevs<bits>, data_sizes<T>});
 
-#define HIST_BENCH_BATCHSTRIPED(bits, filt, T, P, threading)                  \
-    BENCHMARK(                                                                \
-        hist_gauss<T, hist_##filt##_batchstriped_##threading<P, T, bits>,     \
-                   bits>)                                                     \
-        ->Name(#bits "b-" #T "-" #filt "-batchstriped" #P "-" #threading)     \
-        ->ArgsProduct({stddevs<bits>, data_sizes<T>});
-
 #define HIST_BENCH_SET(bits, filt, T)                                         \
     HIST_BENCH(bits, filt, T, 0, st)                                          \
     HIST_BENCH(bits, filt, T, 1, st)                                          \
     HIST_BENCH(bits, filt, T, 2, st)                                          \
     HIST_BENCH(bits, filt, T, 3, st)                                          \
-    HIST_BENCH_BATCHSTRIPED(bits, filt, T, 2, st)                             \
-    HIST_BENCH_BATCHSTRIPED(bits, filt, T, 3, st)                             \
-    HIST_BENCH_BATCHSTRIPED(bits, filt, T, 4, st)                             \
-    HIST_BENCH_BATCHSTRIPED(bits, filt, T, 5, st)                             \
     HIST_BENCH(bits, filt, T, 0, mt)                                          \
     HIST_BENCH(bits, filt, T, 1, mt)                                          \
     HIST_BENCH(bits, filt, T, 2, mt)                                          \
-    HIST_BENCH(bits, filt, T, 3, mt)                                          \
-    HIST_BENCH_BATCHSTRIPED(bits, filt, T, 2, mt)                             \
-    HIST_BENCH_BATCHSTRIPED(bits, filt, T, 3, mt)                             \
-    HIST_BENCH_BATCHSTRIPED(bits, filt, T, 4, mt)                             \
-    HIST_BENCH_BATCHSTRIPED(bits, filt, T, 5, mt)
+    HIST_BENCH(bits, filt, T, 3, mt)
 
 HIST_BENCH_SET(8, unfiltered, u8)
 HIST_BENCH_SET(8, unfiltered, u16)
