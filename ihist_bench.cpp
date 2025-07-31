@@ -23,6 +23,11 @@ auto generate_gaussian_data(std::size_t count, double stddev)
     T const maximum = (1uLL << BITS) - 1;
     T const mean = maximum / 2;
 
+    // std::normal_distribution requires stddev > 0.0
+    if (stddev == 0.0) {
+        return std::vector<T>(count, mean);
+    }
+
     std::mt19937 engine;
     std::normal_distribution<double> dist(static_cast<double>(mean), stddev);
 
