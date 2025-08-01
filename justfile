@@ -67,9 +67,17 @@ configure BUILD_TYPE *FLAGS:
         BUILD_TYPE=debug
         SANITIZE_FLAGS="-Db_sanitize=address,undefined -Db_lundef=false"
     fi
+    UNAME=$(uname -s)
+    if [[ "$UNAME" == MINGW* || "$UNAME" == MSYS* ]]; then
+        # The .pc file doesn't work on Windows.
+        TBB_CONFIG_OPT=--cmake-prefix-path='{{justfile_directory()}}/dependencies/oneTBB-{{BUILD_TYPE}}/lib/cmake'
+    else
+        # But CMake doesn't work on Linux, at least sometimes.
+        TBB_CONFIG_OPT=--pkg-config-path='{{justfile_directory()}}/dependencies/oneTBB-{{BUILD_TYPE}}/lib/pkgconfig'
+    fi
     meson setup --reconfigure builddir \
         --buildtype=$BUILD_TYPE $SANITIZE_FLAGS \
-        --cmake-prefix-path='{{justfile_directory()}}/dependencies/oneTBB-{{BUILD_TYPE}}/lib/cmake' \
+        $TBB_CONFIG_OPT \
         -Dcatch2:tests=false -Dgoogle-benchmark:tests=disabled \
         {{FLAGS}}
 
