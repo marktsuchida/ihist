@@ -114,16 +114,15 @@ void hist_naive_impl(T const *IHIST_RESTRICT data, std::size_t size, T hi_mask,
                 continue;
             }
             auto const component = component_indices[offset];
-            auto *const component_hist = histogram + component * NBINS;
             if constexpr (HI_MASK) {
                 auto const bin =
                     bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
                 if (bin != NBINS) {
-                    ++component_hist[bin];
+                    ++histogram[component * NBINS + bin];
                 }
             } else {
                 auto const bin = bin_index<T, BITS, LO_BIT>(data[i]);
-                ++component_hist[bin];
+                ++histogram[component * NBINS + bin];
             }
         }
     }
@@ -152,41 +151,37 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
         make_component_indices(component_mask);
     constexpr std::size_t NCOMPONENTS = component_count(component_mask);
 
-    std::vector<std::uint32_t> hists(NCOMPONENTS * NLANES * NBINS, 0);
+    std::vector<std::uint32_t> hists(NLANES * NCOMPONENTS * NBINS, 0);
 
 #if defined(__APPLE__) && defined(__aarch64__)
 // Improves performance on Apple M1:
 #pragma unroll
 #endif
     for (std::size_t i = 0; i < size; i += STRIDE) {
+        auto const lane = i & (NLANES - 1);
         for (std::size_t offset = 0; offset < STRIDE; ++offset) {
             if (not component_mask[offset]) {
                 continue;
             }
-            auto const lane = i & (NLANES - 1);
             auto const component = component_indices[offset];
-            auto *const component_lanes =
-                hists.data() + component * NLANES * NBINS;
             if constexpr (HI_MASK) {
                 auto const bin =
                     bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
                 if (bin != NBINS) {
-                    ++component_lanes[lane * NBINS + bin];
+                    ++hists[(lane * NCOMPONENTS + component) * NBINS + bin];
                 }
             } else {
                 auto const bin = bin_index<T, BITS, LO_BIT>(data[i]);
-                ++component_lanes[lane * NBINS + bin];
+                ++hists[(lane * NCOMPONENTS + component) * NBINS + bin];
             }
         }
     }
 
-    // Clang and GCC typically vectorize this loop. Making the lane the outer
-    // loop (and bin the inner loop) appears to have either a negative or
-    // negligible/unpredictable effect on performance, for most cases.
-    for (std::size_t bin = 0; bin < NBINS; ++bin) {
+    // Clang and GCC typically vectorize this loop.
+    for (std::size_t bin = 0; bin < NCOMPONENTS * NBINS; ++bin) {
         std::uint32_t sum = 0;
-        for (std::size_t lane = 0; lane < NCOMPONENTS * NLANES; ++lane) {
-            sum += hists[lane * NBINS + bin];
+        for (std::size_t lane = 0; lane < NLANES; ++lane) {
+            sum += hists[lane * NCOMPONENTS * NBINS + bin];
         }
         histogram[bin] += sum;
     }
