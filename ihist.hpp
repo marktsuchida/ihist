@@ -144,21 +144,21 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
 
     // 4 * 2^P needs to comfortably fit in L1D cache.
     static_assert(P < 16, "P should not be too big");
-    constexpr std::size_t NLANES = 1 << P;
+    constexpr std::size_t NSTRIPES = 1 << P;
     constexpr std::size_t NBINS = 1 << BITS;
     constexpr std::array<bool, STRIDE> component_mask{COMPONENTS...};
     constexpr std::array<std::size_t, STRIDE> component_indices =
         make_component_indices(component_mask);
     constexpr std::size_t NCOMPONENTS = component_count(component_mask);
 
-    std::vector<std::uint32_t> hists(NLANES * NCOMPONENTS * NBINS, 0);
+    std::vector<std::uint32_t> stripes(NSTRIPES * NCOMPONENTS * NBINS, 0);
 
 #if defined(__APPLE__) && defined(__aarch64__)
 // Improves performance on Apple M1:
 #pragma unroll
 #endif
     for (std::size_t i = 0; i < size; i += STRIDE) {
-        auto const lane = i & (NLANES - 1);
+        auto const stripe = i & (NSTRIPES - 1);
         for (std::size_t offset = 0; offset < STRIDE; ++offset) {
             if (not component_mask[offset]) {
                 continue;
@@ -168,11 +168,12 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
                 auto const bin =
                     bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
                 if (bin != NBINS) {
-                    ++hists[(lane * NCOMPONENTS + component) * NBINS + bin];
+                    ++stripes[(stripe * NCOMPONENTS + component) * NBINS +
+                              bin];
                 }
             } else {
                 auto const bin = bin_index<T, BITS, LO_BIT>(data[i]);
-                ++hists[(lane * NCOMPONENTS + component) * NBINS + bin];
+                ++stripes[(stripe * NCOMPONENTS + component) * NBINS + bin];
             }
         }
     }
@@ -180,8 +181,8 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
     // Clang and GCC typically vectorize this loop.
     for (std::size_t bin = 0; bin < NCOMPONENTS * NBINS; ++bin) {
         std::uint32_t sum = 0;
-        for (std::size_t lane = 0; lane < NLANES; ++lane) {
-            sum += hists[lane * NCOMPONENTS * NBINS + bin];
+        for (std::size_t stripe = 0; stripe < NSTRIPES; ++stripe) {
+            sum += stripes[stripe * NCOMPONENTS * NBINS + bin];
         }
         histogram[bin] += sum;
     }
