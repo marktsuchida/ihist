@@ -1,6 +1,8 @@
 help:
     @just --list
 
+exe_suffix := if os_family() == "windows" { ".exe" } else { "" }
+
 #
 # oneTBB static library
 #
@@ -104,7 +106,8 @@ benchmark *FLAGS: build test
         "$@"
 
 benchmark-set-baseline: build test
-    cp builddir/ihist_bench builddir/ihist_bench_baseline
+    cp builddir/ihist_bench{{exe_suffix}} \
+        builddir/ihist_bench_baseline{{exe_suffix}}
 
 [positional-arguments]
 _benchmark-compare *ARGS:
@@ -118,8 +121,9 @@ _benchmark-compare *ARGS:
 [positional-arguments]
 benchmark-compare *FLAGS: build test
     just _benchmark-compare benchmarks \
-        builddir/ihist_bench_baseline builddir/ihist_bench "$@"
+        builddir/ihist_bench_baseline{{exe_suffix}} \
+        builddir/ihist_bench{{exe_suffix}} "$@"
 
 [positional-arguments]
 benchmark-compare-filters FILTER1 FILTER2 *FLAGS: build test
-    just _benchmark-compare filters builddir/ihist_bench "$@"
+    just _benchmark-compare filters builddir/ihist_bench{{exe_suffix}} "$@"
