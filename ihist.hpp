@@ -111,13 +111,12 @@ template <typename T, unsigned BITS, unsigned LO_BIT, bool HI_MASK,
 void hist_naive_impl(T const *IHIST_RESTRICT data, std::size_t size, T hi_mask,
                      std::uint32_t *IHIST_RESTRICT histogram) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
-    assert(size % STRIDE == 0);
     constexpr std::size_t NBINS = 1uLL << BITS;
     constexpr std::array<bool, STRIDE> cmask{COMPONENTS...};
     constexpr std::size_t NCOMPONENTS = component_count<STRIDE>(cmask);
     constexpr std::array<std::size_t, NCOMPONENTS> offsets =
         component_offsets<STRIDE, NCOMPONENTS>(cmask);
-    for (std::size_t j = 0; j < size / STRIDE; ++j) {
+    for (std::size_t j = 0; j < size; ++j) {
         auto const i = j * STRIDE;
         for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
             auto const offset = offsets[c];
@@ -147,7 +146,6 @@ template <std::size_t P, typename T, unsigned BITS, unsigned LO_BIT,
 void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
                        T hi_mask, std::uint32_t *IHIST_RESTRICT histogram) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
-    assert(size % STRIDE == 0);
 
     // 4 * 2^P needs to comfortably fit in L1D cache.
     static_assert(P < 16, "P should not be too big");
@@ -164,7 +162,7 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
 // Improves performance on Apple M1:
 #pragma unroll
 #endif
-    for (std::size_t j = 0; j < size / STRIDE; ++j) {
+    for (std::size_t j = 0; j < size; ++j) {
         auto const stripe = j & (NSTRIPES - 1);
         auto const i = j * STRIDE;
         for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
