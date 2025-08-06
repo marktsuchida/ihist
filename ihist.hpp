@@ -138,20 +138,19 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
     std::size_t const n_remainder = size % BLOCKSIZE;
 
     for (std::size_t block = 0; block < n_blocks; ++block) {
-        for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
-            auto const i = (block * BLOCKSIZE + k) * STRIDE;
-            auto const stripe = k % NSTRIPES;
-            for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
-                auto const offset = offsets[c];
+        for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
+            auto const offset = offsets[c];
+            for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
+                auto const i = (block * BLOCKSIZE + k) * STRIDE + offset;
+                auto const stripe = k % NSTRIPES;
                 if constexpr (HI_MASK) {
-                    auto const bin = bin_index_himask<T, BITS, LO_BIT>(
-                        data[i + offset], hi_mask);
+                    auto const bin =
+                        bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
                     if (bin != NBINS) {
                         ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
                     }
                 } else {
-                    auto const bin =
-                        bin_index<T, BITS, LO_BIT>(data[i + offset]);
+                    auto const bin = bin_index<T, BITS, LO_BIT>(data[i]);
                     ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
                 }
             }
@@ -159,19 +158,19 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
     }
 
     // Leftover
-    for (std::size_t k = 0; k < n_remainder; ++k) {
-        auto const i = (n_blocks * BLOCKSIZE + k) * STRIDE;
-        auto const stripe = k % NSTRIPES;
-        for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
-            auto const offset = offsets[c];
+    for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
+        auto const offset = offsets[c];
+        for (std::size_t k = 0; k < n_remainder; ++k) {
+            auto const i = (n_blocks * BLOCKSIZE + k) * STRIDE + offset;
+            auto const stripe = k % NSTRIPES;
             if constexpr (HI_MASK) {
-                auto const bin = bin_index_himask<T, BITS, LO_BIT>(
-                    data[i + offset], hi_mask);
+                auto const bin =
+                    bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
                 if (bin != NBINS) {
                     ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
                 }
             } else {
-                auto const bin = bin_index<T, BITS, LO_BIT>(data[i + offset]);
+                auto const bin = bin_index<T, BITS, LO_BIT>(data[i]);
                 ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
             }
         }
