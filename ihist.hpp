@@ -74,28 +74,36 @@ constexpr auto bin_index_himask(T value, T hi_mask) -> std::size_t {
     return keep ? bin : MASKED_BIN;
 }
 
-template <std::size_t N>
-constexpr auto make_component_indices(std::array<bool, N> mask)
-    -> std::array<std::size_t, N> {
-    std::array<std::size_t, N> indices{};
-    std::size_t n = 0;
-    for (std::size_t i = 0; i < N; ++i) {
-        if (mask[i]) {
-            indices[i] = n++;
-        }
-    }
-    return indices;
-}
-
-template <std::size_t N>
-constexpr auto component_count(std::array<bool, N> mask) -> std::size_t {
+template <std::size_t STRIDE>
+constexpr auto component_count(std::array<bool, STRIDE> mask) -> std::size_t {
     std::size_t c = 0;
-    for (std::size_t i = 0; i < N; ++i) {
+    for (std::size_t i = 0; i < STRIDE; ++i) {
         if (mask[i]) {
             ++c;
         }
     }
     return c;
+}
+
+// Map component index to offset within stride; returned array may be
+// zero-padded if the stride is greater than component_count(mask).
+template <std::size_t STRIDE, std::size_t NCOMPONENTS>
+constexpr auto component_offsets(std::array<bool, STRIDE> mask)
+    -> std::array<std::size_t, NCOMPONENTS> {
+    std::array<std::size_t, NCOMPONENTS> offsets{};
+    std::size_t next_component = 0;
+    for (std::size_t offset = 0; offset < STRIDE; ++offset) {
+        if (mask[offset]) {
+            if (next_component >= NCOMPONENTS) {
+                throw;
+            }
+            offsets[next_component++] = offset;
+        }
+    }
+    if (next_component != NCOMPONENTS) {
+        throw; // Wrong NCOMPONENTS given.
+    }
+    return offsets;
 }
 
 template <typename T, unsigned BITS, unsigned LO_BIT, bool HI_MASK,
@@ -105,25 +113,23 @@ void hist_naive_impl(T const *IHIST_RESTRICT data, std::size_t size, T hi_mask,
     assert(size < std::numeric_limits<std::uint32_t>::max());
     assert(size % STRIDE == 0);
     constexpr std::size_t NBINS = 1uLL << BITS;
-    constexpr std::array<bool, STRIDE> component_mask{COMPONENTS...};
-    constexpr std::array<std::size_t, STRIDE> component_indices =
-        make_component_indices(component_mask);
+    constexpr std::array<bool, STRIDE> cmask{COMPONENTS...};
+    constexpr std::size_t NCOMPONENTS = component_count<STRIDE>(cmask);
+    constexpr std::array<std::size_t, NCOMPONENTS> offsets =
+        component_offsets<STRIDE, NCOMPONENTS>(cmask);
     for (std::size_t j = 0; j < size / STRIDE; ++j) {
         auto const i = j * STRIDE;
-        for (std::size_t offset = 0; offset < STRIDE; ++offset) {
-            if (not component_mask[offset]) {
-                continue;
-            }
-            auto const component = component_indices[offset];
+        for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
+            auto const offset = offsets[c];
             if constexpr (HI_MASK) {
                 auto const bin = bin_index_himask<T, BITS, LO_BIT>(
                     data[i + offset], hi_mask);
                 if (bin != NBINS) {
-                    ++histogram[component * NBINS + bin];
+                    ++histogram[c * NBINS + bin];
                 }
             } else {
                 auto const bin = bin_index<T, BITS, LO_BIT>(data[i + offset]);
-                ++histogram[component * NBINS + bin];
+                ++histogram[c * NBINS + bin];
             }
         }
     }
@@ -147,10 +153,10 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
     static_assert(P < 16, "P should not be too big");
     constexpr std::size_t NSTRIPES = 1 << P;
     constexpr std::size_t NBINS = 1 << BITS;
-    constexpr std::array<bool, STRIDE> component_mask{COMPONENTS...};
-    constexpr std::array<std::size_t, STRIDE> component_indices =
-        make_component_indices(component_mask);
-    constexpr std::size_t NCOMPONENTS = component_count(component_mask);
+    constexpr std::array<bool, STRIDE> cmask{COMPONENTS...};
+    constexpr std::size_t NCOMPONENTS = component_count<STRIDE>(cmask);
+    constexpr std::array<std::size_t, NCOMPONENTS> offsets =
+        component_offsets<STRIDE, NCOMPONENTS>(cmask);
 
     std::vector<std::uint32_t> stripes(NSTRIPES * NCOMPONENTS * NBINS, 0);
 
@@ -161,21 +167,17 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
     for (std::size_t j = 0; j < size / STRIDE; ++j) {
         auto const stripe = j & (NSTRIPES - 1);
         auto const i = j * STRIDE;
-        for (std::size_t offset = 0; offset < STRIDE; ++offset) {
-            if (not component_mask[offset]) {
-                continue;
-            }
-            auto const component = component_indices[offset];
+        for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
+            auto const offset = offsets[c];
             if constexpr (HI_MASK) {
                 auto const bin = bin_index_himask<T, BITS, LO_BIT>(
                     data[i + offset], hi_mask);
                 if (bin != NBINS) {
-                    ++stripes[(stripe * NCOMPONENTS + component) * NBINS +
-                              bin];
+                    ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
                 }
             } else {
                 auto const bin = bin_index<T, BITS, LO_BIT>(data[i + offset]);
-                ++stripes[(stripe * NCOMPONENTS + component) * NBINS + bin];
+                ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
             }
         }
     }

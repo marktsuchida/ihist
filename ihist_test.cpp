@@ -92,6 +92,33 @@ TEST_CASE("bin_index_himask-mid-bits") {
     STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0xffff, 0) == 256);
 }
 
+TEST_CASE("component_count") {
+    STATIC_CHECK(component_count<0>(std::array<bool, 0>{}) == 0);
+    STATIC_CHECK(component_count<1>(std::array{false}) == 0);
+    STATIC_CHECK(component_count<1>(std::array{true}) == 1);
+    STATIC_CHECK(component_count<2>(std::array{false, true}) == 1);
+    STATIC_CHECK(component_count<2>(std::array{true, false}) == 1);
+    STATIC_CHECK(component_count<2>(std::array{true, true}) == 2);
+    STATIC_CHECK(component_count<3>(std::array{true, true, true}) == 3);
+}
+
+TEST_CASE("component_offsets") {
+    // Cannot use STATIC_CHECK() because array operator== is not constexpr
+    // until C++20.
+    CHECK(component_offsets<0, 0>(std::array<bool, 0>{}) ==
+          std::array<std::size_t, 0>{});
+    CHECK(component_offsets<1, 0>(std::array{false}) ==
+          std::array<std::size_t, 0>{});
+    CHECK(component_offsets<1, 1>(std::array{true}) ==
+          std::array<std::size_t, 1>{0});
+    CHECK(component_offsets<2, 1>(std::array{false, true}) ==
+          std::array<std::size_t, 1>{1});
+    CHECK(component_offsets<2, 1>(std::array{true, false}) ==
+          std::array<std::size_t, 1>{0});
+    CHECK(component_offsets<2, 2>(std::array{true, true}) ==
+          std::array<std::size_t, 2>{0, 1});
+}
+
 } // namespace internal
 
 TEMPLATE_TEST_CASE("empty-data", "", std::uint8_t, std::uint16_t) {
