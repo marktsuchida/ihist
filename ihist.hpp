@@ -108,20 +108,21 @@ void hist_naive_impl(T const *IHIST_RESTRICT data, std::size_t size, T hi_mask,
     constexpr std::array<bool, STRIDE> component_mask{COMPONENTS...};
     constexpr std::array<std::size_t, STRIDE> component_indices =
         make_component_indices(component_mask);
-    for (std::size_t i = 0; i < size; i += STRIDE) {
+    for (std::size_t j = 0; j < size / STRIDE; ++j) {
+        auto const i = j * STRIDE;
         for (std::size_t offset = 0; offset < STRIDE; ++offset) {
             if (not component_mask[offset]) {
                 continue;
             }
             auto const component = component_indices[offset];
             if constexpr (HI_MASK) {
-                auto const bin =
-                    bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
+                auto const bin = bin_index_himask<T, BITS, LO_BIT>(
+                    data[i + offset], hi_mask);
                 if (bin != NBINS) {
                     ++histogram[component * NBINS + bin];
                 }
             } else {
-                auto const bin = bin_index<T, BITS, LO_BIT>(data[i]);
+                auto const bin = bin_index<T, BITS, LO_BIT>(data[i + offset]);
                 ++histogram[component * NBINS + bin];
             }
         }
@@ -157,22 +158,23 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
 // Improves performance on Apple M1:
 #pragma unroll
 #endif
-    for (std::size_t i = 0; i < size; i += STRIDE) {
-        auto const stripe = i & (NSTRIPES - 1);
+    for (std::size_t j = 0; j < size / STRIDE; ++j) {
+        auto const stripe = j & (NSTRIPES - 1);
+        auto const i = j * STRIDE;
         for (std::size_t offset = 0; offset < STRIDE; ++offset) {
             if (not component_mask[offset]) {
                 continue;
             }
             auto const component = component_indices[offset];
             if constexpr (HI_MASK) {
-                auto const bin =
-                    bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
+                auto const bin = bin_index_himask<T, BITS, LO_BIT>(
+                    data[i + offset], hi_mask);
                 if (bin != NBINS) {
                     ++stripes[(stripe * NCOMPONENTS + component) * NBINS +
                               bin];
                 }
             } else {
-                auto const bin = bin_index<T, BITS, LO_BIT>(data[i]);
+                auto const bin = bin_index<T, BITS, LO_BIT>(data[i + offset]);
                 ++stripes[(stripe * NCOMPONENTS + component) * NBINS + bin];
             }
         }
