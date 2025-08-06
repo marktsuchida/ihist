@@ -74,48 +74,19 @@ constexpr auto bin_index_himask(T value, T hi_mask) -> std::size_t {
     return keep ? bin : MASKED_BIN;
 }
 
-template <std::size_t STRIDE>
-constexpr auto component_count(std::array<bool, STRIDE> mask) -> std::size_t {
-    std::size_t c = 0;
-    for (std::size_t i = 0; i < STRIDE; ++i) {
-        if (mask[i]) {
-            ++c;
-        }
-    }
-    return c;
-}
-
-// Map component index to offset within stride; returned array may be
-// zero-padded if the stride is greater than component_count(mask).
-template <std::size_t STRIDE, std::size_t NCOMPONENTS>
-constexpr auto component_offsets(std::array<bool, STRIDE> mask)
-    -> std::array<std::size_t, NCOMPONENTS> {
-    std::array<std::size_t, NCOMPONENTS> offsets{};
-    std::size_t next_component = 0;
-    for (std::size_t offset = 0; offset < STRIDE; ++offset) {
-        if (mask[offset]) {
-            if (next_component >= NCOMPONENTS) {
-                throw;
-            }
-            offsets[next_component++] = offset;
-        }
-    }
-    if (next_component != NCOMPONENTS) {
-        throw; // Wrong NCOMPONENTS given.
-    }
-    return offsets;
-}
-
 template <typename T, unsigned BITS, unsigned LO_BIT, bool HI_MASK,
-          std::size_t STRIDE, bool... COMPONENTS>
+          std::size_t STRIDE, std::size_t... COMPONENT_OFFSETS>
 void hist_naive_impl(T const *IHIST_RESTRICT data, std::size_t size, T hi_mask,
                      std::uint32_t *IHIST_RESTRICT histogram) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
+
+    static_assert(std::max({COMPONENT_OFFSETS...}) < STRIDE);
+
     constexpr std::size_t NBINS = 1uLL << BITS;
-    constexpr std::array<bool, STRIDE> cmask{COMPONENTS...};
-    constexpr std::size_t NCOMPONENTS = component_count<STRIDE>(cmask);
-    constexpr std::array<std::size_t, NCOMPONENTS> offsets =
-        component_offsets<STRIDE, NCOMPONENTS>(cmask);
+    constexpr std::size_t NCOMPONENTS = sizeof...(COMPONENT_OFFSETS);
+    constexpr std::array<std::size_t, NCOMPONENTS> offsets{
+        COMPONENT_OFFSETS...};
+
     for (std::size_t j = 0; j < size; ++j) {
         auto const i = j * STRIDE;
         for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
@@ -137,24 +108,25 @@ void hist_naive_impl(T const *IHIST_RESTRICT data, std::size_t size, T hi_mask,
 template <typename T, unsigned BITS, unsigned LO_BIT = 0>
 void hist_himask_naive(T const *IHIST_RESTRICT data, std::size_t size,
                        T hi_mask, std::uint32_t *IHIST_RESTRICT histogram) {
-    hist_naive_impl<T, BITS, LO_BIT, true, 1, true>(data, size, hi_mask,
-                                                    histogram);
+    hist_naive_impl<T, BITS, LO_BIT, true, 1, 0>(data, size, hi_mask,
+                                                 histogram);
 }
 
 template <std::size_t P, typename T, unsigned BITS, unsigned LO_BIT,
-          bool HI_MASK, std::size_t STRIDE, bool... COMPONENTS>
+          bool HI_MASK, std::size_t STRIDE, std::size_t... COMPONENT_OFFSETS>
 void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
                        T hi_mask, std::uint32_t *IHIST_RESTRICT histogram) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
 
     // 4 * 2^P needs to comfortably fit in L1D cache.
     static_assert(P < 16, "P should not be too big");
+    static_assert(std::max({COMPONENT_OFFSETS...}) < STRIDE);
+
     constexpr std::size_t NSTRIPES = 1 << P;
     constexpr std::size_t NBINS = 1 << BITS;
-    constexpr std::array<bool, STRIDE> cmask{COMPONENTS...};
-    constexpr std::size_t NCOMPONENTS = component_count<STRIDE>(cmask);
-    constexpr std::array<std::size_t, NCOMPONENTS> offsets =
-        component_offsets<STRIDE, NCOMPONENTS>(cmask);
+    constexpr std::size_t NCOMPONENTS = sizeof...(COMPONENT_OFFSETS);
+    constexpr std::array<std::size_t, NCOMPONENTS> offsets{
+        COMPONENT_OFFSETS...};
 
     std::vector<std::uint32_t> stripes(NSTRIPES * NCOMPONENTS * NBINS, 0);
 
@@ -194,8 +166,8 @@ template <std::size_t P, typename T, unsigned BITS, unsigned LO_BIT = 0>
 void hist_himask_striped_st(T const *IHIST_RESTRICT data, std::size_t size,
                             T hi_mask,
                             std::uint32_t *IHIST_RESTRICT histogram) {
-    hist_striped_impl<P, T, BITS, LO_BIT, true, 1, true>(data, size, hi_mask,
-                                                         histogram);
+    hist_striped_impl<P, T, BITS, LO_BIT, true, 1, 0>(data, size, hi_mask,
+                                                      histogram);
 }
 
 } // namespace internal
@@ -203,8 +175,8 @@ void hist_himask_striped_st(T const *IHIST_RESTRICT data, std::size_t size,
 template <typename T, unsigned BITS = 8 * sizeof(T), unsigned LO_BIT = 0>
 void hist_unfiltered_naive_st(T const *IHIST_RESTRICT data, std::size_t size,
                               std::uint32_t *IHIST_RESTRICT histogram) {
-    internal::hist_naive_impl<T, BITS, LO_BIT, false, 1, true>(data, size, 0,
-                                                               histogram);
+    internal::hist_naive_impl<T, BITS, LO_BIT, false, 1, 0>(data, size, 0,
+                                                            histogram);
 }
 
 template <typename T, unsigned BITS = 8 * sizeof(T), unsigned LO_BIT = 0>
@@ -221,8 +193,8 @@ template <std::size_t P, typename T, unsigned BITS = 8 * sizeof(T),
           unsigned LO_BIT = 0>
 void hist_unfiltered_striped_st(T const *IHIST_RESTRICT data, std::size_t size,
                                 std::uint32_t *IHIST_RESTRICT histogram) {
-    internal::hist_striped_impl<P, T, BITS, LO_BIT, false, 1, true>(
-        data, size, 0, histogram);
+    internal::hist_striped_impl<P, T, BITS, LO_BIT, false, 1, 0>(data, size, 0,
+                                                                 histogram);
 }
 
 template <std::size_t P, typename T, unsigned BITS = 8 * sizeof(T),
