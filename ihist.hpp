@@ -146,9 +146,9 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
                 if constexpr (HI_MASK) {
                     auto const bin =
                         bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
-                    if (bin != NBINS) {
-                        ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
-                    }
+                    auto const b = bin % NBINS;
+                    stripes[(stripe * NCOMPONENTS + c) * NBINS + b] +=
+                        (bin != NBINS);
                 } else {
                     auto const bin = bin_index<T, BITS, LO_BIT>(data[i]);
                     ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
@@ -166,9 +166,9 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
             if constexpr (HI_MASK) {
                 auto const bin =
                     bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
-                if (bin != NBINS) {
-                    ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
-                }
+                auto const b = bin % NBINS;
+                stripes[(stripe * NCOMPONENTS + c) * NBINS + b] +=
+                    (bin != NBINS);
             } else {
                 auto const bin = bin_index<T, BITS, LO_BIT>(data[i]);
                 ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
