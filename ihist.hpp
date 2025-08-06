@@ -138,19 +138,28 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
     std::size_t const n_remainder = size % BLOCKSIZE;
 
     for (std::size_t block = 0; block < n_blocks; ++block) {
+        // Note: This computes bins for unused components, too.
+        std::array<std::size_t, BLOCKSIZE> bins;
+        for (std::size_t n = 0; n < BLOCKSIZE * STRIDE; ++n) {
+            if constexpr (HI_MASK) {
+                bins[n] = bin_index_himask<T, BITS, LO_BIT>(
+                    data[block * BLOCKSIZE * STRIDE + n], hi_mask);
+            } else {
+                bins[n] = bin_index<T, BITS, LO_BIT>(
+                    data[block * BLOCKSIZE * STRIDE + n]);
+            }
+        }
+
         for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
             auto const offset = offsets[c];
             for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
-                auto const i = (block * BLOCKSIZE + k) * STRIDE + offset;
                 auto const stripe = k % NSTRIPES;
+                auto const bin = bins[k * STRIDE + offset];
                 if constexpr (HI_MASK) {
-                    auto const bin =
-                        bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
                     auto const b = bin % NBINS;
                     stripes[(stripe * NCOMPONENTS + c) * NBINS + b] +=
                         (bin != NBINS);
                 } else {
-                    auto const bin = bin_index<T, BITS, LO_BIT>(data[i]);
                     ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
                 }
             }
