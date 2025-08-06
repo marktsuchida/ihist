@@ -130,24 +130,43 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
 
     std::vector<std::uint32_t> stripes(NSTRIPES * NCOMPONENTS * NBINS, 0);
 
-#if defined(__APPLE__) && defined(__aarch64__)
-// Improves performance on Apple M1:
-#pragma unroll
-#endif
-    for (std::size_t j = 0; j < size; ++j) {
-        auto const stripe = j & (NSTRIPES - 1);
-        auto const i = j * STRIDE;
+    std::size_t const n_iter_stripes = size / NSTRIPES;
+    std::size_t const n_remain_stripes = size % NSTRIPES;
+
+    for (std::size_t j = 0; j < n_iter_stripes; ++j) {
+        for (std::size_t s = 0; s < NSTRIPES; ++s) {
+            auto const i = (j * NSTRIPES + s) * STRIDE;
+            for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
+                auto const offset = offsets[c];
+                if constexpr (HI_MASK) {
+                    auto const bin = bin_index_himask<T, BITS, LO_BIT>(
+                        data[i + offset], hi_mask);
+                    if (bin != NBINS) {
+                        ++stripes[(s * NCOMPONENTS + c) * NBINS + bin];
+                    }
+                } else {
+                    auto const bin =
+                        bin_index<T, BITS, LO_BIT>(data[i + offset]);
+                    ++stripes[(s * NCOMPONENTS + c) * NBINS + bin];
+                }
+            }
+        }
+    }
+
+    // Leftover
+    for (std::size_t s = 0; s < n_remain_stripes; ++s) {
+        auto const i = (n_iter_stripes * NSTRIPES + s) * STRIDE;
         for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
             auto const offset = offsets[c];
             if constexpr (HI_MASK) {
                 auto const bin = bin_index_himask<T, BITS, LO_BIT>(
                     data[i + offset], hi_mask);
                 if (bin != NBINS) {
-                    ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
+                    ++stripes[(s * NCOMPONENTS + c) * NBINS + bin];
                 }
             } else {
                 auto const bin = bin_index<T, BITS, LO_BIT>(data[i + offset]);
-                ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
+                ++stripes[(s * NCOMPONENTS + c) * NBINS + bin];
             }
         }
     }
