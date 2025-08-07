@@ -69,9 +69,15 @@ constexpr auto bin_index_himask(T value, T hi_mask) -> std::size_t {
     constexpr T HI_BITS_MASK = (1uLL << HI_BITS) - 1;
     constexpr std::size_t MASKED_BIN = 1uLL << BITS;
     auto const hi_bits = (value >> SAMP_BITS) & HI_BITS_MASK;
+#if defined(__APPLE__) && defined(__aarch64__)
     bool const keep = hi_bits == hi_mask;
-
     return keep ? bin : MASKED_BIN;
+#else
+    if (hi_bits == hi_mask) {
+        return bin;
+    }
+    return MASKED_BIN;
+#endif
 }
 
 template <typename T, unsigned BITS, unsigned LO_BIT, bool HI_MASK,
@@ -130,15 +136,30 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
 
     std::vector<std::uint32_t> stripes(NSTRIPES * NCOMPONENTS * NBINS, 0);
 
+    // TODO NUNROLL (or its dependence on NCOMPONENTS) should be injected
+    // together with P as a strategy parameter.
+#if defined(__APPLE__) && defined(__aarch64__)
     constexpr std::size_t NUNROLL = NCOMPONENTS == 1   ? 4
                                     : NCOMPONENTS == 2 ? 2
                                                        : 1;
+#elif defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) ||       \
+    defined(__amd64) || defined(_M_X64)
+    constexpr std::size_t NUNROLL = sizeof(T) > 1      ? 1
+                                    : NCOMPONENTS == 1 ? 4
+                                    : NCOMPONENTS == 2 ? 2
+                                                       : 1;
+#else
+    constexpr std::size_t NUNROLL = 1;
+#endif
+
     constexpr std::size_t BLOCKSIZE = std::max(NUNROLL, NSTRIPES);
     std::size_t const n_blocks = size / BLOCKSIZE;
     std::size_t const n_remainder = size % BLOCKSIZE;
 
     for (std::size_t block = 0; block < n_blocks; ++block) {
-        // Note: This computes bins for unused components, too.
+        // We pre-compute all the bin indices for the block here, which
+        // facilitates experimenting with potential optimizations, but the
+        // compiler may well interleave this with the bin increments below.
         std::array<std::size_t, BLOCKSIZE> bins;
         for (std::size_t n = 0; n < BLOCKSIZE * STRIDE; ++n) {
             if constexpr (HI_MASK) {
@@ -156,9 +177,15 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
                 auto const stripe = k % NSTRIPES;
                 auto const bin = bins[k * STRIDE + offset];
                 if constexpr (HI_MASK) {
+#if defined(__APPLE__) && defined(__aarch64__)
                     auto const b = bin % NBINS;
                     stripes[(stripe * NCOMPONENTS + c) * NBINS + b] +=
                         (bin != NBINS);
+#else
+                    if (bin != NBINS) {
+                        ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
+                    }
+#endif
                 } else {
                     ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
                 }
