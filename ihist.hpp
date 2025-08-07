@@ -139,7 +139,7 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
     // TODO NUNROLL (or its dependence on NCOMPONENTS) should be injected
     // together with P as a strategy parameter.
 #if defined(__APPLE__) && defined(__aarch64__)
-    constexpr std::size_t NUNROLL = 4;
+    constexpr std::size_t NUNROLL = sizeof(T) > 2 ? 1 : sizeof(T) > 1 ? 4 : 16;
 #elif defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) ||       \
     defined(__amd64) || defined(_M_X64)
     constexpr std::size_t NUNROLL = sizeof(T) > 1 ? 1 : 4;
