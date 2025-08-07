@@ -10,12 +10,6 @@ project(
     ],
 )
 
-if host_machine.system() == 'darwin'
-    # Work around https://github.com/mesonbuild/meson/issues/14440
-    # Remove when fixed (Meson 1.8.3?)
-    add_global_arguments('-U_LIBCPP_ENABLE_ASSERTIONS', language: 'cpp')
-endif
-
 onetbb_dep = dependency(
     'tbb',
     allow_fallback: false,
