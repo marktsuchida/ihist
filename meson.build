@@ -10,6 +10,10 @@ project(
     ],
 )
 
+# We do not build oneTBB as a wrap/subproject, because when using as a C++
+# library, oneTBB should be dynamically linked (if other parts of the
+# application also use it). For quickly building for development, use the
+# justfile.
 onetbb_dep = dependency(
     'tbb',
     allow_fallback: false,
