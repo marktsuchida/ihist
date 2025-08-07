@@ -139,20 +139,16 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
     // TODO NUNROLL (or its dependence on NCOMPONENTS) should be injected
     // together with P as a strategy parameter.
 #if defined(__APPLE__) && defined(__aarch64__)
-    constexpr std::size_t NUNROLL = NCOMPONENTS == 1   ? 4
-                                    : NCOMPONENTS == 2 ? 2
-                                                       : 1;
+    constexpr std::size_t NUNROLL = 4;
 #elif defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) ||       \
     defined(__amd64) || defined(_M_X64)
-    constexpr std::size_t NUNROLL = sizeof(T) > 1      ? 1
-                                    : NCOMPONENTS == 1 ? 4
-                                    : NCOMPONENTS == 2 ? 2
-                                                       : 1;
+    constexpr std::size_t NUNROLL = sizeof(T) > 1 ? 1 : 4;
 #else
     constexpr std::size_t NUNROLL = 1;
 #endif
 
-    constexpr std::size_t BLOCKSIZE = std::max(NUNROLL, NSTRIPES);
+    constexpr std::size_t BLOCKSIZE =
+        std::max(std::size_t(1), NUNROLL / NCOMPONENTS);
     std::size_t const n_blocks = size / BLOCKSIZE;
     std::size_t const n_remainder = size % BLOCKSIZE;
 
@@ -174,7 +170,7 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
         for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
             auto const offset = offsets[c];
             for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
-                auto const stripe = k % NSTRIPES;
+                auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
                 auto const bin = bins[k * STRIDE + offset];
                 if constexpr (HI_MASK) {
 #if defined(__APPLE__) && defined(__aarch64__)
@@ -198,7 +194,7 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
         auto const offset = offsets[c];
         for (std::size_t k = 0; k < n_remainder; ++k) {
             auto const i = (n_blocks * BLOCKSIZE + k) * STRIDE + offset;
-            auto const stripe = k % NSTRIPES;
+            auto const stripe = (n_blocks * BLOCKSIZE + k) % NSTRIPES;
             if constexpr (HI_MASK) {
                 auto const bin =
                     bin_index_himask<T, BITS, LO_BIT>(data[i], hi_mask);
