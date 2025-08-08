@@ -16,11 +16,11 @@ namespace ihist::bench {
 
 namespace {
 
-template <typename T, unsigned BITS = 8 * sizeof(T)>
+template <typename T, unsigned Bits = 8 * sizeof(T)>
 auto generate_gaussian_data(std::size_t count, double stddev)
     -> std::vector<T> {
     static_assert(std::is_unsigned_v<T>);
-    T const maximum = (1uLL << BITS) - 1;
+    T const maximum = (1uLL << Bits) - 1;
     T const mean = maximum / 2;
 
     // std::normal_distribution requires stddev > 0.0
@@ -53,20 +53,20 @@ auto generate_gaussian_data(std::size_t count, double stddev)
     return data;
 }
 
-template <typename T, auto Hist, unsigned BITS, std::size_t STRIDE = 1,
-          std::size_t COMPONENT0_OFFSET = 0, std::size_t... COMPONENT_OFFSETS>
+template <typename T, auto Hist, unsigned Bits, std::size_t Stride = 1,
+          std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
 void hist_gauss(benchmark::State &state) {
-    constexpr auto NCOMPONENTS = 1 + sizeof...(COMPONENT_OFFSETS);
+    constexpr auto NCOMPONENTS = 1 + sizeof...(ComponentOffsets);
     auto const stddev = static_cast<double>(state.range(0));
     auto const size = state.range(1);
-    auto const data = generate_gaussian_data<T, BITS>(size * STRIDE, stddev);
+    auto const data = generate_gaussian_data<T, Bits>(size * Stride, stddev);
     for ([[maybe_unused]] auto _ : state) {
-        std::array<std::uint32_t, NCOMPONENTS * (1 << BITS)> hist{};
+        std::array<std::uint32_t, NCOMPONENTS * (1 << Bits)> hist{};
         Hist(data.data(), size, hist.data());
         benchmark::DoNotOptimize(hist);
     }
     state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) * size *
-                            STRIDE * sizeof(T));
+                            Stride * sizeof(T));
     state.counters["pixels_per_second"] =
         benchmark::Counter(static_cast<int64_t>(state.iterations()) * size,
                            benchmark::Counter::kIsRate);
@@ -76,13 +76,13 @@ void hist_gauss(benchmark::State &state) {
 // approximates uniformly random data. Generally data that is narrowly
 // distributed is more challenging due to store-to-load forwarding latencies on
 // the same bin or cache line.
-template <unsigned BITS>
-std::vector<std::int64_t> const stddevs{0, 1, 1 << (BITS + 1)};
+template <unsigned Bits>
+std::vector<std::int64_t> const stddevs{0, 1, 1 << (Bits + 1)};
 
 // Quite a large data size (16Mi = 1 << 26) is needed for the throughput to
 // plateau, especially for multithreaded. Currently, we use a fixed pixel count
 // regardless of format.
-template <typename T, std::size_t STRIDE = 1>
+template <typename T, std::size_t Stride = 1>
 std::vector<std::int64_t> const data_sizes{20'000'000}; // 20 megapixels
 
 using u8 = std::uint8_t;

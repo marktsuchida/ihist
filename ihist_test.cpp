@@ -20,12 +20,12 @@ namespace ihist {
 namespace {
 
 // This produces portably deterministic data given the same seed.
-template <typename T, unsigned BITS = 8 * sizeof(T)>
+template <typename T, unsigned Bits = 8 * sizeof(T)>
 auto generate_random_data(std::size_t count, std::uint32_t seed)
     -> std::vector<T> {
     static_assert(std::is_integral_v<T>);
     static_assert(sizeof(T) <= 8);
-    static_assert(BITS <= 8 * sizeof(T));
+    static_assert(Bits <= 8 * sizeof(T));
 
     // We cannot use std::uniform_int_distribution because it may behave
     // differently depending on the platform, and also does not support 8-bit
@@ -34,7 +34,7 @@ auto generate_random_data(std::size_t count, std::uint32_t seed)
     std::mt19937_64 engine(seed);
     std::vector<T> data;
     data.resize(count);
-    constexpr auto MASK = (1uLL << BITS) - 1;
+    constexpr auto MASK = (1uLL << Bits) - 1;
     std::generate(data.begin(), data.end(),
                   [&] { return static_cast<T>(engine() & MASK); });
     return data;
@@ -43,9 +43,9 @@ auto generate_random_data(std::size_t count, std::uint32_t seed)
 // Reproducible tests!
 constexpr std::uint32_t TEST_SEED = 1343208745u;
 
-template <typename T, unsigned BITS = 8 * sizeof(T)>
+template <typename T, unsigned Bits = 8 * sizeof(T)>
 auto test_data(std::size_t count) -> std::vector<T> {
-    return generate_random_data<T, BITS>(count, TEST_SEED);
+    return generate_random_data<T, Bits>(count, TEST_SEED);
 }
 
 } // namespace
