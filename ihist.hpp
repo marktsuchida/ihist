@@ -142,7 +142,8 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
     constexpr std::array<std::size_t, NCOMPONENTS> offsets{
         ComponentOffsets...};
 
-    std::vector<std::uint32_t> stripes(NSTRIPES * NCOMPONENTS * NBINS, 0);
+    // Use extra bin for overflows (when UseHiMask).
+    std::vector<std::uint32_t> stripes(NSTRIPES * NCOMPONENTS * (NBINS + 1));
 
     // TODO NUNROLL (or its dependence on NCOMPONENTS) should be injected
     // together with P as a strategy parameter.
@@ -166,12 +167,11 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
         // compiler may well interleave this with the bin increments below.
         std::array<std::size_t, BLOCKSIZE * Stride> bins;
         for (std::size_t n = 0; n < BLOCKSIZE * Stride; ++n) {
+            auto const i = block * BLOCKSIZE * Stride + n;
             if constexpr (UseHiMask) {
-                bins[n] = bin_index_himask<T, Bits, LoBit>(
-                    data[block * BLOCKSIZE * Stride + n], hi_mask);
+                bins[n] = bin_index_himask<T, Bits, LoBit>(data[i], hi_mask);
             } else {
-                bins[n] = bin_index<T, Bits, LoBit>(
-                    data[block * BLOCKSIZE * Stride + n]);
+                bins[n] = bin_index<T, Bits, LoBit>(data[i]);
             }
         }
 
@@ -180,26 +180,7 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
             for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
                 auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
                 auto const bin = bins[k * Stride + offset];
-                if constexpr (UseHiMask) {
-                    // Intel is faster with a predictable branch than with
-                    // branchless. Since our only current use of the himask is
-                    // to filter for zero high bits, we optimize for that case.
-                    // For Apple M1, branchless appears to be slightly faster
-                    // when Bits is low enough and appropriately striped.
-                    // TODO This choice should be injected as a strategy
-                    // parameter.
-#if defined(__APPLE__) && defined(__aarch64__)
-                    auto const b = bin % NBINS;
-                    stripes[(stripe * NCOMPONENTS + c) * NBINS + b] +=
-                        (bin != NBINS);
-#else
-                    if (bin != NBINS) {
-                        ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
-                    }
-#endif
-                } else {
-                    ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
-                }
+                ++stripes[(stripe * NCOMPONENTS + c) * (NBINS + 1) + bin];
             }
         }
     }
@@ -210,26 +191,25 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
         for (std::size_t k = 0; k < n_remainder; ++k) {
             auto const i = (n_blocks * BLOCKSIZE + k) * Stride + offset;
             auto const stripe = (n_blocks * BLOCKSIZE + k) % NSTRIPES;
-            if constexpr (UseHiMask) {
-                auto const bin =
-                    bin_index_himask<T, Bits, LoBit>(data[i], hi_mask);
-                auto const b = bin % NBINS;
-                stripes[(stripe * NCOMPONENTS + c) * NBINS + b] +=
-                    (bin != NBINS);
-            } else {
-                auto const bin = bin_index<T, Bits, LoBit>(data[i]);
-                ++stripes[(stripe * NCOMPONENTS + c) * NBINS + bin];
-            }
+            auto const bin = [&] {
+                if constexpr (UseHiMask) {
+                    return bin_index_himask<T, Bits, LoBit>(data[i], hi_mask);
+                } else {
+                    return bin_index<T, Bits, LoBit>(data[i]);
+                }
+            }();
+            ++stripes[(stripe * NCOMPONENTS + c) * (NBINS + 1) + bin];
         }
     }
 
-    // Clang and GCC typically vectorize this loop.
-    for (std::size_t bin = 0; bin < NCOMPONENTS * NBINS; ++bin) {
-        std::uint32_t sum = 0;
-        for (std::size_t stripe = 0; stripe < NSTRIPES; ++stripe) {
-            sum += stripes[stripe * NCOMPONENTS * NBINS + bin];
+    for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
+        for (std::size_t bin = 0; bin < NBINS; ++bin) {
+            std::uint32_t sum = 0;
+            for (std::size_t stripe = 0; stripe < NSTRIPES; ++stripe) {
+                sum += stripes[(stripe * NCOMPONENTS + c) * (NBINS + 1) + bin];
+            }
+            histogram[c * NBINS + bin] += sum;
         }
-        histogram[bin] += sum;
     }
 }
 
