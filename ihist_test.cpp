@@ -149,14 +149,14 @@ TEMPLATE_TEST_CASE("const-data-himask-discard-low", "", std::uint8_t,
     constexpr auto BITS = 8 * sizeof(TestType) / 2;
     constexpr auto LO_BIT = BITS / 2;
     auto const hist_func =
-        GENERATE(hist_himask_unoptimized<TestType, BITS, LO_BIT>,
-                 hist_himask_striped_st<0, TestType, BITS, LO_BIT>,
-                 hist_himask_striped_st<1, TestType, BITS, LO_BIT>,
-                 hist_himask_striped_st<2, TestType, BITS, LO_BIT>,
-                 hist_himask_unoptimized_mt<TestType, BITS, LO_BIT>,
-                 hist_himask_striped_mt<0, TestType, BITS, LO_BIT>,
-                 hist_himask_striped_mt<1, TestType, BITS, LO_BIT>,
-                 hist_himask_striped_mt<2, TestType, BITS, LO_BIT>);
+        GENERATE(hist_himask_unoptimized<TestType, BITS, LO_BIT, 1, 0>,
+                 hist_himask_striped_st<0, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_himask_striped_st<1, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_himask_striped_st<2, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_himask_unoptimized_mt<TestType, BITS, LO_BIT, 1, 0>,
+                 hist_himask_striped_mt<0, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_himask_striped_mt<1, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_himask_striped_mt<2, TestType, BITS, LO_BIT, 1, 0>);
 
     constexpr auto NBINS = 1 << BITS;
     std::size_t size = GENERATE(1, 7, 100);
