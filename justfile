@@ -101,7 +101,7 @@ test: _configure_if_not_configured
 
 [positional-arguments]
 benchmark *FLAGS: build test
-    builddir/ihist_bench --benchmark_time_unit=us \
+    builddir/ihist_bench --benchmark_time_unit=ms \
         --benchmark_counters_tabular=true \
         "$@"
 
@@ -117,7 +117,7 @@ _benchmark-compare *ARGS:
         '.[] | select(.meson_variables[]? == "benchmark_dep") | .version')
     GB_TOOLS=subprojects/benchmark-$GB_VERSION/tools
     uv run --with=scipy "$GB_TOOLS/compare.py" "$@" \
-        --benchmark_time_unit=us --benchmark_counters_tabular=true
+        --benchmark_time_unit=ms --benchmark_counters_tabular=true
 
 [positional-arguments]
 benchmark-compare *FLAGS: build test
