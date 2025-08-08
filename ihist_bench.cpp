@@ -31,16 +31,25 @@ auto generate_gaussian_data(std::size_t count, double stddev)
     std::mt19937 engine;
     std::normal_distribution<double> dist(static_cast<double>(mean), stddev);
 
-    std::vector<T> data;
-    data.resize(count);
-    std::generate(data.begin(), data.end(), [&] {
+    // Generating normally distributed random numbers is slow. Since this is
+    // just a benchmark, we cheat a bit by repeating a pattern.
+
+    std::vector<T> population(1 << 16);
+    std::generate(population.begin(), population.end(), [&] {
         for (;;) {
-            double v = std::round(dist(engine));
+            double const v = std::round(dist(engine));
             if (v >= 0.0 && v <= maximum) {
                 return static_cast<T>(v);
             }
         }
     });
+
+    std::vector<T> data;
+    data.reserve(count / population.size() * population.size());
+    while (data.size() < count) {
+        data.insert(data.end(), population.begin(), population.end());
+    }
+    data.resize(count);
     return data;
 }
 
@@ -68,12 +77,13 @@ void hist_gauss(benchmark::State &state) {
 // distributed is more challenging due to store-to-load forwarding latencies on
 // the same bin or cache line.
 template <unsigned BITS>
-std::vector<std::int64_t> const stddevs{0, 1 << (BITS + 1)};
+std::vector<std::int64_t> const stddevs{0, 1, 1 << (BITS + 1)};
 
 // Quite a large data size (16Mi = 1 << 26) is needed for the throughput to
-// plateau. But the trend over algorithms and input data stay the same.
+// plateau, especially for multithreaded. Currently, we use a fixed pixel count
+// regardless of format.
 template <typename T, std::size_t STRIDE = 1>
-std::vector<std::int64_t> const data_sizes{(1 << (20 - sizeof(T))) / STRIDE};
+std::vector<std::int64_t> const data_sizes{20'000'000}; // 20 megapixels
 
 using u8 = std::uint8_t;
 using u16 = std::uint16_t;
