@@ -69,9 +69,14 @@ constexpr auto bin_index_himask(T value, T hi_mask) -> std::size_t {
     constexpr T HI_BITS_MASK = (1uLL << HI_BITS) - 1;
     constexpr std::size_t MASKED_BIN = 1uLL << BITS;
     auto const hi_bits = (value >> SAMP_BITS) & HI_BITS_MASK;
+
+    // Intel is faster with a predictable branch than with branchless. Since
+    // our only current use of the himask is to filter for zero high bits, we
+    // optimize for that case.  For Apple M1, branchless appears to be slightly
+    // faster when BITS is low enough and appropriately striped.
+    // TODO This choice should be injected as a strategy parameter.
 #if defined(__APPLE__) && defined(__aarch64__)
-    bool const keep = hi_bits == hi_mask;
-    return keep ? bin : MASKED_BIN;
+    return (hi_bits == hi_mask) ? bin : MASKED_BIN;
 #else
     if (hi_bits == hi_mask) {
         return bin;
@@ -173,6 +178,13 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
                 auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
                 auto const bin = bins[k * STRIDE + offset];
                 if constexpr (HI_MASK) {
+                    // Intel is faster with a predictable branch than with
+                    // branchless. Since our only current use of the himask is
+                    // to filter for zero high bits, we optimize for that case.
+                    // For Apple M1, branchless appears to be slightly faster
+                    // when BITS is low enough and appropriately striped.
+                    // TODO This choice should be injected as a strategy
+                    // parameter.
 #if defined(__APPLE__) && defined(__aarch64__)
                     auto const b = bin % NBINS;
                     stripes[(stripe * NCOMPONENTS + c) * NBINS + b] +=
