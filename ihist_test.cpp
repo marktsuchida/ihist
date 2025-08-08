@@ -222,9 +222,9 @@ TEMPLATE_TEST_CASE("const-data-multicomponent", "", std::uint8_t,
         }
     }
 
-    std::array<std::uint32_t, 3 * NBINS> hist{};
+    std::vector<std::uint32_t> hist(3 * NBINS);
     hist_func(data.data(), size, hist.data());
-    std::array<std::uint32_t, 3 * NBINS> ref{};
+    std::vector<std::uint32_t> ref(3 * NBINS);
     for (int c = 0; c < 3; ++c) {
         if (c == component) {
             ref[c * NBINS + value] = size;
@@ -359,9 +359,9 @@ TEMPLATE_TEST_CASE("random-data-multicomponent", "", std::uint8_t,
 
     constexpr auto NBINS = 1 << BITS;
     auto const data = test_data<TestType>(STRIDE << (20 - sizeof(TestType)));
-    std::array<std::uint32_t, 3 * NBINS> hist{};
+    std::vector<std::uint32_t> hist(3 * NBINS);
     hist_func(data.data(), data.size() / STRIDE, hist.data());
-    std::array<std::uint32_t, 3 * NBINS> ref{};
+    std::vector<std::uint32_t> ref(3 * NBINS);
     ref_func(data.data(), data.size() / STRIDE, ref.data());
     CHECK(hist == ref);
 }
