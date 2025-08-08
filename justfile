@@ -116,7 +116,8 @@ _benchmark-compare *ARGS:
     GB_VERSION=$(meson introspect --dependencies builddir |jq -r \
         '.[] | select(.meson_variables[]? == "benchmark_dep") | .version')
     GB_TOOLS=subprojects/benchmark-$GB_VERSION/tools
-    uv run --with=scipy "$GB_TOOLS/compare.py" "$@"
+    uv run --with=scipy "$GB_TOOLS/compare.py" "$@" \
+        --benchmark_time_unit=us --benchmark_counters_tabular=true
 
 [positional-arguments]
 benchmark-compare *FLAGS: build test

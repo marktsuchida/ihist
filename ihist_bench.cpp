@@ -67,6 +67,9 @@ void hist_gauss(benchmark::State &state) {
     }
     state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) * size *
                             Stride * sizeof(T));
+    state.counters["samples_per_second"] = benchmark::Counter(
+        static_cast<int64_t>(state.iterations()) * size * NCOMPONENTS,
+        benchmark::Counter::kIsRate);
     state.counters["pixels_per_second"] =
         benchmark::Counter(static_cast<int64_t>(state.iterations()) * size,
                            benchmark::Counter::kIsRate);
