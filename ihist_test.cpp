@@ -187,6 +187,54 @@ TEMPLATE_TEST_CASE("const-data-himask-discard-low", "", std::uint8_t,
 
 } // namespace internal
 
+TEMPLATE_TEST_CASE("const-data-multicomponent", "", std::uint8_t,
+                   std::uint16_t) {
+    constexpr unsigned BITS = 8 * sizeof(TestType);
+    constexpr std::size_t STRIDE = 4;
+    auto const hist_func = GENERATE(
+        hist_unfiltered_unoptimized_st<TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_st<0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_st<1, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_st<2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_st<3, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_st<4, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_unoptimized_mt<TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_mt<0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_mt<1, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_mt<2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_mt<3, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_mt<4, TestType, BITS, 0, STRIDE, 3, 0, 1>);
+
+    constexpr auto NBINS = 1 << BITS;
+    std::size_t size = GENERATE(0, 1, 7, 1000);
+    TestType value = GENERATE(0, 1, NBINS - 1);
+
+    constexpr std::array components{1, 2, -1, 0}; // Inverse of (3, 0, 1)
+    auto const offset = GENERATE(0, 1, 2, 3);
+    auto const component = components[offset];
+
+    CAPTURE(size, value, offset, component);
+
+    std::vector<TestType> data(STRIDE * size);
+    for (std::size_t i = 0; i < data.size(); ++i) {
+        if (i % STRIDE == offset) {
+            data[i] = value;
+        }
+    }
+
+    std::array<std::uint32_t, 3 * NBINS> hist{};
+    hist_func(data.data(), size, hist.data());
+    std::array<std::uint32_t, 3 * NBINS> ref{};
+    for (int c = 0; c < 3; ++c) {
+        if (c == component) {
+            ref[c * NBINS + value] = size;
+        } else {
+            ref[c * NBINS + 0] = size;
+        }
+    }
+    CHECK(hist == ref);
+}
+
 TEMPLATE_TEST_CASE("random-data", "", std::uint8_t, std::uint16_t) {
     auto const hist_func = GENERATE(hist_unfiltered_unoptimized_st<TestType>,
                                     hist_unfiltered_striped_st<0, TestType>,
@@ -286,6 +334,35 @@ TEMPLATE_TEST_CASE("random-data-unclean-filtered", "", std::uint8_t,
     hist_func(data.data(), data.size(), hist.data());
     std::array<std::uint32_t, NBINS> ref{};
     ref_func(clean_data.data(), clean_data.size(), ref.data());
+    CHECK(hist == ref);
+}
+
+TEMPLATE_TEST_CASE("random-data-multicomponent", "", std::uint8_t,
+                   std::uint16_t) {
+    constexpr unsigned BITS = 8 * sizeof(TestType);
+    constexpr std::size_t STRIDE = 4;
+    auto const hist_func = GENERATE(
+        hist_unfiltered_unoptimized_st<TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_st<0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_st<1, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_st<2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_st<3, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_st<4, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_unoptimized_mt<TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_mt<0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_mt<1, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_mt<2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_mt<3, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unfiltered_striped_mt<4, TestType, BITS, 0, STRIDE, 3, 0, 1>);
+    auto const ref_func =
+        hist_unfiltered_unoptimized_st<TestType, BITS, 0, STRIDE, 3, 0, 1>;
+
+    constexpr auto NBINS = 1 << BITS;
+    auto const data = test_data<TestType>(STRIDE << (20 - sizeof(TestType)));
+    std::array<std::uint32_t, 3 * NBINS> hist{};
+    hist_func(data.data(), data.size() / STRIDE, hist.data());
+    std::array<std::uint32_t, 3 * NBINS> ref{};
+    ref_func(data.data(), data.size() / STRIDE, ref.data());
     CHECK(hist == ref);
 }
 

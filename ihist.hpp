@@ -164,7 +164,7 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
         // We pre-compute all the bin indices for the block here, which
         // facilitates experimenting with potential optimizations, but the
         // compiler may well interleave this with the bin increments below.
-        std::array<std::size_t, BLOCKSIZE> bins;
+        std::array<std::size_t, BLOCKSIZE * STRIDE> bins;
         for (std::size_t n = 0; n < BLOCKSIZE * STRIDE; ++n) {
             if constexpr (HI_MASK) {
                 bins[n] = bin_index_himask<T, BITS, LO_BIT>(
