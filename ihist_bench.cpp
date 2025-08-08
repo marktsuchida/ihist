@@ -44,18 +44,20 @@ auto generate_gaussian_data(std::size_t count, double stddev)
     return data;
 }
 
-template <typename T, auto Hist, unsigned BITS = 8 * sizeof(T)>
+template <typename T, auto Hist, unsigned BITS, std::size_t STRIDE = 1,
+          std::size_t COMPONENT0_OFFSET = 0, std::size_t... COMPONENT_OFFSETS>
 void hist_gauss(benchmark::State &state) {
+    constexpr auto NCOMPONENTS = 1 + sizeof...(COMPONENT_OFFSETS);
     auto const stddev = static_cast<double>(state.range(0));
     auto const size = state.range(1);
-    auto const data = generate_gaussian_data<T, BITS>(size, stddev);
+    auto const data = generate_gaussian_data<T, BITS>(size * STRIDE, stddev);
     for ([[maybe_unused]] auto _ : state) {
-        std::array<std::uint32_t, (1 << (8 * sizeof(T)))> hist{};
+        std::array<std::uint32_t, NCOMPONENTS * (1 << BITS)> hist{};
         Hist(data.data(), size, hist.data());
         benchmark::DoNotOptimize(hist);
     }
     state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) * size *
-                            sizeof(T));
+                            STRIDE * sizeof(T));
     state.counters["pixels_per_second"] =
         benchmark::Counter(static_cast<int64_t>(state.iterations()) * size,
                            benchmark::Counter::kIsRate);
@@ -70,8 +72,8 @@ std::vector<std::int64_t> const stddevs{0, 1 << (BITS + 1)};
 
 // Quite a large data size (16Mi = 1 << 26) is needed for the throughput to
 // plateau. But the trend over algorithms and input data stay the same.
-template <typename T>
-std::vector<std::int64_t> const data_sizes{1 << (20 - sizeof(T))};
+template <typename T, std::size_t STRIDE = 1>
+std::vector<std::int64_t> const data_sizes{(1 << (20 - sizeof(T))) / STRIDE};
 
 using u8 = std::uint8_t;
 using u16 = std::uint16_t;
@@ -84,6 +86,22 @@ using u16 = std::uint16_t;
         ->Name(#bits "b-" #T "-" #filt "-striped" #P "-" #threading)          \
         ->ArgsProduct({stddevs<bits>, data_sizes<T>});
 
+#define HIST_BENCH_RGB(bits, filt, T, P, threading)                           \
+    BENCHMARK(                                                                \
+        hist_gauss<                                                           \
+            T, hist_##filt##_striped_##threading<P, T, bits, 0, 3, 0, 1, 2>,  \
+            bits, 3, 0, 1, 2>)                                                \
+        ->Name("rgb-" #bits "b-" #T "-" #filt "-striped" #P "-" #threading)   \
+        ->ArgsProduct({stddevs<bits>, data_sizes<T, 3>});
+
+#define HIST_BENCH_RGB_(bits, filt, T, P, threading)                          \
+    BENCHMARK(                                                                \
+        hist_gauss<                                                           \
+            T, hist_##filt##_striped_##threading<P, T, bits, 0, 4, 0, 1, 2>,  \
+            bits, 4, 0, 1, 2>)                                                \
+        ->Name("rgb_-" #bits "b-" #T "-" #filt "-striped" #P "-" #threading)  \
+        ->ArgsProduct({stddevs<bits>, data_sizes<T, 3>});
+
 #define HIST_BENCH_SET(bits, filt, T)                                         \
     HIST_BENCH(bits, filt, T, 0, st)                                          \
     HIST_BENCH(bits, filt, T, 1, st)                                          \
@@ -94,6 +112,16 @@ using u16 = std::uint16_t;
     HIST_BENCH(bits, filt, T, 2, mt)                                          \
     HIST_BENCH(bits, filt, T, 3, mt)
 
+#define HIST_BENCH_SET_RGB(bits, filt, T)                                     \
+    HIST_BENCH_RGB(bits, filt, T, 0, st)                                      \
+    HIST_BENCH_RGB(bits, filt, T, 1, st)                                      \
+    HIST_BENCH_RGB(bits, filt, T, 0, mt)                                      \
+    HIST_BENCH_RGB(bits, filt, T, 1, mt)                                      \
+    HIST_BENCH_RGB_(bits, filt, T, 0, st)                                     \
+    HIST_BENCH_RGB_(bits, filt, T, 1, st)                                     \
+    HIST_BENCH_RGB_(bits, filt, T, 0, mt)                                     \
+    HIST_BENCH_RGB_(bits, filt, T, 1, mt)
+
 HIST_BENCH_SET(8, unfiltered, u8)
 HIST_BENCH_SET(8, unfiltered, u16)
 HIST_BENCH_SET(9, unfiltered, u16)
@@ -103,6 +131,13 @@ HIST_BENCH_SET(12, filtered, u16)
 HIST_BENCH_SET(14, unfiltered, u16)
 HIST_BENCH_SET(14, filtered, u16)
 HIST_BENCH_SET(16, unfiltered, u16)
+
+HIST_BENCH_SET_RGB(8, unfiltered, u8)
+HIST_BENCH_SET_RGB(12, unfiltered, u16)
+HIST_BENCH_SET_RGB(12, filtered, u16)
+HIST_BENCH_SET_RGB(14, unfiltered, u16)
+HIST_BENCH_SET_RGB(14, filtered, u16)
+HIST_BENCH_SET_RGB(16, unfiltered, u16)
 
 } // namespace ihist::bench
 
