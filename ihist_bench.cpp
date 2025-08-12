@@ -94,23 +94,54 @@ using u16 = std::uint16_t;
 } // namespace
 
 #define HIST_BENCH(bits, filt, T, P, threading)                               \
-    BENCHMARK(                                                                \
-        hist_gauss<T, hist_##filt##_striped_##threading<P, T, bits>, bits>)   \
+    constexpr tuning_parameters                                               \
+        tune_##bits##b_##T##_##filt##_striped##P##_##threading{               \
+            default_tuning_parameters<T, bits>.prefer_branchless,             \
+            1 << P,                                                           \
+            default_tuning_parameters<T, bits>.n_unroll,                      \
+            default_tuning_parameters<T, bits>.mt_grain_size,                 \
+        };                                                                    \
+    BENCHMARK(hist_gauss<                                                     \
+                  T,                                                          \
+                  hist_##filt##_striped_##threading<                          \
+                      tune_##bits##b_##T##_##filt##_striped##P##_##threading, \
+                      T, bits>,                                               \
+                  bits>)                                                      \
         ->Name(#bits "b-" #T "-" #filt "-striped" #P "-" #threading)          \
         ->ArgsProduct({stddevs<bits>, data_sizes<T>});
 
 #define HIST_BENCH_RGB(bits, filt, T, P, threading)                           \
+    constexpr tuning_parameters                                               \
+        tune_rgb_##bits##b_##T##_##filt##_striped##P##_##threading{           \
+            default_tuning_parameters<T, bits>.prefer_branchless,             \
+            1 << P,                                                           \
+            default_tuning_parameters<T, bits>.n_unroll,                      \
+            default_tuning_parameters<T, bits>.mt_grain_size,                 \
+        };                                                                    \
     BENCHMARK(                                                                \
         hist_gauss<                                                           \
-            T, hist_##filt##_striped_##threading<P, T, bits, 0, 3, 0, 1, 2>,  \
+            T,                                                                \
+            hist_##filt##_striped_##threading<                                \
+                tune_rgb_##bits##b_##T##_##filt##_striped##P##_##threading,   \
+                T, bits, 0, 3, 0, 1, 2>,                                      \
             bits, 3, 0, 1, 2>)                                                \
         ->Name("rgb-" #bits "b-" #T "-" #filt "-striped" #P "-" #threading)   \
         ->ArgsProduct({stddevs<bits>, data_sizes<T, 3>});
 
 #define HIST_BENCH_RGB_(bits, filt, T, P, threading)                          \
+    constexpr tuning_parameters                                               \
+        tune_rgbx_##bits##b_##T##_##filt##_striped##P##_##threading{          \
+            default_tuning_parameters<T, bits>.prefer_branchless,             \
+            1 << P,                                                           \
+            default_tuning_parameters<T, bits>.n_unroll,                      \
+            default_tuning_parameters<T, bits>.mt_grain_size,                 \
+        };                                                                    \
     BENCHMARK(                                                                \
         hist_gauss<                                                           \
-            T, hist_##filt##_striped_##threading<P, T, bits, 0, 4, 0, 1, 2>,  \
+            T,                                                                \
+            hist_##filt##_striped_##threading<                                \
+                tune_rgbx_##bits##b_##T##_##filt##_striped##P##_##threading,  \
+                T, bits, 0, 4, 0, 1, 2>,                                      \
             bits, 4, 0, 1, 2>)                                                \
         ->Name("rgb_-" #bits "b-" #T "-" #filt "-striped" #P "-" #threading)  \
         ->ArgsProduct({stddevs<bits>, data_sizes<T, 3>});
