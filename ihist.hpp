@@ -188,6 +188,7 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
         std::max(std::size_t(1), Tuning.n_unroll / NCOMPONENTS);
     std::size_t const n_blocks = size / BLOCKSIZE;
     std::size_t const n_remainder = size % BLOCKSIZE;
+    T const *remainder_data = data + n_blocks * BLOCKSIZE * Stride;
 
     for (std::size_t block = 0; block < n_blocks; ++block) {
         // We pre-compute all the bin indices for the block here, which
@@ -214,24 +215,6 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
         }
     }
 
-    // Leftover
-    for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
-        auto const offset = offsets[c];
-        for (std::size_t k = 0; k < n_remainder; ++k) {
-            auto const i = (n_blocks * BLOCKSIZE + k) * Stride + offset;
-            auto const stripe = (n_blocks * BLOCKSIZE + k) % NSTRIPES;
-            auto const bin = [&] {
-                if constexpr (UseHiMask) {
-                    return bin_index_himask<Tuning, T, Bits, LoBit>(data[i],
-                                                                    hi_mask);
-                } else {
-                    return bin_index<T, Bits, LoBit>(data[i]);
-                }
-            }();
-            ++stripes[(stripe * NCOMPONENTS + c) * (NBINS + 1) + bin];
-        }
-    }
-
     for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
         for (std::size_t bin = 0; bin < NBINS; ++bin) {
             std::uint32_t sum = 0;
@@ -241,6 +224,10 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
             histogram[c * NBINS + bin] += sum;
         }
     }
+
+    hist_unoptimized_impl<T, Bits, LoBit, UseHiMask, Stride,
+                          ComponentOffsets...>(remainder_data, n_remainder,
+                                               hi_mask, histogram);
 }
 
 template <tuning_parameters const &Tuning, typename T, unsigned Bits,
