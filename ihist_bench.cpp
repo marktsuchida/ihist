@@ -62,7 +62,16 @@ void hist_gauss(benchmark::State &state) {
     auto const data = generate_gaussian_data<T, Bits>(size * Stride, stddev);
     for ([[maybe_unused]] auto _ : state) {
         std::array<std::uint32_t, NCOMPONENTS * (1 << Bits)> hist{};
-        Hist(data.data(), size, hist.data());
+        auto const *d = data.data();
+        auto *h = hist.data();
+#ifdef __clang__
+        // If the function gets inlined here, it may be able to receive
+        // additional optimizations that otherwise would not be possible (e.g.,
+        // based on alignment of data and hist). We do not want that for a fair
+        // benchmark.
+        [[clang::noinline]]
+#endif
+        Hist(d, size, h);
         benchmark::DoNotOptimize(hist);
     }
     state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) * size *
