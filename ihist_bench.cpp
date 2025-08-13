@@ -57,8 +57,8 @@ template <typename T, auto Hist, unsigned Bits, std::size_t Stride = 1,
           std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
 void hist_gauss(benchmark::State &state) {
     constexpr auto NCOMPONENTS = 1 + sizeof...(ComponentOffsets);
-    auto const stddev = static_cast<double>(state.range(0));
-    auto const size = state.range(1);
+    auto const size = state.range(0);
+    auto const stddev = static_cast<double>(state.range(1));
     auto const data = generate_gaussian_data<T, Bits>(size * Stride, stddev);
     for ([[maybe_unused]] auto _ : state) {
         std::array<std::uint32_t, NCOMPONENTS * (1 << Bits)> hist{};
@@ -119,7 +119,8 @@ using u16 = std::uint16_t;
         ->Name(#bits "b-" #T "-" #filt "-striped" #P "-" #threading)          \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
-        ->ArgsProduct({stddevs<bits>, data_sizes<T>});
+        ->ArgNames({"size", "sigma"})                                         \
+        ->ArgsProduct({data_sizes<T>, stddevs<bits>});
 
 #define HIST_BENCH_RGB(bits, filt, T, P, threading)                           \
     constexpr tuning_parameters                                               \
@@ -139,7 +140,8 @@ using u16 = std::uint16_t;
         ->Name("rgb-" #bits "b-" #T "-" #filt "-striped" #P "-" #threading)   \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
-        ->ArgsProduct({stddevs<bits>, data_sizes<T, 3>});
+        ->ArgNames({"size", "sigma"})                                         \
+        ->ArgsProduct({data_sizes<T>, stddevs<bits>});
 
 #define HIST_BENCH_RGB_(bits, filt, T, P, threading)                          \
     constexpr tuning_parameters                                               \
@@ -159,7 +161,8 @@ using u16 = std::uint16_t;
         ->Name("rgb_-" #bits "b-" #T "-" #filt "-striped" #P "-" #threading)  \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
-        ->ArgsProduct({stddevs<bits>, data_sizes<T, 3>});
+        ->ArgNames({"size", "sigma"})                                         \
+        ->ArgsProduct({data_sizes<T>, stddevs<bits>});
 
 #define HIST_BENCH_SET(bits, filt, T)                                         \
     HIST_BENCH(bits, filt, T, 0, st)                                          \
