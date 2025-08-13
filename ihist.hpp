@@ -165,6 +165,26 @@ void hist_himask_unoptimized(T const *IHIST_RESTRICT data, std::size_t size,
         data, size, hi_mask, histogram);
 }
 
+// Note that the first aligned index may be beyond the end of the buffer.
+template <typename T, std::size_t Alignment>
+constexpr auto first_aligned_index_impl(std::uintptr_t addr) -> std::size_t {
+    static_assert((Alignment & (Alignment - 1)) == 0,
+                  "Alignment must be a power of 2");
+    if constexpr (Alignment <= alignof(T)) {
+        return 0;
+    } else {
+        auto const aligned_addr = (addr + Alignment - 1) & ~(Alignment - 1);
+        std::size_t const byte_offset = aligned_addr - addr;
+        return byte_offset / sizeof(T);
+    }
+}
+
+template <typename T, std::size_t Alignment>
+constexpr auto first_aligned_index(T const *buffer) -> std::size_t {
+    return first_aligned_index_impl<T, Alignment>(
+        reinterpret_cast<std::uintptr_t>(buffer));
+}
+
 template <tuning_parameters const &Tuning, typename T, unsigned Bits,
           unsigned LoBit, bool UseHiMask, std::size_t Stride,
           std::size_t... ComponentOffsets>
@@ -186,9 +206,32 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
 
     constexpr std::size_t BLOCKSIZE =
         std::max(std::size_t(1), Tuning.n_unroll / NCOMPONENTS);
-    std::size_t const n_blocks = size / BLOCKSIZE;
-    std::size_t const n_remainder = size % BLOCKSIZE;
-    T const *remainder_data = data + n_blocks * BLOCKSIZE * Stride;
+    constexpr std::size_t BLOCKSIZE_BYTES = BLOCKSIZE * Stride * sizeof(T);
+    constexpr bool BLOCKSIZE_BYTES_IS_POWER_OF_2 =
+        (BLOCKSIZE_BYTES & (BLOCKSIZE_BYTES - 1)) == 0;
+    std::size_t const prolog_size = [&] {
+        if constexpr (BLOCKSIZE_BYTES_IS_POWER_OF_2) {
+            return std::min(size,
+                            first_aligned_index<T, BLOCKSIZE_BYTES>(data));
+        } else {
+            return 0;
+        }
+    }();
+
+    hist_unoptimized_impl<T, Bits, LoBit, UseHiMask, Stride,
+                          ComponentOffsets...>(data, prolog_size, hi_mask,
+                                               histogram);
+
+    std::size_t const size_after_prolog = size - prolog_size;
+    if (size_after_prolog == 0) {
+        return;
+    }
+
+    T const *block_data = data + prolog_size * Stride;
+
+    std::size_t const n_blocks = size_after_prolog / BLOCKSIZE;
+    std::size_t const epilog_size = size_after_prolog % BLOCKSIZE;
+    T const *epilog_data = block_data + n_blocks * BLOCKSIZE * Stride;
 
     for (std::size_t block = 0; block < n_blocks; ++block) {
         // We pre-compute all the bin indices for the block here, which
@@ -198,10 +241,10 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
         for (std::size_t n = 0; n < BLOCKSIZE * Stride; ++n) {
             auto const i = block * BLOCKSIZE * Stride + n;
             if constexpr (UseHiMask) {
-                bins[n] =
-                    bin_index_himask<Tuning, T, Bits, LoBit>(data[i], hi_mask);
+                bins[n] = bin_index_himask<Tuning, T, Bits, LoBit>(
+                    block_data[i], hi_mask);
             } else {
-                bins[n] = bin_index<T, Bits, LoBit>(data[i]);
+                bins[n] = bin_index<T, Bits, LoBit>(block_data[i]);
             }
         }
 
@@ -226,7 +269,7 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
     }
 
     hist_unoptimized_impl<T, Bits, LoBit, UseHiMask, Stride,
-                          ComponentOffsets...>(remainder_data, n_remainder,
+                          ComponentOffsets...>(epilog_data, epilog_size,
                                                hi_mask, histogram);
 }
 

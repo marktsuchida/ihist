@@ -105,6 +105,27 @@ TEMPLATE_TEST_CASE_SIG("bin_index_himask-mid-bits", "",
                  256);
 }
 
+TEST_CASE("first_aligned_index_impl") {
+    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 1>(0) == 0);
+    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 1>(1) == 0);
+    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 2>(0) == 0);
+    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 2>(1) == 1);
+    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 2>(2) == 0);
+    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 4>(0) == 0);
+    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 4>(1) == 3);
+    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 4>(2) == 2);
+    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 4>(3) == 1);
+    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 4>(4) == 0);
+
+    STATIC_CHECK(first_aligned_index_impl<std::uint16_t, 1>(0) == 0);
+    STATIC_CHECK(first_aligned_index_impl<std::uint16_t, 1>(2) == 0);
+    STATIC_CHECK(first_aligned_index_impl<std::uint16_t, 2>(0) == 0);
+    STATIC_CHECK(first_aligned_index_impl<std::uint16_t, 2>(2) == 0);
+    STATIC_CHECK(first_aligned_index_impl<std::uint16_t, 4>(0) == 0);
+    STATIC_CHECK(first_aligned_index_impl<std::uint16_t, 4>(2) == 1);
+    STATIC_CHECK(first_aligned_index_impl<std::uint16_t, 4>(4) == 0);
+}
+
 } // namespace internal
 
 TEMPLATE_TEST_CASE("empty-data", "", std::uint8_t, std::uint16_t) {
@@ -173,16 +194,25 @@ TEMPLATE_TEST_CASE("const-data", "", std::uint8_t, std::uint16_t) {
                  hist_unfiltered_striped_mt<tune03, TestType>);
 
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
-    std::size_t size = GENERATE(1, 7, 1000);
+    std::size_t size = GENERATE(1, 2, 7, 1000);
     TestType value = GENERATE(0, 1, NBINS - 1);
     CAPTURE(size, value);
 
     std::vector<TestType> data(size, value);
     std::array<std::uint32_t, NBINS> hist{};
-    hist_func(data.data(), data.size(), hist.data());
     std::array<std::uint32_t, NBINS> ref{};
-    ref[value] = size;
-    CHECK(hist == ref);
+
+    SECTION("malloc-aligned") {
+        hist_func(data.data(), data.size(), hist.data());
+        ref[value] = size;
+        CHECK(hist == ref);
+    }
+
+    SECTION("unaligned") {
+        hist_func(data.data() + 1, data.size() - 1, hist.data());
+        ref[value] = size - 1;
+        CHECK(hist == ref);
+    }
 }
 
 namespace internal {
