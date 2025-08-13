@@ -117,6 +117,8 @@ using u16 = std::uint16_t;
                       T, bits>,                                               \
                   bits>)                                                      \
         ->Name(#bits "b-" #T "-" #filt "-striped" #P "-" #threading)          \
+        ->MeasureProcessCPUTime()                                             \
+        ->UseRealTime()                                                       \
         ->ArgsProduct({stddevs<bits>, data_sizes<T>});
 
 #define HIST_BENCH_RGB(bits, filt, T, P, threading)                           \
@@ -135,6 +137,8 @@ using u16 = std::uint16_t;
                 T, bits, 0, 3, 0, 1, 2>,                                      \
             bits, 3, 0, 1, 2>)                                                \
         ->Name("rgb-" #bits "b-" #T "-" #filt "-striped" #P "-" #threading)   \
+        ->MeasureProcessCPUTime()                                             \
+        ->UseRealTime()                                                       \
         ->ArgsProduct({stddevs<bits>, data_sizes<T, 3>});
 
 #define HIST_BENCH_RGB_(bits, filt, T, P, threading)                          \
@@ -153,6 +157,8 @@ using u16 = std::uint16_t;
                 T, bits, 0, 4, 0, 1, 2>,                                      \
             bits, 4, 0, 1, 2>)                                                \
         ->Name("rgb_-" #bits "b-" #T "-" #filt "-striped" #P "-" #threading)  \
+        ->MeasureProcessCPUTime()                                             \
+        ->UseRealTime()                                                       \
         ->ArgsProduct({stddevs<bits>, data_sizes<T, 3>});
 
 #define HIST_BENCH_SET(bits, filt, T)                                         \
