@@ -17,28 +17,32 @@ namespace ihist::bench {
 namespace {
 
 template <typename T, unsigned Bits = 8 * sizeof(T)>
-auto generate_gaussian_data(std::size_t count, double stddev)
-    -> std::vector<T> {
+auto generate_data(std::size_t count, float spread_frac) -> std::vector<T> {
     static_assert(std::is_unsigned_v<T>);
-    T const maximum = (1uLL << Bits) - 1;
-    T const mean = maximum / 2;
+    static_assert(Bits < 8 * sizeof(std::size_t));
+    std::size_t const maximum = (1uLL << Bits) - 1;
+    std::size_t const mean = maximum / 2;
 
-    // std::normal_distribution requires stddev > 0.0
-    if (stddev == 0.0) {
+    if (spread_frac <= 0.0f) {
         return std::vector<T>(count, mean);
     }
 
+    auto const half_spread = std::clamp<std::size_t>(
+        std::llroundf(0.5f * spread_frac * static_cast<float>(maximum)), 0,
+        mean);
+
     std::mt19937 engine;
-    std::normal_distribution<double> dist(static_cast<double>(mean), stddev);
+    std::uniform_int_distribution<std::size_t> dist(mean - half_spread,
+                                                    mean + half_spread);
 
-    // Generating normally distributed random numbers is slow. Since this is
-    // just a benchmark, we cheat a bit by repeating a pattern.
-
+    // Since this is just for a benchmark, we cheat, for speed, by repeating a
+    // pattern.
     std::vector<T> population(1 << 16);
+
     std::generate(population.begin(), population.end(), [&] {
         for (;;) {
-            double const v = std::round(dist(engine));
-            if (v >= 0.0 && v <= maximum) {
+            auto const v = dist(engine);
+            if (v <= maximum) {
                 return static_cast<T>(v);
             }
         }
@@ -55,11 +59,11 @@ auto generate_gaussian_data(std::size_t count, double stddev)
 
 template <typename T, auto Hist, unsigned Bits, std::size_t Stride = 1,
           std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
-void hist_gauss(benchmark::State &state) {
+void bm_hist(benchmark::State &state) {
     constexpr auto NCOMPONENTS = 1 + sizeof...(ComponentOffsets);
     auto const size = state.range(0);
-    auto const stddev = static_cast<double>(state.range(1));
-    auto const data = generate_gaussian_data<T, Bits>(size * Stride, stddev);
+    auto const spread_frac = static_cast<float>(state.range(1)) / 100.0f;
+    auto const data = generate_data<T, Bits>(size * Stride, spread_frac);
     for ([[maybe_unused]] auto _ : state) {
         std::array<std::uint32_t, NCOMPONENTS * (1 << Bits)> hist{};
         auto const *d = data.data();
@@ -84,12 +88,15 @@ void hist_gauss(benchmark::State &state) {
                            benchmark::Counter::kIsRate);
 }
 
-// A standard deviation of 0 produces constant data, and a large one closely
-// approximates uniformly random data. Generally data that is narrowly
-// distributed is more challenging due to store-to-load forwarding latencies on
-// the same bin or cache line.
+// The spread of the data affects performance: if narrow, a simple
+// implementation will be bound by store-to-load forwarding latencyes due to
+// incrementing a bin on the same cache line in close succession. Striped
+// implementations may slow down for a wide distribution due to the larger
+// working set size.
+// 6% and 25% are useful for comparing 16-bit performance with 12/14-bit
+// performance.
 template <unsigned Bits>
-std::vector<std::int64_t> const stddevs{0, 1, 1 << (Bits + 1)};
+std::vector<std::int64_t> const spread_pcts{0, 1, 6, 25, 100};
 
 // Quite a large data size (16Mi = 1 << 26) is needed for the throughput to
 // plateau, especially for multithreaded. Currently, we use a fixed pixel count
@@ -110,17 +117,17 @@ using u16 = std::uint16_t;
             default_tuning_parameters<T, bits>.n_unroll,                      \
             default_tuning_parameters<T, bits>.mt_grain_size,                 \
         };                                                                    \
-    BENCHMARK(hist_gauss<                                                     \
-                  T,                                                          \
-                  hist_##filt##_striped_##threading<                          \
-                      tune_##bits##b_##T##_##filt##_striped##P##_##threading, \
-                      T, bits>,                                               \
-                  bits>)                                                      \
+    BENCHMARK(                                                                \
+        bm_hist<T,                                                            \
+                hist_##filt##_striped_##threading<                            \
+                    tune_##bits##b_##T##_##filt##_striped##P##_##threading,   \
+                    T, bits>,                                                 \
+                bits>)                                                        \
         ->Name(#bits "b-" #T "-" #filt "-striped" #P "-" #threading)          \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
-        ->ArgNames({"size", "sigma"})                                         \
-        ->ArgsProduct({data_sizes<T>, stddevs<bits>});
+        ->ArgNames({"size", "spread"})                                        \
+        ->ArgsProduct({data_sizes<T>, spread_pcts<bits>});
 
 #define HIST_BENCH_RGB(bits, filt, T, P, threading)                           \
     constexpr tuning_parameters                                               \
@@ -131,7 +138,7 @@ using u16 = std::uint16_t;
             default_tuning_parameters<T, bits>.mt_grain_size,                 \
         };                                                                    \
     BENCHMARK(                                                                \
-        hist_gauss<                                                           \
+        bm_hist<                                                              \
             T,                                                                \
             hist_##filt##_striped_##threading<                                \
                 tune_rgb_##bits##b_##T##_##filt##_striped##P##_##threading,   \
@@ -140,8 +147,8 @@ using u16 = std::uint16_t;
         ->Name("rgb-" #bits "b-" #T "-" #filt "-striped" #P "-" #threading)   \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
-        ->ArgNames({"size", "sigma"})                                         \
-        ->ArgsProduct({data_sizes<T>, stddevs<bits>});
+        ->ArgNames({"size", "spread"})                                        \
+        ->ArgsProduct({data_sizes<T>, spread_pcts<bits>});
 
 #define HIST_BENCH_RGB_(bits, filt, T, P, threading)                          \
     constexpr tuning_parameters                                               \
@@ -152,7 +159,7 @@ using u16 = std::uint16_t;
             default_tuning_parameters<T, bits>.mt_grain_size,                 \
         };                                                                    \
     BENCHMARK(                                                                \
-        hist_gauss<                                                           \
+        bm_hist<                                                              \
             T,                                                                \
             hist_##filt##_striped_##threading<                                \
                 tune_rgbx_##bits##b_##T##_##filt##_striped##P##_##threading,  \
@@ -161,8 +168,8 @@ using u16 = std::uint16_t;
         ->Name("rgb_-" #bits "b-" #T "-" #filt "-striped" #P "-" #threading)  \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
-        ->ArgNames({"size", "sigma"})                                         \
-        ->ArgsProduct({data_sizes<T>, stddevs<bits>});
+        ->ArgNames({"size", "spread"})                                        \
+        ->ArgsProduct({data_sizes<T>, spread_pcts<bits>});
 
 #define HIST_BENCH_SET(bits, filt, T)                                         \
     HIST_BENCH(bits, filt, T, 0, st)                                          \
