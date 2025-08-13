@@ -209,6 +209,9 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
     constexpr std::size_t BLOCKSIZE_BYTES = BLOCKSIZE * Stride * sizeof(T);
     constexpr bool BLOCKSIZE_BYTES_IS_POWER_OF_2 =
         (BLOCKSIZE_BYTES & (BLOCKSIZE_BYTES - 1)) == 0;
+    constexpr std::size_t BLOCK_ALIGNMENT =
+        BLOCKSIZE_BYTES_IS_POWER_OF_2 ? BLOCKSIZE_BYTES : alignof(T);
+
     std::size_t const prolog_size = [&] {
         if constexpr (BLOCKSIZE_BYTES_IS_POWER_OF_2) {
             return std::min(size,
@@ -227,7 +230,16 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
         return;
     }
 
-    T const *block_data = data + prolog_size * Stride;
+    T const *block_data =
+#if defined(__GNUC__) || defined(__clang__)
+        (T const *)__builtin_assume_aligned(
+#endif
+            data + prolog_size * Stride
+#if defined(__GNUC__) || defined(__clang__)
+            ,
+            BLOCK_ALIGNMENT)
+#endif
+        ;
 
     std::size_t const n_blocks = size_after_prolog / BLOCKSIZE;
     std::size_t const epilog_size = size_after_prolog % BLOCKSIZE;
