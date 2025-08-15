@@ -61,26 +61,18 @@ test_exe = executable(
 )
 test('ihist', test_exe)
 
-bench_exe = executable(
-    'ihist_bench',
-    'ihist_bench.cpp',
-    dependencies: [
-        dependencies,
-        benchmark_dep,
-    ],
-    link_with: lib,
-)
-benchmark('ihist', bench_exe)
-
-# Make this library usable as a Meson subproject.
 ihist_dep = declare_dependency(
     include_directories: include_directories('.'),
     dependencies: dependencies,
     link_with: lib,
 )
-meson.override_dependency('ihist', ihist_dep)
 
 install_headers('ihist.hpp', subdir: 'ihist')
+
+subdir('benchmarks')
+
+# Make this library usable as a Meson subproject.
+meson.override_dependency('ihist', ihist_dep)
 
 pkg_mod = import('pkgconfig')
 pkg_mod.generate(

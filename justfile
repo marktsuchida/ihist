@@ -101,13 +101,13 @@ test: _configure_if_not_configured
 
 [positional-arguments]
 benchmark *FLAGS: build test
-    builddir/ihist_bench --benchmark_time_unit=ms \
+    builddir/benchmarks/ihist_bench --benchmark_time_unit=ms \
         --benchmark_counters_tabular=true \
         "$@"
 
 benchmark-set-baseline: build test
-    cp builddir/ihist_bench{{exe_suffix}} \
-        builddir/ihist_bench_baseline{{exe_suffix}}
+    cp builddir/benchmarks/ihist_bench{{exe_suffix}} \
+        builddir/benchmarks/ihist_bench_baseline{{exe_suffix}}
 
 [positional-arguments]
 _benchmark-compare *ARGS:
@@ -122,9 +122,10 @@ _benchmark-compare *ARGS:
 [positional-arguments]
 benchmark-compare *FLAGS: build test
     just _benchmark-compare benchmarks \
-        builddir/ihist_bench_baseline{{exe_suffix}} \
-        builddir/ihist_bench{{exe_suffix}} "$@"
+        builddir/benchmarks/ihist_bench_baseline{{exe_suffix}} \
+        builddir/benchmarks/ihist_bench{{exe_suffix}} "$@"
 
 [positional-arguments]
 benchmark-compare-filters FILTER1 FILTER2 *FLAGS: build test
-    just _benchmark-compare filters builddir/ihist_bench{{exe_suffix}} "$@"
+    just _benchmark-compare filters \
+        builddir/benchmarks/ihist_bench{{exe_suffix}} "$@"
