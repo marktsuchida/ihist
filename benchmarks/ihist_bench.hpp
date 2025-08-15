@@ -119,10 +119,13 @@ void bm_hist(benchmark::State &state) {
 template <unsigned Bits>
 std::vector<std::int64_t> const spread_pcts{0, 1, 6, 25, 100};
 
-// Quite a large data size (16Mi = 1 << 26) is needed for the throughput to
-// plateau, especially for multithreaded. Currently, we use a fixed pixel count
-// regardless of format.
-std::vector<std::int64_t> const data_sizes{20'000'000}; // 20 megapixels
+// For single-threaded, performance starts to drop when the data no longer fits
+// in the last-level cache, but that is not an effect we are particularly
+// interested in (because there is not much we can do to prevent it). For
+// multi-threaded, it is hard to reach a performnce plateau, even with hundreds
+// of megapixels. 16 Mi (1 << 24) is probably a reasonable compromize if
+// looking at a single size (and the image size of large-ish CMOS chips).
+std::vector<std::int64_t> const data_sizes{1 << 24};
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
