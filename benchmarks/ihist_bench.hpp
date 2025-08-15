@@ -1,9 +1,18 @@
-// This header requires the following macros to be predefined:
+// This header generates all the benchmarks for a given data format. A separate
+// translation unit is used for each data format, because generating all the
+// tests at once overwhelms the compiler.
+//
+// The following macros must be defined before including this header:
 // BM_NAME_PREFIX (mono, rgb, rgbx)
 // BM_STRIDE_COMPONENTS
 // BM_BITS
-// BM_FILTERING (unfiltered, filtered)
-// BM_THREADING (st, mt)
+// BM_FILTERED (0, 1)
+// BM_MULTITHREADING (0, 1)
+
+#ifdef IHIST_BENCH_HPP_INCLUDED
+#error Cannot include this file twice in the same translation unit
+#endif
+#define IHIST_BENCH_HPP_INCLUDED 1
 
 #include <ihist.hpp>
 
@@ -122,9 +131,15 @@ std::vector<std::int64_t> const data_sizes{20'000'000}; // 20 megapixels
     tuning_bl##branchless##_st##stripes##_un##unrolls##_gr##grainsize
 
 #define DEFINE_TUNING(branchless, stripes, unrolls, grainsize)                \
-    constexpr tuning_parameters TUNING_NAME(branchless, stripes, unrolls,     \
-                                            grainsize){branchless, stripes,   \
-                                                       unrolls, grainsize};
+    inline constexpr tuning_parameters TUNING_NAME(                           \
+        branchless, stripes, unrolls, grainsize){branchless, stripes,         \
+                                                 unrolls, grainsize};
+
+#define BENCH_NAME(branchless, stripes, unrolls, grainsize, bits, filt, thd)  \
+    TOSTRING(BM_NAME_PREFIX)                                                  \
+    "/bits:" #bits "/filt:" #filt "/threading:" #thd                          \
+    "/branchless:" #branchless "/stripes:" #stripes "/unrolls:" #unrolls      \
+    "/grainsize:" #grainsize
 
 #define DEFINE_HISTBM(branchless, stripes, unrolls, grainsize, bits, filt,    \
                       thd)                                                    \
@@ -134,37 +149,43 @@ std::vector<std::int64_t> const data_sizes{20'000'000}; // 20 megapixels
                     TUNING_NAME(branchless, stripes, unrolls, grainsize),     \
                     bits_type<bits>, bits, 0, BM_STRIDE_COMPONENTS>,          \
                 bits, BM_STRIDE_COMPONENTS>)                                  \
-        ->Name(TOSTRING(                                                      \
-            BM_NAME_PREFIX) "/bits:" #bits "/filt:" #filt "/threading:" #thd  \
-                            "/branchless:" #branchless "/stripes:" #stripes   \
-                            "/unrolls:" #unrolls "/grainsize:" #grainsize)    \
+        ->Name(BENCH_NAME(branchless, stripes, unrolls, grainsize, bits,      \
+                          filt, thd))                                         \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
         ->ArgNames({"size", "spread"})                                        \
         ->ArgsProduct({data_sizes, spread_pcts<bits>});
 
-#define DEFINE_HISTBM_BRANCHLESS(stripes, unrolls, grainsize, bits, filt,     \
-                                 thd)                                         \
-    DEFINE_HISTBM(false, stripes, unrolls, grainsize, bits, filt, thd)        \
-    DEFINE_HISTBM(true, stripes, unrolls, grainsize, bits, filt, thd)
+#if BM_FILTERED
+#define DEFINE_HISTBM_BRANCHLESS(stripes, unrolls, grainsize, bits, thd)      \
+    DEFINE_HISTBM(false, stripes, unrolls, grainsize, bits, filtered, thd)    \
+    DEFINE_HISTBM(true, stripes, unrolls, grainsize, bits, filtered, thd)
+#else
+#define DEFINE_HISTBM_BRANCHLESS(stripes, unrolls, grainsize, bits, thd)      \
+    DEFINE_HISTBM(false, stripes, unrolls, grainsize, bits, unfiltered, thd)
+#endif
 
-#define DEFINE_HISTBM_STRIPES(unrolls, grainsize, bits, filt, thd)            \
-    DEFINE_HISTBM_BRANCHLESS(1, unrolls, grainsize, bits, filt, thd)          \
-    DEFINE_HISTBM_BRANCHLESS(2, unrolls, grainsize, bits, filt, thd)          \
-    DEFINE_HISTBM_BRANCHLESS(4, unrolls, grainsize, bits, filt, thd)          \
-    DEFINE_HISTBM_BRANCHLESS(8, unrolls, grainsize, bits, filt, thd)
+#define DEFINE_HISTBM_STRIPES(unrolls, grainsize, bits, thd)                  \
+    DEFINE_HISTBM_BRANCHLESS(1, unrolls, grainsize, bits, thd)                \
+    DEFINE_HISTBM_BRANCHLESS(2, unrolls, grainsize, bits, thd)                \
+    DEFINE_HISTBM_BRANCHLESS(4, unrolls, grainsize, bits, thd)                \
+    DEFINE_HISTBM_BRANCHLESS(8, unrolls, grainsize, bits, thd)
 
-#define DEFINE_HISTBM_UNROLLS(grainsize, bits, filt, thd)                     \
-    DEFINE_HISTBM_STRIPES(1, grainsize, bits, filt, thd)                      \
-    DEFINE_HISTBM_STRIPES(2, grainsize, bits, filt, thd)                      \
-    DEFINE_HISTBM_STRIPES(4, grainsize, bits, filt, thd)                      \
-    DEFINE_HISTBM_STRIPES(8, grainsize, bits, filt, thd)
+#define DEFINE_HISTBM_UNROLLS(grainsize, bits, thd)                           \
+    DEFINE_HISTBM_STRIPES(1, grainsize, bits, thd)                            \
+    DEFINE_HISTBM_STRIPES(2, grainsize, bits, thd)                            \
+    DEFINE_HISTBM_STRIPES(4, grainsize, bits, thd)                            \
+    DEFINE_HISTBM_STRIPES(8, grainsize, bits, thd)
 
-#define DEFINE_HIST_BENCHMARKS(bits, filt, thd)                               \
-    DEFINE_HISTBM_UNROLLS(16384, bits, filt, thd)                             \
-    DEFINE_HISTBM_UNROLLS(65536, bits, filt, thd)                             \
-    DEFINE_HISTBM_UNROLLS(262144, bits, filt, thd)
+#if BM_MULTITHREADED
+#define DEFINE_HIST_BENCHMARKS(bits)                                          \
+    DEFINE_HISTBM_UNROLLS(16384, bits, mt)                                    \
+    DEFINE_HISTBM_UNROLLS(65536, bits, mt)                                    \
+    DEFINE_HISTBM_UNROLLS(262144, bits, mt)
+#else
+#define DEFINE_HIST_BENCHMARKS(bits) DEFINE_HISTBM_UNROLLS(0, bits, st)
+#endif
 
-DEFINE_HIST_BENCHMARKS(BM_BITS, BM_FILTERING, BM_THREADING)
+DEFINE_HIST_BENCHMARKS(BM_BITS)
 
 } // namespace ihist::bench
