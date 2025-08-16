@@ -14,3 +14,53 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
       - uses: pre-commit/action@v3.0.1
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - ubuntu-24.04
+          - windows-2025
+          - macos-13  # x86_64
+          - macos-15
+        compiler:
+          - platform
+          - clang
+        exclude:
+          - runner: macos-13
+            compiler: clang  # Redundant with platform
+          - runner: macos-15
+            compiler: clang  # Redundant with platform
+          - runner: ubuntu-24.04
+            compiler: platform  # g++ currently has problems with oneTBB build
+          - runner: windows-2025
+            compiler: platform  # CMake problem(?) in oneTBB build with 'cl'
+        include:
+          - runner: ubuntu-24.04
+            compiler: clang
+            cxx: clang++
+          - runner: windows-2025
+            compiler: clang
+            cxx: clang-cl
+            opts: -Dgoogle-benchmark:werror=false
+          - runner: macos-13
+            cxx: clang++
+          - runner: macos-15
+            cxx: clang++
+    name: cpp-test-${{ matrix.runner }}-${{ matrix.cxx }}
+    runs-on: ${{ matrix.runner }}
+    env:
+      CXX: ${{ matrix.cxx }}
+      MACOSX_DEPLOYMENT_TARGET: 12.0
+    steps:
+      - uses: astral-sh/setup-uv@v6
+      - name: Install tools
+        run: |
+          uv tool install rust-just
+          uv tool install meson
+          uv tool install ninja
+      - uses: actions/checkout@v5
+      - name: Build and test
+        run: |
+          just test
