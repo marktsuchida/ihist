@@ -14,6 +14,17 @@ project(
     ],
 )
 
+cxx = meson.get_compiler('cpp')
+if host_machine.system() == 'darwin' and \
+    cxx.get_id() == 'clang' and cxx.version().startswith('16.')
+    # Work around https://github.com/mesonbuild/meson/issues/14856
+    # Remove when fixed (expected in Meson 1.8.4).
+    # (For Apple Clang 17 it was fixed in Meson 1.8.3, but it was still broken
+    # for Apple Clang 16.)
+    add_global_arguments('-U_LIBCPP_ENABLE_ASSERTIONS', language: 'cpp')
+    add_global_arguments('-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST', language: 'cpp')
+endif
+
 # We do not build oneTBB as a wrap/subproject, because when using as a C++
 # library, oneTBB should be dynamically linked (if other parts of the
 # application also use it). For quickly building for development, use the
