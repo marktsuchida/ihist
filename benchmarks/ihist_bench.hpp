@@ -1,3 +1,9 @@
+/*
+ * This file is part of ihist
+ * Copyright 2025 Board of Regents of the University of Wisconsin System
+ * SPDX-License-Identifier: MIT
+ */
+
 // This header generates all the benchmarks for a given data format. A separate
 // translation unit is used for each data format, because generating all the
 // tests at once overwhelms the compiler.

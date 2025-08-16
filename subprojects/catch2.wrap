@@ -1,3 +1,7 @@
+# This file is part of ihist
+# Copyright 2025 Board of Regents of the University of Wisconsin System
+# SPDX-License-Identifier: MIT
+
 [wrap-file]
 directory = Catch2-3.8.1
 source_url = https://github.com/catchorg/Catch2/archive/v3.8.1.tar.gz

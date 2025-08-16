@@ -1,3 +1,9 @@
+/*
+ * This file is part of ihist
+ * Copyright 2025 Board of Regents of the University of Wisconsin System
+ * SPDX-License-Identifier: MIT
+ */
+
 #include <ihist.hpp>
 
 #include <catch2/catch_template_test_macros.hpp>

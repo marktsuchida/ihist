@@ -1,3 +1,7 @@
+# This file is part of ihist
+# Copyright 2025 Board of Regents of the University of Wisconsin System
+# SPDX-License-Identifier: MIT
+
 benchmark_sources = [
     'bench_mono8_st.cpp',
     'bench_mono8_mt.cpp',
