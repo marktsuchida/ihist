@@ -143,6 +143,11 @@ void hist_unoptimized_impl(T const *IHIST_RESTRICT data, std::size_t size,
     constexpr std::array<std::size_t, NCOMPONENTS> offsets{
         ComponentOffsets...};
 
+#ifdef __clang__
+#pragma clang loop unroll(disable)
+#elif defined(__GNUC__)
+#pragma GCC unroll 0
+#endif
     for (std::size_t j = 0; j < size; ++j) {
         auto const i = j * Stride;
         for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
