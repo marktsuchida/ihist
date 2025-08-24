@@ -40,12 +40,6 @@
 namespace ihist {
 
 struct tuning_parameters {
-    // The default values represent "unoptimized" or "untuned".
-
-    // If true, suggest branchless conditional for filtering out overflow
-    // values.
-    bool prefer_branchless = false;
-
     // Number of separate histograms to iterate over (to tune for store-to-load
     // latency hiding vs spatial locality).
     std::size_t n_stripes = 1;
@@ -60,7 +54,6 @@ inline constexpr tuning_parameters untuned_parameters;
 template <typename T, unsigned Bits>
 constexpr tuning_parameters default_tuning_parameters{
 #if defined(__APPLE__) && defined(__aarch64__)
-    true,
     sizeof(T) > 1 ? 2 : 8, // TODO Tune the default
     sizeof(T) > 2   ? 1
     : sizeof(T) > 1 ? 4
@@ -68,9 +61,6 @@ constexpr tuning_parameters default_tuning_parameters{
     1 << (sizeof(T) > 1 ? 17 : 14),
 #elif defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) ||       \
     defined(__amd64) || defined(_M_X64)
-    // Intel (Coffee Lake) is faster with a predictable branch than with
-    // branchless, for the hi-bits filtering.
-    false,
     sizeof(T) > 1 ? 1 : 2, // TODO Tune the default
     sizeof(T) > 1 ? 1 : 4,
 #endif
@@ -95,8 +85,7 @@ constexpr auto bin_index(T value) -> std::size_t {
 }
 
 // Value to bin index, but masked by matching high bits.
-template <tuning_parameters const &Tuning, typename T, unsigned Bits,
-          unsigned LoBit = 0>
+template <typename T, unsigned Bits, unsigned LoBit = 0>
 constexpr auto bin_index_himask(T value, T hi_mask) -> std::size_t {
     static_assert(std::is_unsigned_v<T>);
     constexpr auto TYPE_BITS = 8 * sizeof(T);
@@ -113,16 +102,7 @@ constexpr auto bin_index_himask(T value, T hi_mask) -> std::size_t {
     constexpr T HI_BITS_MASK = (1uLL << HI_BITS) - 1;
     constexpr std::size_t MASKED_BIN = 1uLL << Bits;
     auto const hi_bits = (value >> SAMP_BITS) & HI_BITS_MASK;
-
-    if constexpr (Tuning.prefer_branchless) {
-        return (hi_bits == hi_mask) ? bin : MASKED_BIN;
-
-    } else {
-        if (hi_bits == hi_mask) {
-            return bin;
-        }
-        return MASKED_BIN;
-    }
+    return (hi_bits == hi_mask) ? bin : MASKED_BIN;
 }
 
 template <typename T, unsigned Bits, unsigned LoBit, bool UseHiMask,
@@ -149,9 +129,8 @@ void hist_unoptimized_impl(T const *IHIST_RESTRICT data, std::size_t size,
         for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
             auto const offset = offsets[c];
             if constexpr (UseHiMask) {
-                auto const bin =
-                    bin_index_himask<untuned_parameters, T, Bits, LoBit>(
-                        data[i + offset], hi_mask);
+                auto const bin = bin_index_himask<T, Bits, LoBit>(
+                    data[i + offset], hi_mask);
                 if (bin != NBINS) {
                     ++histogram[c * NBINS + bin];
                 }
@@ -265,8 +244,8 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
         for (std::size_t n = 0; n < BLOCKSIZE * Stride; ++n) {
             auto const i = block * BLOCKSIZE * Stride + n;
             if constexpr (UseHiMask) {
-                bins[n] = bin_index_himask<Tuning, T, Bits, LoBit>(
-                    block_data[i], hi_mask);
+                bins[n] =
+                    bin_index_himask<T, Bits, LoBit>(block_data[i], hi_mask);
             } else {
                 bins[n] = bin_index<T, Bits, LoBit>(block_data[i]);
             }
