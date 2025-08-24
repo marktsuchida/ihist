@@ -25,7 +25,7 @@ tbb_version := '2022.2.0'
 tbb_tgz := 'oneapi-tbb-' + tbb_version + '.tar.gz'
 tbb_dir := 'oneTBB-' + tbb_version
 
-build-tbb BUILD_TYPE:
+build-tbb BUILD_TYPE *FLAGS:
     #!/usr/bin/env bash
     set -euxo pipefail
     CMAKE_CXX_FLAGS=''
@@ -49,6 +49,7 @@ build-tbb BUILD_TYPE:
     cd {{tbb_dir}}
     mkdir -p build
     cmake -G Ninja -S . -B build \
+      {{FLAGS}} \
       -DCMAKE_INSTALL_PREFIX="$(pwd)/../oneTBB-{{BUILD_TYPE}}" \
       -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
       -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" \
