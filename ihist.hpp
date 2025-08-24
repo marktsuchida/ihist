@@ -251,6 +251,11 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
     std::size_t const epilog_size = size_after_prolog % BLOCKSIZE;
     T const *epilog_data = block_data + n_blocks * BLOCKSIZE * Stride;
 
+#ifdef __clang__
+#pragma clang loop unroll(disable)
+#elif defined(__GNUC__)
+#pragma GCC unroll 0
+#endif
     for (std::size_t block = 0; block < n_blocks; ++block) {
         // We pre-compute all the bin indices for the block here, which
         // facilitates experimenting with potential optimizations, but the
