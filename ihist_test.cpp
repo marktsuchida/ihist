@@ -165,7 +165,7 @@ TEMPLATE_TEST_CASE("empty-data", "", std::uint8_t, std::uint16_t) {
 
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     std::array<std::uint32_t, NBINS> hist{};
-    hist_func(nullptr, 0, hist.data());
+    hist_func(nullptr, 0, hist.data(), 1);
     std::array<std::uint32_t, NBINS> ref{};
     CHECK(hist == ref);
 }
@@ -209,13 +209,13 @@ TEMPLATE_TEST_CASE("const-data", "", std::uint8_t, std::uint16_t) {
     std::array<std::uint32_t, NBINS> ref{};
 
     SECTION("malloc-aligned") {
-        hist_func(data.data(), data.size(), hist.data());
+        hist_func(data.data(), data.size(), hist.data(), 1);
         ref[value] = size;
         CHECK(hist == ref);
     }
 
     SECTION("unaligned") {
-        hist_func(data.data() + 1, data.size() - 1, hist.data());
+        hist_func(data.data() + 1, data.size() - 1, hist.data(), 1);
         ref[value] = size - 1;
         CHECK(hist == ref);
     }
@@ -335,7 +335,7 @@ TEMPLATE_TEST_CASE("const-data-multicomponent", "", std::uint8_t,
     }
 
     std::vector<std::uint32_t> hist(3 * NBINS);
-    hist_func(data.data(), size, hist.data());
+    hist_func(data.data(), size, hist.data(), 1);
     std::vector<std::uint32_t> ref(3 * NBINS);
     for (int c = 0; c < 3; ++c) {
         if (c == component) {
@@ -380,9 +380,9 @@ TEMPLATE_TEST_CASE("random-data", "", std::uint8_t, std::uint16_t) {
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     auto const data = test_data<TestType>(1 << (20 - sizeof(TestType)));
     std::array<std::uint32_t, NBINS> hist{};
-    hist_func(data.data(), data.size(), hist.data());
+    hist_func(data.data(), data.size(), hist.data(), 1);
     std::array<std::uint32_t, NBINS> ref{};
-    ref_func(data.data(), data.size(), ref.data());
+    ref_func(data.data(), data.size(), ref.data(), 1);
     CHECK(hist == ref);
 }
 
@@ -400,9 +400,9 @@ TEMPLATE_TEST_CASE("random-data-clean-filtered", "", std::uint8_t,
     // Test with 4/12-bit data with no spurious high bits:
     auto const data = test_data<TestType, BITS>(1 << (20 - sizeof(TestType)));
     std::array<std::uint32_t, NBINS> hist{};
-    hist_func(data.data(), data.size(), hist.data());
+    hist_func(data.data(), data.size(), hist.data(), 1);
     std::array<std::uint32_t, NBINS> ref{};
-    ref_func(data.data(), data.size(), ref.data());
+    ref_func(data.data(), data.size(), ref.data(), 1);
     CHECK(hist == ref);
 }
 
@@ -463,9 +463,9 @@ TEMPLATE_TEST_CASE("random-data-clean-discard-low", "", std::uint8_t,
     auto const data =
         test_data<TestType, BITS + LO_BIT>(1 << (20 - sizeof(TestType)));
     std::array<std::uint32_t, NBINS> hist{};
-    hist_func(data.data(), data.size(), hist.data());
+    hist_func(data.data(), data.size(), hist.data(), 1);
     std::array<std::uint32_t, NBINS> ref{};
-    ref_func(data.data(), data.size(), ref.data());
+    ref_func(data.data(), data.size(), ref.data(), 1);
     CHECK(hist == ref);
 }
 
@@ -496,9 +496,9 @@ TEMPLATE_TEST_CASE("random-data-unclean-filtered", "", std::uint8_t,
     }();
 
     std::array<std::uint32_t, NBINS> hist{};
-    hist_func(data.data(), data.size(), hist.data());
+    hist_func(data.data(), data.size(), hist.data(), 1);
     std::array<std::uint32_t, NBINS> ref{};
-    ref_func(clean_data.data(), clean_data.size(), ref.data());
+    ref_func(clean_data.data(), clean_data.size(), ref.data(), 1);
     CHECK(hist == ref);
 }
 
@@ -540,9 +540,9 @@ TEMPLATE_TEST_CASE("random-data-multicomponent", "", std::uint8_t,
     constexpr auto NBINS = 1 << BITS;
     auto const data = test_data<TestType>(STRIDE << (20 - sizeof(TestType)));
     std::vector<std::uint32_t> hist(3 * NBINS);
-    hist_func(data.data(), data.size() / STRIDE, hist.data());
+    hist_func(data.data(), data.size() / STRIDE, hist.data(), 1);
     std::vector<std::uint32_t> ref(3 * NBINS);
-    ref_func(data.data(), data.size() / STRIDE, ref.data());
+    ref_func(data.data(), data.size() / STRIDE, ref.data(), 1);
     CHECK(hist == ref);
 }
 
