@@ -58,7 +58,6 @@ constexpr tuning_parameters default_tuning_parameters{
     sizeof(T) > 2   ? 1
     : sizeof(T) > 1 ? 4
                     : 16,
-    1 << (sizeof(T) > 1 ? 17 : 14),
 #elif defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) ||       \
     defined(__amd64) || defined(_M_X64)
     sizeof(T) > 1 ? 1 : 2, // TODO Tune the default
