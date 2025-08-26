@@ -67,7 +67,7 @@ constexpr tuning_parameters default_tuning_parameters{
 
 namespace internal {
 
-// Value to bin index, disregarding high bits.
+// Value to bin index. If value is out of range, return 1 + max bin index.
 template <typename T, unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0>
 constexpr auto bin_index(T value) -> std::size_t {
     static_assert(std::is_unsigned_v<T>);
@@ -80,28 +80,16 @@ constexpr auto bin_index(T value) -> std::size_t {
 
     constexpr T SIGNIF_MASK = (1uLL << Bits) - 1;
     std::size_t const bin = (value >> LoBit) & SIGNIF_MASK;
-    return bin;
-}
 
-// Value to bin index, but masked by matching high bits.
-template <typename T, unsigned Bits, unsigned LoBit = 0>
-constexpr auto bin_index_himask(T value) -> std::size_t {
-    static_assert(std::is_unsigned_v<T>);
-    constexpr auto TYPE_BITS = 8 * sizeof(T);
-    constexpr auto SAMP_BITS = Bits + LoBit;
-    static_assert(Bits > 0);
-    static_assert(Bits <= TYPE_BITS);
-    static_assert(LoBit < TYPE_BITS);
-    static_assert(SAMP_BITS < TYPE_BITS);
-
-    constexpr T SIGNIF_MASK = (1uLL << Bits) - 1;
-    std::size_t const bin = (value >> LoBit) & SIGNIF_MASK;
-
-    constexpr auto HI_BITS = TYPE_BITS - SAMP_BITS;
-    constexpr T HI_BITS_MASK = (1uLL << HI_BITS) - 1;
-    constexpr std::size_t MASKED_BIN = 1uLL << Bits;
-    auto const hi_bits = (value >> SAMP_BITS) & HI_BITS_MASK;
-    return (hi_bits == T(0)) ? bin : MASKED_BIN;
+    if constexpr (SAMP_BITS < TYPE_BITS) {
+        constexpr auto HI_BITS = TYPE_BITS - SAMP_BITS;
+        constexpr T HI_BITS_MASK = (1uLL << HI_BITS) - 1;
+        constexpr std::size_t MASKED_BIN = 1uLL << Bits;
+        auto const hi_bits = (value >> SAMP_BITS) & HI_BITS_MASK;
+        return (hi_bits == T(0)) ? bin : MASKED_BIN;
+    } else {
+        return bin;
+    }
 }
 
 template <typename T, unsigned Bits, unsigned LoBit, std::size_t Stride,
@@ -127,14 +115,12 @@ void hist_unoptimized_impl(T const *IHIST_RESTRICT data, std::size_t size,
         auto const i = j * Stride;
         for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
             auto const offset = offsets[c];
+            auto const bin = bin_index<T, Bits, LoBit>(data[i + offset]);
             if constexpr (CHECK_HI_BITS) {
-                auto const bin =
-                    bin_index_himask<T, Bits, LoBit>(data[i + offset]);
                 if (bin != NBINS) {
                     ++histogram[c * NBINS + bin];
                 }
             } else {
-                auto const bin = bin_index<T, Bits, LoBit>(data[i + offset]);
                 ++histogram[c * NBINS + bin];
             }
         }
@@ -169,7 +155,6 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
 
     static_assert(std::max({ComponentOffsets...}) < Stride);
 
-    constexpr bool CHECK_HI_BITS = Bits + LoBit < 8 * sizeof(T);
     constexpr std::size_t NSTRIPES =
         std::max(std::size_t(1), Tuning.n_stripes);
     constexpr std::size_t NBINS = 1 << Bits;
@@ -177,8 +162,10 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
     constexpr std::array<std::size_t, NCOMPONENTS> offsets{
         ComponentOffsets...};
 
-    // Use extra bin for overflows (when CHECK_HI_BITS is true).
-    std::vector<std::uint32_t> stripes(NSTRIPES * NCOMPONENTS * (NBINS + 1));
+    // Use extra bin for overflows if applicable.
+    constexpr auto STRIPE_LEN =
+        NBINS + static_cast<std::size_t>(Bits + LoBit < 8 * sizeof(T));
+    std::vector<std::uint32_t> stripes(NSTRIPES * NCOMPONENTS * STRIPE_LEN);
 
     constexpr std::size_t BLOCKSIZE =
         std::max(std::size_t(1), Tuning.n_unroll / NCOMPONENTS);
@@ -232,11 +219,7 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
         std::array<std::size_t, BLOCKSIZE * Stride> bins;
         for (std::size_t n = 0; n < BLOCKSIZE * Stride; ++n) {
             auto const i = block * BLOCKSIZE * Stride + n;
-            if constexpr (CHECK_HI_BITS) {
-                bins[n] = bin_index_himask<T, Bits, LoBit>(block_data[i]);
-            } else {
-                bins[n] = bin_index<T, Bits, LoBit>(block_data[i]);
-            }
+            bins[n] = bin_index<T, Bits, LoBit>(block_data[i]);
         }
 
         for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
@@ -244,7 +227,7 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
             for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
                 auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
                 auto const bin = bins[k * Stride + offset];
-                ++stripes[(stripe * NCOMPONENTS + c) * (NBINS + 1) + bin];
+                ++stripes[(stripe * NCOMPONENTS + c) * STRIPE_LEN + bin];
             }
         }
     }
@@ -253,7 +236,7 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
         for (std::size_t bin = 0; bin < NBINS; ++bin) {
             std::uint32_t sum = 0;
             for (std::size_t stripe = 0; stripe < NSTRIPES; ++stripe) {
-                sum += stripes[(stripe * NCOMPONENTS + c) * (NBINS + 1) + bin];
+                sum += stripes[(stripe * NCOMPONENTS + c) * STRIPE_LEN + bin];
             }
             histogram[c * NBINS + bin] += sum;
         }

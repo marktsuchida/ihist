@@ -67,32 +67,23 @@ TEST_CASE("bin_index-full-bits") {
     STATIC_CHECK(bin_index(std::uint16_t(65535)) == 65535);
 }
 
-TEST_CASE("bin_index-lo-bits") {
+TEST_CASE("bin_index-hi-bits") {
     STATIC_CHECK(bin_index<std::uint16_t, 12>(0x0fff) == 0x0fff);
-    STATIC_CHECK(bin_index<std::uint16_t, 12>(0xffff) == 0x0fff);
+    STATIC_CHECK(bin_index<std::uint16_t, 12>(0xffff) == 0x1000);
 }
 
-TEST_CASE("bin_index-hi-bits") {
+TEST_CASE("bin_index-lo-bits") {
     STATIC_CHECK(bin_index<std::uint16_t, 12, 4>(0xfff0) == 0x0fff);
     STATIC_CHECK(bin_index<std::uint16_t, 12, 4>(0xffff) == 0x0fff);
 }
 
-TEST_CASE("bin_index_himask-lo-bits") {
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(0) == 0);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(1) == 1);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(4095) == 4095);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(4096) == 4096);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(4097) == 4096);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(65535) == 4096);
-}
-
-TEST_CASE("bin_index_himask-mid-bits") {
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x0000) == 0);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x0010) == 1);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x0ff0) == 0xff);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x1000) == 256);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x1010) == 256);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0xffff) == 256);
+TEST_CASE("bin_index-mid-bits") {
+    STATIC_CHECK(bin_index<std::uint16_t, 8, 4>(0x0000) == 0);
+    STATIC_CHECK(bin_index<std::uint16_t, 8, 4>(0x0010) == 1);
+    STATIC_CHECK(bin_index<std::uint16_t, 8, 4>(0x0ff0) == 0xff);
+    STATIC_CHECK(bin_index<std::uint16_t, 8, 4>(0x1000) == 256);
+    STATIC_CHECK(bin_index<std::uint16_t, 8, 4>(0x1010) == 256);
+    STATIC_CHECK(bin_index<std::uint16_t, 8, 4>(0xffff) == 256);
 }
 
 TEST_CASE("first_aligned_index_impl") {
