@@ -78,24 +78,21 @@ TEST_CASE("bin_index-hi-bits") {
 }
 
 TEST_CASE("bin_index_himask-lo-bits") {
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(0, 0) == 0);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(1, 0) == 1);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(4095, 0) == 4095);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(4096, 0) == 4096);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(4097, 0) == 4096);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(65535, 0) == 4096);
-
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(0xaffd, 0xa) == 0x0ffd);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(0xbffd, 0xa) == 0x1000);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(0) == 0);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(1) == 1);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(4095) == 4095);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(4096) == 4096);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(4097) == 4096);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 12>(65535) == 4096);
 }
 
 TEST_CASE("bin_index_himask-mid-bits") {
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x0000, 0) == 0);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x0010, 0) == 1);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x0ff0, 0) == 0xff);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x1000, 0) == 256);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x1010, 0) == 256);
-    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0xffff, 0) == 256);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x0000) == 0);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x0010) == 1);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x0ff0) == 0xff);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x1000) == 256);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0x1010) == 256);
+    STATIC_CHECK(bin_index_himask<std::uint16_t, 8, 4>(0xffff) == 256);
 }
 
 TEST_CASE("first_aligned_index_impl") {
@@ -246,24 +243,22 @@ TEMPLATE_TEST_CASE("const-data-himask-discard-low", "", std::uint8_t,
     std::size_t size = GENERATE(1, 7, 100);
     TestType lo_bits = GENERATE(0, 1, (1 << LO_BIT) - 1);
     TestType sample = GENERATE(0, 1, NBINS - 1);
-    TestType hi_bits =
-        GENERATE(0, 1, (1 << (8 * sizeof(TestType) - (BITS + LO_BIT))) - 1);
-    TestType value = ((((hi_bits) << BITS) | sample) << LO_BIT) | lo_bits;
-    CAPTURE(size, hi_bits, sample, lo_bits, value);
-
-    std::vector<TestType> data(size, value);
+    TestType value = (sample << LO_BIT) | lo_bits;
+    CAPTURE(size, sample, lo_bits, value);
 
     SECTION("matching-hi-mask") {
+        std::vector<TestType> data(size, value);
         std::array<std::uint32_t, NBINS> hist{};
-        hist_func(data.data(), data.size(), hi_bits, hist.data());
+        hist_func(data.data(), data.size(), hist.data());
         std::array<std::uint32_t, NBINS> ref{};
         ref[sample] = size;
         CHECK(hist == ref);
     }
 
     SECTION("non-matching-hi-mask") {
+        std::vector<TestType> data(size, value | (1 << (BITS + LO_BIT)));
         std::array<std::uint32_t, NBINS> hist{};
-        hist_func(data.data(), data.size(), hi_bits + 1, hist.data());
+        hist_func(data.data(), data.size(), hist.data());
         std::array<std::uint32_t, NBINS> ref{};
         CHECK(hist == ref);
     }
