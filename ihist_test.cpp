@@ -178,8 +178,6 @@ TEMPLATE_TEST_CASE("const-data", "", std::uint8_t, std::uint16_t) {
     }
 }
 
-namespace internal {
-
 TEMPLATE_TEST_CASE("const-data-hi-bit-filtering-discard-low", "", std::uint8_t,
                    std::uint16_t) {
     constexpr auto BITS = 8 * sizeof(TestType) / 2;
@@ -193,15 +191,15 @@ TEMPLATE_TEST_CASE("const-data-hi-bit-filtering-discard-low", "", std::uint8_t,
     static constexpr tuning_parameters tune02{0, 2};
     static constexpr tuning_parameters tune03{0, 3};
     auto const hist_func =
-        GENERATE(hist_unoptimized_impl<TestType, BITS, LO_BIT, 1, 0>,
-                 hist_striped_impl<tune0, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_striped_impl<tune1, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_striped_impl<tune2, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_striped_impl<tune3, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_striped_impl<tune00, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_striped_impl<tune01, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_striped_impl<tune02, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_striped_impl<tune03, TestType, BITS, LO_BIT, 1, 0>);
+        GENERATE(hist_unoptimized_st<TestType, BITS, LO_BIT, 1, 0>,
+                 hist_striped_st<tune0, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_striped_st<tune1, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_striped_st<tune2, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_striped_st<tune3, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_striped_st<tune00, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_striped_st<tune01, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_striped_st<tune02, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_striped_st<tune03, TestType, BITS, LO_BIT, 1, 0>);
 
     constexpr auto NBINS = 1 << BITS;
     std::size_t size = GENERATE(1, 7, 100);
@@ -213,7 +211,7 @@ TEMPLATE_TEST_CASE("const-data-hi-bit-filtering-discard-low", "", std::uint8_t,
     SECTION("zero-hi-bits") {
         std::vector<TestType> data(size, value);
         std::array<std::uint32_t, NBINS> hist{};
-        hist_func(data.data(), data.size(), hist.data());
+        hist_func(data.data(), data.size(), hist.data(), 0);
         std::array<std::uint32_t, NBINS> ref{};
         ref[sample] = size;
         CHECK(hist == ref);
@@ -222,13 +220,11 @@ TEMPLATE_TEST_CASE("const-data-hi-bit-filtering-discard-low", "", std::uint8_t,
     SECTION("non-zero-hi-bits") {
         std::vector<TestType> data(size, value | (1 << (BITS + LO_BIT)));
         std::array<std::uint32_t, NBINS> hist{};
-        hist_func(data.data(), data.size(), hist.data());
+        hist_func(data.data(), data.size(), hist.data(), 0);
         std::array<std::uint32_t, NBINS> ref{};
         CHECK(hist == ref);
     }
 }
-
-} // namespace internal
 
 TEMPLATE_TEST_CASE("const-data-multicomponent", "", std::uint8_t,
                    std::uint16_t) {
