@@ -127,25 +127,16 @@ TEMPLATE_TEST_CASE("empty-data", "", std::uint8_t, std::uint16_t) {
     static constexpr tuning_parameters tune01{0, 1};
     static constexpr tuning_parameters tune02{0, 2};
     static constexpr tuning_parameters tune03{0, 3};
-    auto const hist_func =
-        GENERATE(hist_unfiltered_unoptimized_st<TestType>,
-                 hist_unfiltered_striped_st<tune0, TestType>,
-                 hist_unfiltered_striped_st<tune1, TestType>,
-                 hist_unfiltered_striped_st<tune2, TestType>,
-                 hist_unfiltered_striped_st<tune3, TestType>,
-                 hist_unfiltered_striped_st<tune00, TestType>,
-                 hist_unfiltered_striped_st<tune01, TestType>,
-                 hist_unfiltered_striped_st<tune02, TestType>,
-                 hist_unfiltered_striped_st<tune03, TestType>,
-                 hist_unfiltered_unoptimized_mt<TestType>,
-                 hist_unfiltered_striped_mt<tune0, TestType>,
-                 hist_unfiltered_striped_mt<tune1, TestType>,
-                 hist_unfiltered_striped_mt<tune2, TestType>,
-                 hist_unfiltered_striped_mt<tune3, TestType>,
-                 hist_unfiltered_striped_mt<tune00, TestType>,
-                 hist_unfiltered_striped_mt<tune01, TestType>,
-                 hist_unfiltered_striped_mt<tune02, TestType>,
-                 hist_unfiltered_striped_mt<tune03, TestType>);
+    auto const hist_func = GENERATE(
+        hist_unoptimized_st<TestType>, hist_striped_st<tune0, TestType>,
+        hist_striped_st<tune1, TestType>, hist_striped_st<tune2, TestType>,
+        hist_striped_st<tune3, TestType>, hist_striped_st<tune00, TestType>,
+        hist_striped_st<tune01, TestType>, hist_striped_st<tune02, TestType>,
+        hist_striped_st<tune03, TestType>, hist_unoptimized_mt<TestType>,
+        hist_striped_mt<tune0, TestType>, hist_striped_mt<tune1, TestType>,
+        hist_striped_mt<tune2, TestType>, hist_striped_mt<tune3, TestType>,
+        hist_striped_mt<tune00, TestType>, hist_striped_mt<tune01, TestType>,
+        hist_striped_mt<tune02, TestType>, hist_striped_mt<tune03, TestType>);
 
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     std::array<std::uint32_t, NBINS> hist{};
@@ -163,25 +154,16 @@ TEMPLATE_TEST_CASE("const-data", "", std::uint8_t, std::uint16_t) {
     static constexpr tuning_parameters tune01{0, 1};
     static constexpr tuning_parameters tune02{0, 2};
     static constexpr tuning_parameters tune03{0, 3};
-    auto const hist_func =
-        GENERATE(hist_unfiltered_unoptimized_st<TestType>,
-                 hist_unfiltered_striped_st<tune0, TestType>,
-                 hist_unfiltered_striped_st<tune1, TestType>,
-                 hist_unfiltered_striped_st<tune2, TestType>,
-                 hist_unfiltered_striped_st<tune3, TestType>,
-                 hist_unfiltered_striped_st<tune00, TestType>,
-                 hist_unfiltered_striped_st<tune01, TestType>,
-                 hist_unfiltered_striped_st<tune02, TestType>,
-                 hist_unfiltered_striped_st<tune03, TestType>,
-                 hist_unfiltered_unoptimized_mt<TestType>,
-                 hist_unfiltered_striped_mt<tune0, TestType>,
-                 hist_unfiltered_striped_mt<tune1, TestType>,
-                 hist_unfiltered_striped_mt<tune2, TestType>,
-                 hist_unfiltered_striped_mt<tune3, TestType>,
-                 hist_unfiltered_striped_mt<tune00, TestType>,
-                 hist_unfiltered_striped_mt<tune01, TestType>,
-                 hist_unfiltered_striped_mt<tune02, TestType>,
-                 hist_unfiltered_striped_mt<tune03, TestType>);
+    auto const hist_func = GENERATE(
+        hist_unoptimized_st<TestType>, hist_striped_st<tune0, TestType>,
+        hist_striped_st<tune1, TestType>, hist_striped_st<tune2, TestType>,
+        hist_striped_st<tune3, TestType>, hist_striped_st<tune00, TestType>,
+        hist_striped_st<tune01, TestType>, hist_striped_st<tune02, TestType>,
+        hist_striped_st<tune03, TestType>, hist_unoptimized_mt<TestType>,
+        hist_striped_mt<tune0, TestType>, hist_striped_mt<tune1, TestType>,
+        hist_striped_mt<tune2, TestType>, hist_striped_mt<tune3, TestType>,
+        hist_striped_mt<tune00, TestType>, hist_striped_mt<tune01, TestType>,
+        hist_striped_mt<tune02, TestType>, hist_striped_mt<tune03, TestType>);
 
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     std::size_t size = GENERATE(1, 2, 7, 1000);
@@ -207,7 +189,7 @@ TEMPLATE_TEST_CASE("const-data", "", std::uint8_t, std::uint16_t) {
 
 namespace internal {
 
-TEMPLATE_TEST_CASE("const-data-himask-discard-low", "", std::uint8_t,
+TEMPLATE_TEST_CASE("const-data-hi-bit-filtering-discard-low", "", std::uint8_t,
                    std::uint16_t) {
     constexpr auto BITS = 8 * sizeof(TestType) / 2;
     constexpr auto LO_BIT = BITS / 2;
@@ -220,24 +202,15 @@ TEMPLATE_TEST_CASE("const-data-himask-discard-low", "", std::uint8_t,
     static constexpr tuning_parameters tune02{0, 2};
     static constexpr tuning_parameters tune03{0, 3};
     auto const hist_func =
-        GENERATE(hist_himask_unoptimized<TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_striped_st<tune0, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_striped_st<tune1, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_striped_st<tune2, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_striped_st<tune3, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_striped_st<tune00, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_striped_st<tune01, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_striped_st<tune02, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_striped_st<tune03, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_unoptimized_mt<TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_striped_mt<tune0, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_striped_mt<tune1, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_striped_mt<tune2, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_striped_mt<tune3, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_striped_mt<tune00, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_striped_mt<tune01, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_striped_mt<tune02, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_himask_striped_mt<tune03, TestType, BITS, LO_BIT, 1, 0>);
+        GENERATE(hist_unoptimized_impl<TestType, BITS, LO_BIT, 1, 0>,
+                 hist_striped_impl<tune0, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_striped_impl<tune1, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_striped_impl<tune2, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_striped_impl<tune3, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_striped_impl<tune00, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_striped_impl<tune01, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_striped_impl<tune02, TestType, BITS, LO_BIT, 1, 0>,
+                 hist_striped_impl<tune03, TestType, BITS, LO_BIT, 1, 0>);
 
     constexpr auto NBINS = 1 << BITS;
     std::size_t size = GENERATE(1, 7, 100);
@@ -246,7 +219,7 @@ TEMPLATE_TEST_CASE("const-data-himask-discard-low", "", std::uint8_t,
     TestType value = (sample << LO_BIT) | lo_bits;
     CAPTURE(size, sample, lo_bits, value);
 
-    SECTION("matching-hi-mask") {
+    SECTION("zero-hi-bits") {
         std::vector<TestType> data(size, value);
         std::array<std::uint32_t, NBINS> hist{};
         hist_func(data.data(), data.size(), hist.data());
@@ -255,7 +228,7 @@ TEMPLATE_TEST_CASE("const-data-himask-discard-low", "", std::uint8_t,
         CHECK(hist == ref);
     }
 
-    SECTION("non-matching-hi-mask") {
+    SECTION("non-zero-hi-bits") {
         std::vector<TestType> data(size, value | (1 << (BITS + LO_BIT)));
         std::array<std::uint32_t, NBINS> hist{};
         hist_func(data.data(), data.size(), hist.data());
@@ -278,26 +251,25 @@ TEMPLATE_TEST_CASE("const-data-multicomponent", "", std::uint8_t,
     static constexpr tuning_parameters tune01{0, 1};
     static constexpr tuning_parameters tune02{0, 2};
     static constexpr tuning_parameters tune03{0, 3};
-    auto const hist_func = GENERATE(
-        hist_unfiltered_unoptimized_st<TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_st<tune0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_st<tune1, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_st<tune2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_st<tune3, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_st<tune00, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_st<tune01, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_st<tune02, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_st<tune03, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_unoptimized_mt<TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_mt<tune0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_mt<tune1, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_mt<tune2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_mt<tune3, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_mt<tune00, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_mt<tune01, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_mt<tune02, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_mt<tune03, TestType, BITS, 0, STRIDE, 3, 0,
-                                   1>);
+    auto const hist_func =
+        GENERATE(hist_unoptimized_st<TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_st<tune0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_st<tune1, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_st<tune2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_st<tune3, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_st<tune00, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_st<tune01, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_st<tune02, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_st<tune03, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_unoptimized_mt<TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_mt<tune0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_mt<tune1, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_mt<tune2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_mt<tune3, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_mt<tune00, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_mt<tune01, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_mt<tune02, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_mt<tune03, TestType, BITS, 0, STRIDE, 3, 0, 1>);
 
     constexpr auto NBINS = 1 << BITS;
     std::size_t size = GENERATE(0, 1, 7, 1000);
@@ -338,26 +310,17 @@ TEMPLATE_TEST_CASE("random-data", "", std::uint8_t, std::uint16_t) {
     static constexpr tuning_parameters tune01{0, 1};
     static constexpr tuning_parameters tune02{0, 2};
     static constexpr tuning_parameters tune03{0, 3};
-    auto const hist_func =
-        GENERATE(hist_unfiltered_unoptimized_st<TestType>,
-                 hist_unfiltered_striped_st<tune0, TestType>,
-                 hist_unfiltered_striped_st<tune1, TestType>,
-                 hist_unfiltered_striped_st<tune2, TestType>,
-                 hist_unfiltered_striped_st<tune3, TestType>,
-                 hist_unfiltered_striped_st<tune00, TestType>,
-                 hist_unfiltered_striped_st<tune01, TestType>,
-                 hist_unfiltered_striped_st<tune02, TestType>,
-                 hist_unfiltered_striped_st<tune03, TestType>,
-                 hist_unfiltered_unoptimized_mt<TestType>,
-                 hist_unfiltered_striped_mt<tune0, TestType>,
-                 hist_unfiltered_striped_mt<tune1, TestType>,
-                 hist_unfiltered_striped_mt<tune2, TestType>,
-                 hist_unfiltered_striped_mt<tune3, TestType>,
-                 hist_unfiltered_striped_mt<tune00, TestType>,
-                 hist_unfiltered_striped_mt<tune01, TestType>,
-                 hist_unfiltered_striped_mt<tune02, TestType>,
-                 hist_unfiltered_striped_mt<tune03, TestType>);
-    auto const ref_func = hist_unfiltered_unoptimized_st<TestType>;
+    auto const hist_func = GENERATE(
+        hist_unoptimized_st<TestType>, hist_striped_st<tune0, TestType>,
+        hist_striped_st<tune1, TestType>, hist_striped_st<tune2, TestType>,
+        hist_striped_st<tune3, TestType>, hist_striped_st<tune00, TestType>,
+        hist_striped_st<tune01, TestType>, hist_striped_st<tune02, TestType>,
+        hist_striped_st<tune03, TestType>, hist_unoptimized_mt<TestType>,
+        hist_striped_mt<tune0, TestType>, hist_striped_mt<tune1, TestType>,
+        hist_striped_mt<tune2, TestType>, hist_striped_mt<tune3, TestType>,
+        hist_striped_mt<tune00, TestType>, hist_striped_mt<tune01, TestType>,
+        hist_striped_mt<tune02, TestType>, hist_striped_mt<tune03, TestType>);
+    auto const ref_func = hist_unoptimized_st<TestType>;
 
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     auto const data = test_data<TestType>(1 << (20 - sizeof(TestType)));
@@ -372,11 +335,11 @@ TEMPLATE_TEST_CASE("random-data-clean-filtered", "", std::uint8_t,
                    std::uint16_t) {
     constexpr auto BITS = 8 * sizeof(TestType) - 4;
     auto hist_func =
-        GENERATE(hist_filtered_unoptimized_st<TestType, BITS>,
-                 hist_filtered_striped_st<untuned_parameters, TestType, BITS>,
-                 hist_filtered_unoptimized_mt<TestType, BITS>,
-                 hist_filtered_striped_mt<untuned_parameters, TestType, BITS>);
-    auto ref_func = hist_unfiltered_unoptimized_st<TestType, BITS>;
+        GENERATE(hist_unoptimized_st<TestType, BITS>,
+                 hist_striped_st<untuned_parameters, TestType, BITS>,
+                 hist_unoptimized_mt<TestType, BITS>,
+                 hist_striped_mt<untuned_parameters, TestType, BITS>);
+    auto ref_func = hist_unoptimized_st<TestType, BITS>;
 
     constexpr auto NBINS = 1 << BITS;
     // Test with 4/12-bit data with no spurious high bits:
@@ -401,43 +364,25 @@ TEMPLATE_TEST_CASE("random-data-clean-discard-low", "", std::uint8_t,
     static constexpr tuning_parameters tune02{0, 2};
     static constexpr tuning_parameters tune03{0, 3};
     auto const hist_func =
-        GENERATE(hist_unfiltered_unoptimized_st<TestType, BITS, LO_BIT>,
-                 hist_unfiltered_striped_st<tune0, TestType, BITS, LO_BIT>,
-                 hist_unfiltered_striped_st<tune1, TestType, BITS, LO_BIT>,
-                 hist_unfiltered_striped_st<tune2, TestType, BITS, LO_BIT>,
-                 hist_unfiltered_striped_st<tune3, TestType, BITS, LO_BIT>,
-                 hist_unfiltered_striped_st<tune00, TestType, BITS, LO_BIT>,
-                 hist_unfiltered_striped_st<tune01, TestType, BITS, LO_BIT>,
-                 hist_unfiltered_striped_st<tune02, TestType, BITS, LO_BIT>,
-                 hist_unfiltered_striped_st<tune03, TestType, BITS, LO_BIT>,
-                 hist_unfiltered_unoptimized_mt<TestType, BITS, LO_BIT>,
-                 hist_unfiltered_striped_mt<tune0, TestType, BITS, LO_BIT>,
-                 hist_unfiltered_striped_mt<tune1, TestType, BITS, LO_BIT>,
-                 hist_unfiltered_striped_mt<tune2, TestType, BITS, LO_BIT>,
-                 hist_unfiltered_striped_mt<tune3, TestType, BITS, LO_BIT>,
-                 hist_unfiltered_striped_mt<tune00, TestType, BITS, LO_BIT>,
-                 hist_unfiltered_striped_mt<tune01, TestType, BITS, LO_BIT>,
-                 hist_unfiltered_striped_mt<tune02, TestType, BITS, LO_BIT>,
-                 hist_unfiltered_striped_mt<tune03, TestType, BITS, LO_BIT>,
-                 hist_filtered_unoptimized_st<TestType, BITS, LO_BIT>,
-                 hist_filtered_striped_st<tune0, TestType, BITS, LO_BIT>,
-                 hist_filtered_striped_st<tune1, TestType, BITS, LO_BIT>,
-                 hist_filtered_striped_st<tune2, TestType, BITS, LO_BIT>,
-                 hist_filtered_striped_st<tune3, TestType, BITS, LO_BIT>,
-                 hist_filtered_striped_st<tune00, TestType, BITS, LO_BIT>,
-                 hist_filtered_striped_st<tune01, TestType, BITS, LO_BIT>,
-                 hist_filtered_striped_st<tune02, TestType, BITS, LO_BIT>,
-                 hist_filtered_striped_st<tune03, TestType, BITS, LO_BIT>,
-                 hist_filtered_unoptimized_mt<TestType, BITS, LO_BIT>,
-                 hist_filtered_striped_mt<tune0, TestType, BITS, LO_BIT>,
-                 hist_filtered_striped_mt<tune1, TestType, BITS, LO_BIT>,
-                 hist_filtered_striped_mt<tune2, TestType, BITS, LO_BIT>,
-                 hist_filtered_striped_mt<tune3, TestType, BITS, LO_BIT>,
-                 hist_filtered_striped_mt<tune00, TestType, BITS, LO_BIT>,
-                 hist_filtered_striped_mt<tune01, TestType, BITS, LO_BIT>,
-                 hist_filtered_striped_mt<tune02, TestType, BITS, LO_BIT>,
-                 hist_filtered_striped_mt<tune03, TestType, BITS, LO_BIT>);
-    auto ref_func = hist_unfiltered_unoptimized_st<TestType, BITS, LO_BIT>;
+        GENERATE(hist_unoptimized_st<TestType, BITS, LO_BIT>,
+                 hist_striped_st<tune0, TestType, BITS, LO_BIT>,
+                 hist_striped_st<tune1, TestType, BITS, LO_BIT>,
+                 hist_striped_st<tune2, TestType, BITS, LO_BIT>,
+                 hist_striped_st<tune3, TestType, BITS, LO_BIT>,
+                 hist_striped_st<tune00, TestType, BITS, LO_BIT>,
+                 hist_striped_st<tune01, TestType, BITS, LO_BIT>,
+                 hist_striped_st<tune02, TestType, BITS, LO_BIT>,
+                 hist_striped_st<tune03, TestType, BITS, LO_BIT>,
+                 hist_unoptimized_mt<TestType, BITS, LO_BIT>,
+                 hist_striped_mt<tune0, TestType, BITS, LO_BIT>,
+                 hist_striped_mt<tune1, TestType, BITS, LO_BIT>,
+                 hist_striped_mt<tune2, TestType, BITS, LO_BIT>,
+                 hist_striped_mt<tune3, TestType, BITS, LO_BIT>,
+                 hist_striped_mt<tune00, TestType, BITS, LO_BIT>,
+                 hist_striped_mt<tune01, TestType, BITS, LO_BIT>,
+                 hist_striped_mt<tune02, TestType, BITS, LO_BIT>,
+                 hist_striped_mt<tune03, TestType, BITS, LO_BIT>);
+    auto ref_func = hist_unoptimized_st<TestType, BITS, LO_BIT>;
 
     constexpr auto NBINS = 1 << BITS;
     // Test with 6/12-bit data with no spurious high bits (but random low
@@ -455,11 +400,11 @@ TEMPLATE_TEST_CASE("random-data-unclean-filtered", "", std::uint8_t,
                    std::uint16_t) {
     constexpr auto BITS = 8 * sizeof(TestType) - 4;
     auto hist_func =
-        GENERATE(hist_filtered_unoptimized_st<TestType, BITS>,
-                 hist_filtered_striped_st<untuned_parameters, TestType, BITS>,
-                 hist_filtered_unoptimized_mt<TestType, BITS>,
-                 hist_filtered_striped_mt<untuned_parameters, TestType, BITS>);
-    auto ref_func = hist_unfiltered_unoptimized_st<TestType, BITS>;
+        GENERATE(hist_unoptimized_st<TestType, BITS>,
+                 hist_striped_st<untuned_parameters, TestType, BITS>,
+                 hist_unoptimized_mt<TestType, BITS>,
+                 hist_striped_mt<untuned_parameters, TestType, BITS>);
+    auto ref_func = hist_unoptimized_st<TestType, BITS>;
 
     constexpr auto NBINS = 1 << BITS;
 
@@ -496,28 +441,27 @@ TEMPLATE_TEST_CASE("random-data-multicomponent", "", std::uint8_t,
     static constexpr tuning_parameters tune01{0, 1};
     static constexpr tuning_parameters tune02{0, 2};
     static constexpr tuning_parameters tune03{0, 3};
-    auto const hist_func = GENERATE(
-        hist_unfiltered_unoptimized_st<TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_st<tune0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_st<tune1, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_st<tune2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_st<tune3, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_st<tune00, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_st<tune01, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_st<tune02, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_st<tune03, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_unoptimized_mt<TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_mt<tune0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_mt<tune1, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_mt<tune2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_mt<tune3, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_mt<tune00, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_mt<tune01, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_mt<tune02, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        hist_unfiltered_striped_mt<tune03, TestType, BITS, 0, STRIDE, 3, 0,
-                                   1>);
+    auto const hist_func =
+        GENERATE(hist_unoptimized_st<TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_st<tune0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_st<tune1, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_st<tune2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_st<tune3, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_st<tune00, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_st<tune01, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_st<tune02, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_st<tune03, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_unoptimized_mt<TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_mt<tune0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_mt<tune1, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_mt<tune2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_mt<tune3, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_mt<tune00, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_mt<tune01, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_mt<tune02, TestType, BITS, 0, STRIDE, 3, 0, 1>,
+                 hist_striped_mt<tune03, TestType, BITS, 0, STRIDE, 3, 0, 1>);
     auto const ref_func =
-        hist_unfiltered_unoptimized_st<TestType, BITS, 0, STRIDE, 3, 0, 1>;
+        hist_unoptimized_st<TestType, BITS, 0, STRIDE, 3, 0, 1>;
 
     constexpr auto NBINS = 1 << BITS;
     auto const data = test_data<TestType>(STRIDE << (20 - sizeof(TestType)));

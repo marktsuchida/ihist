@@ -104,14 +104,15 @@ constexpr auto bin_index_himask(T value) -> std::size_t {
     return (hi_bits == T(0)) ? bin : MASKED_BIN;
 }
 
-template <typename T, unsigned Bits, unsigned LoBit, bool UseHiMask,
-          std::size_t Stride, std::size_t... ComponentOffsets>
+template <typename T, unsigned Bits, unsigned LoBit, std::size_t Stride,
+          std::size_t... ComponentOffsets>
 void hist_unoptimized_impl(T const *IHIST_RESTRICT data, std::size_t size,
                            std::uint32_t *IHIST_RESTRICT histogram) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
 
     static_assert(std::max({ComponentOffsets...}) < Stride);
 
+    constexpr bool CHECK_HI_BITS = Bits + LoBit < 8 * sizeof(T);
     constexpr std::size_t NBINS = 1uLL << Bits;
     constexpr std::size_t NCOMPONENTS = sizeof...(ComponentOffsets);
     constexpr std::array<std::size_t, NCOMPONENTS> offsets{
@@ -126,7 +127,7 @@ void hist_unoptimized_impl(T const *IHIST_RESTRICT data, std::size_t size,
         auto const i = j * Stride;
         for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
             auto const offset = offsets[c];
-            if constexpr (UseHiMask) {
+            if constexpr (CHECK_HI_BITS) {
                 auto const bin =
                     bin_index_himask<T, Bits, LoBit>(data[i + offset]);
                 if (bin != NBINS) {
@@ -138,14 +139,6 @@ void hist_unoptimized_impl(T const *IHIST_RESTRICT data, std::size_t size,
             }
         }
     }
-}
-
-template <typename T, unsigned Bits, unsigned LoBit, std::size_t Stride,
-          std::size_t... ComponentOffsets>
-void hist_himask_unoptimized(T const *IHIST_RESTRICT data, std::size_t size,
-                             std::uint32_t *IHIST_RESTRICT histogram) {
-    hist_unoptimized_impl<T, Bits, LoBit, true, Stride, ComponentOffsets...>(
-        data, size, histogram);
 }
 
 // Note that the first aligned index may be beyond the end of the buffer.
@@ -169,14 +162,14 @@ constexpr auto first_aligned_index(T const *buffer) -> std::size_t {
 }
 
 template <tuning_parameters const &Tuning, typename T, unsigned Bits,
-          unsigned LoBit, bool UseHiMask, std::size_t Stride,
-          std::size_t... ComponentOffsets>
+          unsigned LoBit, std::size_t Stride, std::size_t... ComponentOffsets>
 void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
                        std::uint32_t *IHIST_RESTRICT histogram) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
 
     static_assert(std::max({ComponentOffsets...}) < Stride);
 
+    constexpr bool CHECK_HI_BITS = Bits + LoBit < 8 * sizeof(T);
     constexpr std::size_t NSTRIPES =
         std::max(std::size_t(1), Tuning.n_stripes);
     constexpr std::size_t NBINS = 1 << Bits;
@@ -184,7 +177,7 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
     constexpr std::array<std::size_t, NCOMPONENTS> offsets{
         ComponentOffsets...};
 
-    // Use extra bin for overflows (when UseHiMask).
+    // Use extra bin for overflows (when CHECK_HI_BITS is true).
     std::vector<std::uint32_t> stripes(NSTRIPES * NCOMPONENTS * (NBINS + 1));
 
     constexpr std::size_t BLOCKSIZE =
@@ -204,8 +197,8 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
         }
     }();
 
-    hist_unoptimized_impl<T, Bits, LoBit, UseHiMask, Stride,
-                          ComponentOffsets...>(data, prolog_size, histogram);
+    hist_unoptimized_impl<T, Bits, LoBit, Stride, ComponentOffsets...>(
+        data, prolog_size, histogram);
 
     std::size_t const size_after_prolog = size - prolog_size;
     if (size_after_prolog == 0) {
@@ -239,7 +232,7 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
         std::array<std::size_t, BLOCKSIZE * Stride> bins;
         for (std::size_t n = 0; n < BLOCKSIZE * Stride; ++n) {
             auto const i = block * BLOCKSIZE * Stride + n;
-            if constexpr (UseHiMask) {
+            if constexpr (CHECK_HI_BITS) {
                 bins[n] = bin_index_himask<T, Bits, LoBit>(block_data[i]);
             } else {
                 bins[n] = bin_index<T, Bits, LoBit>(block_data[i]);
@@ -266,17 +259,8 @@ void hist_striped_impl(T const *IHIST_RESTRICT data, std::size_t size,
         }
     }
 
-    hist_unoptimized_impl<T, Bits, LoBit, UseHiMask, Stride,
-                          ComponentOffsets...>(epilog_data, epilog_size,
-                                               histogram);
-}
-
-template <tuning_parameters const &Tuning, typename T, unsigned Bits,
-          unsigned LoBit, std::size_t Stride, std::size_t... ComponentOffsets>
-void hist_himask_striped_st(T const *IHIST_RESTRICT data, std::size_t size,
-                            std::uint32_t *IHIST_RESTRICT histogram) {
-    hist_striped_impl<Tuning, T, Bits, LoBit, true, Stride,
-                      ComponentOffsets...>(data, size, histogram);
+    hist_unoptimized_impl<T, Bits, LoBit, Stride, ComponentOffsets...>(
+        epilog_data, epilog_size, histogram);
 }
 
 } // namespace internal
@@ -284,62 +268,24 @@ void hist_himask_striped_st(T const *IHIST_RESTRICT data, std::size_t size,
 template <typename T, unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
           std::size_t Stride = 1, std::size_t Component0Offset = 0,
           std::size_t... ComponentOffsets>
-void hist_unfiltered_unoptimized_st(T const *IHIST_RESTRICT data,
-                                    std::size_t size,
-                                    std::uint32_t *IHIST_RESTRICT histogram,
-                                    std::size_t = 0) {
-    internal::hist_unoptimized_impl<T, Bits, LoBit, false, Stride,
-                                    Component0Offset, ComponentOffsets...>(
-        data, size, histogram);
-}
-
-template <typename T, unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
-          std::size_t Stride = 1, std::size_t Component0Offset = 0,
-          std::size_t... ComponentOffsets>
-void hist_filtered_unoptimized_st(T const *IHIST_RESTRICT data,
-                                  std::size_t size,
-                                  std::uint32_t *IHIST_RESTRICT histogram,
-                                  std::size_t = 0) {
-    if constexpr (Bits + LoBit == 8 * sizeof(T)) {
-        hist_unfiltered_unoptimized_st<T, Bits, LoBit, Stride,
-                                       Component0Offset, ComponentOffsets...>(
-            data, size, histogram);
-    } else {
-        internal::hist_himask_unoptimized<
-            T, Bits, LoBit, Stride, Component0Offset, ComponentOffsets...>(
-            data, size, histogram);
-    }
+void hist_unoptimized_st(T const *IHIST_RESTRICT data, std::size_t size,
+                         std::uint32_t *IHIST_RESTRICT histogram,
+                         std::size_t = 0) {
+    internal::hist_unoptimized_impl<T, Bits, LoBit, Stride, Component0Offset,
+                                    ComponentOffsets...>(data, size,
+                                                         histogram);
 }
 
 template <tuning_parameters const &Tuning, typename T,
           unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
           std::size_t Stride = 1, std::size_t Component0Offset = 0,
           std::size_t... ComponentOffsets>
-void hist_unfiltered_striped_st(T const *IHIST_RESTRICT data, std::size_t size,
-                                std::uint32_t *IHIST_RESTRICT histogram,
-                                std::size_t = 0) {
-    internal::hist_striped_impl<Tuning, T, Bits, LoBit, false, Stride,
+void hist_striped_st(T const *IHIST_RESTRICT data, std::size_t size,
+                     std::uint32_t *IHIST_RESTRICT histogram,
+                     std::size_t = 0) {
+    internal::hist_striped_impl<Tuning, T, Bits, LoBit, Stride,
                                 Component0Offset, ComponentOffsets...>(
         data, size, histogram);
-}
-
-template <tuning_parameters const &Tuning, typename T,
-          unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
-          std::size_t Stride = 1, std::size_t Component0Offset = 0,
-          std::size_t... ComponentOffsets>
-void hist_filtered_striped_st(T const *IHIST_RESTRICT data, std::size_t size,
-                              std::uint32_t *IHIST_RESTRICT histogram,
-                              std::size_t = 0) {
-    if constexpr (Bits + LoBit == 8 * sizeof(T)) {
-        hist_unfiltered_striped_st<Tuning, T, Bits, LoBit, Stride,
-                                   Component0Offset, ComponentOffsets...>(
-            data, size, histogram);
-    } else {
-        internal::hist_himask_striped_st<Tuning, T, Bits, LoBit, Stride,
-                                         Component0Offset,
-                                         ComponentOffsets...>(data, size,
-                                                              histogram);
-    }
 }
 
 namespace internal {
@@ -359,8 +305,8 @@ struct first_parameter<R (*)(First, Args...)> {
 template <typename T>
 using first_parameter_t = typename first_parameter<T>::type;
 
-template <tuning_parameters const &Tuning, auto Hist, typename T,
-          unsigned Bits, std::size_t Stride, std::size_t NComponents>
+template <auto Hist, typename T, unsigned Bits, std::size_t Stride,
+          std::size_t NComponents>
 void hist_mt(T const *IHIST_RESTRICT data, std::size_t size,
              std::uint32_t *IHIST_RESTRICT histogram,
              std::size_t grain_size = 1) {
@@ -374,8 +320,7 @@ void hist_mt(T const *IHIST_RESTRICT data, std::size_t size,
     tbb::parallel_for(tbb::blocked_range<std::size_t>(0, size, grain_size),
                       [&](const tbb::blocked_range<std::size_t> &r) {
                           auto &h = local_hists.local();
-                          Hist(data + r.begin() * Stride, r.size(), h.data(),
-                               0);
+                          Hist(data + r.begin() * Stride, r.size(), h.data());
                       });
 
     local_hists.combine_each([&](const hist_array &h) {
@@ -383,56 +328,6 @@ void hist_mt(T const *IHIST_RESTRICT data, std::size_t size,
             histogram[bin] += h[bin];
         }
     });
-}
-
-template <tuning_parameters const &Tuning, auto HistHimask, typename T,
-          unsigned Bits, std::size_t Stride, std::size_t NComponents>
-void hist_himask_mt(T const *IHIST_RESTRICT data, std::size_t size,
-                    std::uint32_t *IHIST_RESTRICT histogram,
-                    std::size_t grain_size = 1) {
-    static_assert(
-        std::is_same_v<T const *, first_parameter_t<decltype(HistHimask)>>);
-    constexpr std::size_t NBINS = 1 << Bits;
-    using hist_array = std::array<std::uint32_t, NComponents * NBINS>;
-
-    tbb::combinable<hist_array> local_hists([] { return hist_array{}; });
-
-    tbb::parallel_for(tbb::blocked_range<std::size_t>(0, size, grain_size),
-                      [&](const tbb::blocked_range<std::size_t> &r) {
-                          auto &h = local_hists.local();
-                          HistHimask(data + r.begin() * Stride, r.size(),
-                                     h.data());
-                      });
-
-    local_hists.combine_each([&](const hist_array &h) {
-        for (std::size_t bin = 0; bin < NComponents * NBINS; ++bin) {
-            histogram[bin] += h[bin];
-        }
-    });
-}
-
-template <typename T, unsigned Bits, unsigned LoBit, std::size_t Stride,
-          std::size_t... ComponentOffsets>
-void hist_himask_unoptimized_mt(T const *IHIST_RESTRICT data, std::size_t size,
-                                std::uint32_t *IHIST_RESTRICT histogram,
-                                std::size_t grain_size = 1) {
-    hist_himask_mt<
-        untuned_parameters,
-        hist_himask_unoptimized<T, Bits, LoBit, Stride, ComponentOffsets...>,
-        T, Bits, Stride, sizeof...(ComponentOffsets)>(data, size, histogram,
-                                                      grain_size);
-}
-
-template <tuning_parameters const &Tuning, typename T, unsigned Bits,
-          unsigned LoBit, std::size_t Stride, std::size_t... ComponentOffsets>
-void hist_himask_striped_mt(T const *IHIST_RESTRICT data, std::size_t size,
-                            std::uint32_t *IHIST_RESTRICT histogram,
-                            std::size_t grain_size = 1) {
-    hist_himask_mt<Tuning,
-                   hist_himask_striped_st<Tuning, T, Bits, LoBit, Stride,
-                                          ComponentOffsets...>,
-                   T, Bits, Stride, sizeof...(ComponentOffsets)>(
-        data, size, histogram, grain_size);
 }
 
 } // namespace internal
@@ -440,14 +335,12 @@ void hist_himask_striped_mt(T const *IHIST_RESTRICT data, std::size_t size,
 template <typename T, unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
           std::size_t Stride = 1, std::size_t Component0Offset = 0,
           std::size_t... ComponentOffsets>
-void hist_unfiltered_unoptimized_mt(T const *IHIST_RESTRICT data,
-                                    std::size_t size,
-                                    std::uint32_t *IHIST_RESTRICT histogram,
-                                    std::size_t grain_size = 1) {
+void hist_unoptimized_mt(T const *IHIST_RESTRICT data, std::size_t size,
+                         std::uint32_t *IHIST_RESTRICT histogram,
+                         std::size_t grain_size = 1) {
     internal::hist_mt<
-        untuned_parameters,
-        hist_unfiltered_unoptimized_st<T, Bits, LoBit, Stride,
-                                       Component0Offset, ComponentOffsets...>,
+        internal::hist_unoptimized_impl<T, Bits, LoBit, Stride,
+                                        Component0Offset, ComponentOffsets...>,
         T, Bits, Stride, 1 + sizeof...(ComponentOffsets)>(
         data, size, histogram, grain_size);
 }
@@ -456,52 +349,14 @@ template <tuning_parameters const &Tuning, typename T,
           unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
           std::size_t Stride = 1, std::size_t Component0Offset = 0,
           std::size_t... ComponentOffsets>
-void hist_unfiltered_striped_mt(T const *IHIST_RESTRICT data, std::size_t size,
-                                std::uint32_t *IHIST_RESTRICT histogram,
-                                std::size_t grain_size = 1) {
+void hist_striped_mt(T const *IHIST_RESTRICT data, std::size_t size,
+                     std::uint32_t *IHIST_RESTRICT histogram,
+                     std::size_t grain_size = 1) {
     internal::hist_mt<
-        Tuning,
-        hist_unfiltered_striped_st<Tuning, T, Bits, LoBit, Stride,
-                                   Component0Offset, ComponentOffsets...>,
+        internal::hist_striped_impl<Tuning, T, Bits, LoBit, Stride,
+                                    Component0Offset, ComponentOffsets...>,
         T, Bits, Stride, 1 + sizeof...(ComponentOffsets)>(
         data, size, histogram, grain_size);
-}
-
-template <typename T, unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
-          std::size_t Stride = 1, std::size_t Component0Offset = 0,
-          std::size_t... ComponentOffsets>
-void hist_filtered_unoptimized_mt(T const *IHIST_RESTRICT data,
-                                  std::size_t size,
-                                  std::uint32_t *IHIST_RESTRICT histogram,
-                                  std::size_t grain_size = 1) {
-    if constexpr (Bits + LoBit == 8 * sizeof(T)) {
-        hist_unfiltered_unoptimized_mt<T, Bits, LoBit, Stride,
-                                       Component0Offset, ComponentOffsets...>(
-            data, size, histogram, grain_size);
-    } else {
-        internal::hist_himask_unoptimized_mt<
-            T, Bits, LoBit, Stride, Component0Offset, ComponentOffsets...>(
-            data, size, histogram, grain_size);
-    }
-}
-
-template <tuning_parameters const &Tuning, typename T,
-          unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
-          std::size_t Stride = 1, std::size_t Component0Offset = 0,
-          std::size_t... ComponentOffsets>
-void hist_filtered_striped_mt(T const *IHIST_RESTRICT data, std::size_t size,
-                              std::uint32_t *IHIST_RESTRICT histogram,
-                              std::size_t grain_size = 1) {
-    if constexpr (Bits + LoBit == 8 * sizeof(T)) {
-        hist_unfiltered_striped_mt<Tuning, T, Bits, LoBit, Stride,
-                                   Component0Offset, ComponentOffsets...>(
-            data, size, histogram, grain_size);
-    } else {
-        internal::hist_himask_striped_mt<Tuning, T, Bits, LoBit, Stride,
-                                         Component0Offset,
-                                         ComponentOffsets...>(
-            data, size, histogram, grain_size);
-    }
 }
 
 } // namespace ihist

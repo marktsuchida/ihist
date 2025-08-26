@@ -12,7 +12,6 @@
 // BM_NAME_PREFIX (mono, rgb, rgbx)
 // BM_STRIDE_COMPONENTS
 // BM_BITS
-// BM_FILTERED (0, 1)
 // BM_MULTITHREADING (0, 1)
 
 #ifdef IHIST_BENCH_HPP_INCLUDED
@@ -148,48 +147,39 @@ std::vector<std::int64_t> const st_grain_sizes{0};
 
 #define BENCH_NAME(stripes, unrolls, bits)                                    \
     TOSTRING(BM_NAME_PREFIX)                                                  \
-    "/bits:" #bits "/filt:" TOSTRING(BM_FILTERED) "/mt:" TOSTRING(            \
-        BM_MULTITHREADED) "/stripes:" #stripes "/unrolls:" #unrolls
+    "/bits:" #bits "/mt:" TOSTRING(BM_MULTITHREADED) "/stripes:" #stripes     \
+                                                     "/unrolls:" #unrolls
 
-#define DEFINE_HISTBM(stripes, unrolls, grainsizes, bits, filt, thd)          \
+#define DEFINE_HISTBM(stripes, unrolls, grainsizes, bits, thd)                \
     DEFINE_TUNING(stripes, unrolls)                                           \
-    BENCHMARK(                                                                \
-        bm_hist<hist_##filt##_striped_##thd<TUNING_NAME(stripes, unrolls),    \
-                                            bits_type<bits>, bits, 0,         \
-                                            BM_STRIDE_COMPONENTS>,            \
-                bits, BM_STRIDE_COMPONENTS>)                                  \
+    BENCHMARK(bm_hist<hist_striped_##thd<TUNING_NAME(stripes, unrolls),       \
+                                         bits_type<bits>, bits, 0,            \
+                                         BM_STRIDE_COMPONENTS>,               \
+                      bits, BM_STRIDE_COMPONENTS>)                            \
         ->Name(BENCH_NAME(stripes, unrolls, bits))                            \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
         ->ArgNames({"size", "spread", "grainsize"})                           \
         ->ArgsProduct({data_sizes, spread_pcts<bits>, grainsizes});
 
-#define DEFINE_HISTBM_STRIPES(unrolls, grainsizes, bits, filt, thd)           \
-    DEFINE_HISTBM(1, unrolls, grainsizes, bits, filt, thd)                    \
-    DEFINE_HISTBM(2, unrolls, grainsizes, bits, filt, thd)                    \
-    DEFINE_HISTBM(4, unrolls, grainsizes, bits, filt, thd)                    \
-    DEFINE_HISTBM(8, unrolls, grainsizes, bits, filt, thd)
+#define DEFINE_HISTBM_STRIPES(unrolls, grainsizes, bits, thd)                 \
+    DEFINE_HISTBM(1, unrolls, grainsizes, bits, thd)                          \
+    DEFINE_HISTBM(2, unrolls, grainsizes, bits, thd)                          \
+    DEFINE_HISTBM(4, unrolls, grainsizes, bits, thd)                          \
+    DEFINE_HISTBM(8, unrolls, grainsizes, bits, thd)
 
-#define DEFINE_HISTBM_UNROLLS(grainsizes, bits, filt, thd)                    \
-    DEFINE_HISTBM_STRIPES(1, grainsizes, bits, filt, thd)                     \
-    DEFINE_HISTBM_STRIPES(2, grainsizes, bits, filt, thd)                     \
-    DEFINE_HISTBM_STRIPES(4, grainsizes, bits, filt, thd)                     \
-    DEFINE_HISTBM_STRIPES(8, grainsizes, bits, filt, thd)
-
-#if BM_FILTERED
-#define DEFINE_HISTBM_BRANCHLESS(grainsizes, bits, thd)                       \
-    DEFINE_HISTBM_UNROLLS(grainsizes, bits, filtered, thd)
-#else
-#define DEFINE_HISTBM_BRANCHLESS(grainsizes, bits, thd)                       \
-    DEFINE_HISTBM_UNROLLS(grainsizes, bits, unfiltered, thd)
-#endif
+#define DEFINE_HISTBM_UNROLLS(grainsizes, bits, thd)                          \
+    DEFINE_HISTBM_STRIPES(1, grainsizes, bits, thd)                           \
+    DEFINE_HISTBM_STRIPES(2, grainsizes, bits, thd)                           \
+    DEFINE_HISTBM_STRIPES(4, grainsizes, bits, thd)                           \
+    DEFINE_HISTBM_STRIPES(8, grainsizes, bits, thd)
 
 #if BM_MULTITHREADED
 #define DEFINE_HIST_BENCHMARKS(bits)                                          \
-    DEFINE_HISTBM_BRANCHLESS(mt_grain_sizes, bits, mt)
+    DEFINE_HISTBM_UNROLLS(mt_grain_sizes, bits, mt)
 #else
 #define DEFINE_HIST_BENCHMARKS(bits)                                          \
-    DEFINE_HISTBM_BRANCHLESS(st_grain_sizes, bits, st)
+    DEFINE_HISTBM_UNROLLS(st_grain_sizes, bits, st)
 #endif
 
 DEFINE_HIST_BENCHMARKS(BM_BITS)
