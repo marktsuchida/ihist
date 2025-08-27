@@ -124,7 +124,6 @@ void hist_unoptimized_st(T const *IHIST_RESTRICT data, std::size_t size,
 
     static_assert(std::max({Component0Offset, ComponentOffsets...}) < Stride);
 
-    constexpr bool CHECK_HI_BITS = Bits + LoBit < 8 * sizeof(T);
     constexpr std::size_t NBINS = 1uLL << Bits;
     constexpr std::size_t NCOMPONENTS = 1 + sizeof...(ComponentOffsets);
     constexpr std::array<std::size_t, NCOMPONENTS> offsets{
@@ -141,11 +140,7 @@ void hist_unoptimized_st(T const *IHIST_RESTRICT data, std::size_t size,
             auto const offset = offsets[c];
             auto const bin =
                 internal::bin_index<T, Bits, LoBit>(data[i + offset]);
-            if constexpr (CHECK_HI_BITS) {
-                if (bin != NBINS) {
-                    ++histogram[c * NBINS + bin];
-                }
-            } else {
+            if (bin != NBINS) {
                 ++histogram[c * NBINS + bin];
             }
         }
@@ -167,7 +162,6 @@ void histxy_unoptimized_st(T const *IHIST_RESTRICT data, std::size_t width,
 
     static_assert(std::max({Component0Offset, ComponentOffsets...}) < Stride);
 
-    constexpr bool CHECK_HI_BITS = Bits + LoBit < 8 * sizeof(T);
     constexpr std::size_t NBINS = 1uLL << Bits;
     constexpr std::size_t NCOMPONENTS = 1 + sizeof...(ComponentOffsets);
     constexpr std::array<std::size_t, NCOMPONENTS> offsets{
@@ -191,11 +185,7 @@ void histxy_unoptimized_st(T const *IHIST_RESTRICT data, std::size_t width,
                 auto const offset = offsets[c];
                 auto const bin =
                     internal::bin_index<T, Bits, LoBit>(data[i + offset]);
-                if constexpr (CHECK_HI_BITS) {
-                    if (bin != NBINS) {
-                        ++histogram[c * NBINS + bin];
-                    }
-                } else {
+                if (bin != NBINS) {
                     ++histogram[c * NBINS + bin];
                 }
             }
