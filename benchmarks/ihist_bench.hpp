@@ -82,6 +82,12 @@ using u16 = std::uint16_t;
 template <std::size_t Bits>
 using bits_type = std::conditional_t<(Bits > 8), u16, u8>;
 
+enum class roi_type {
+    one_d,
+    two_d_full,
+    two_d_no_last_col,
+};
+
 template <auto Hist, unsigned Bits, std::size_t Stride = 1,
           std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
 void bm_hist(benchmark::State &state) {
@@ -117,6 +123,40 @@ void bm_hist(benchmark::State &state) {
                            benchmark::Counter::kIsRate);
 }
 
+template <auto Hist, roi_type RoiType, unsigned Bits, std::size_t Stride = 1,
+          std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
+void bm_histxy(benchmark::State &state) {
+    using T = bits_type<Bits>;
+    constexpr auto NCOMPONENTS = 1 + sizeof...(ComponentOffsets);
+    auto const width = state.range(0);
+    auto const height = state.range(0);
+    auto const size = width * height;
+    auto const spread_frac = static_cast<float>(state.range(1)) / 100.0f;
+    auto const grain_size = static_cast<std::size_t>(state.range(2));
+    auto const roi_width =
+        (RoiType == roi_type::two_d_no_last_col) ? width - 1 : width;
+    auto const roi_size = roi_width * height;
+    auto const data = generate_data<T, Bits>(size * Stride, spread_frac);
+    for ([[maybe_unused]] auto _ : state) {
+        std::array<std::uint32_t, NCOMPONENTS * (1 << Bits)> hist{};
+        auto const *d = data.data();
+        auto *h = hist.data();
+#ifdef __clang__
+        [[clang::noinline]]
+#endif
+        Hist(d, width, height, 0, 0, roi_width, height, h, grain_size);
+        benchmark::DoNotOptimize(hist);
+    }
+    state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) *
+                            roi_size * Stride * sizeof(T));
+    state.counters["samples_per_second"] = benchmark::Counter(
+        static_cast<int64_t>(state.iterations()) * roi_size * NCOMPONENTS,
+        benchmark::Counter::kIsRate);
+    state.counters["pixels_per_second"] =
+        benchmark::Counter(static_cast<int64_t>(state.iterations()) * roi_size,
+                           benchmark::Counter::kIsRate);
+}
+
 // The spread of the data affects performance: if narrow, a simple
 // implementation will be bound by store-to-load forwarding latencyes due to
 // incrementing a bin on the same cache line in close succession. Striped
@@ -148,10 +188,11 @@ std::vector<std::int64_t> const st_grain_sizes{0};
     inline constexpr tuning_parameters TUNING_NAME(stripes, unrolls){         \
         stripes, unrolls};
 
-#define BENCH_NAME(stripes, unrolls, bits)                                    \
+#define BENCH_NAME(stripes, unrolls, bits, roitype)                           \
     TOSTRING(BM_NAME_PREFIX)                                                  \
-    "/bits:" #bits "/mt:" TOSTRING(BM_MULTITHREADED) "/stripes:" #stripes     \
-                                                     "/unrolls:" #unrolls
+    "/bits:" #bits "/" #roitype                                               \
+    "/mt:" TOSTRING(BM_MULTITHREADED) "/stripes:" #stripes                    \
+                                      "/unrolls:" #unrolls
 
 #define DEFINE_HISTBM(stripes, unrolls, grainsizes, bits, thd)                \
     DEFINE_TUNING(stripes, unrolls)                                           \
@@ -159,7 +200,27 @@ std::vector<std::int64_t> const st_grain_sizes{0};
                                          bits_type<bits>, bits, 0,            \
                                          BM_STRIDE_COMPONENTS>,               \
                       bits, BM_STRIDE_COMPONENTS>)                            \
-        ->Name(BENCH_NAME(stripes, unrolls, bits))                            \
+        ->Name(BENCH_NAME(stripes, unrolls, bits, roi_type::one_d))           \
+        ->MeasureProcessCPUTime()                                             \
+        ->UseRealTime()                                                       \
+        ->ArgNames({"size", "spread", "grainsize"})                           \
+        ->ArgsProduct({data_sizes, spread_pcts<bits>, grainsizes});           \
+    BENCHMARK(bm_histxy<histxy_striped_##thd<TUNING_NAME(stripes, unrolls),   \
+                                             bits_type<bits>, bits, 0,        \
+                                             BM_STRIDE_COMPONENTS>,           \
+                        roi_type::two_d_full, bits, BM_STRIDE_COMPONENTS>)    \
+        ->Name(BENCH_NAME(stripes, unrolls, bits, roi_type::two_d_full))      \
+        ->MeasureProcessCPUTime()                                             \
+        ->UseRealTime()                                                       \
+        ->ArgNames({"size", "spread", "grainsize"})                           \
+        ->ArgsProduct({data_sizes, spread_pcts<bits>, grainsizes});           \
+    BENCHMARK(                                                                \
+        bm_histxy<histxy_striped_##thd<TUNING_NAME(stripes, unrolls),         \
+                                       bits_type<bits>, bits, 0,              \
+                                       BM_STRIDE_COMPONENTS>,                 \
+                  roi_type::two_d_no_last_col, bits, BM_STRIDE_COMPONENTS>)   \
+        ->Name(                                                               \
+            BENCH_NAME(stripes, unrolls, bits, roi_type::two_d_no_last_col))  \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
         ->ArgNames({"size", "spread", "grainsize"})                           \
