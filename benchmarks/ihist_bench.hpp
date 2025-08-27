@@ -87,7 +87,9 @@ template <auto Hist, unsigned Bits, std::size_t Stride = 1,
 void bm_hist(benchmark::State &state) {
     using T = bits_type<Bits>;
     constexpr auto NCOMPONENTS = 1 + sizeof...(ComponentOffsets);
-    auto const size = state.range(0);
+    auto const width = state.range(0);
+    auto const height = state.range(0);
+    auto const size = width * height;
     auto const spread_frac = static_cast<float>(state.range(1)) / 100.0f;
     auto const grain_size = static_cast<std::size_t>(state.range(2));
     auto const data = generate_data<T, Bits>(size * Stride, spread_frac);
@@ -131,7 +133,8 @@ std::vector<std::int64_t> const spread_pcts{0, 1, 6, 25, 100};
 // multi-threaded, it is hard to reach a performnce plateau, even with hundreds
 // of megapixels. 16 Mi (1 << 24) is probably a reasonable compromize if
 // looking at a single size (and the image size of large-ish CMOS chips).
-std::vector<std::int64_t> const data_sizes{1 << 24};
+// data_sizes is the width and height of the data.
+std::vector<std::int64_t> const data_sizes{1 << 12};
 
 std::vector<std::int64_t> const mt_grain_sizes{16384, 65536, 262144};
 std::vector<std::int64_t> const st_grain_sizes{0};
