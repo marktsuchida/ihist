@@ -110,7 +110,7 @@ void bm_hist(benchmark::State &state) {
         // benchmark.
         [[clang::noinline]]
 #endif
-        Hist(d, size, h, grain_size);
+        Hist(d, nullptr, size, h, grain_size);
         benchmark::DoNotOptimize(hist);
     }
     state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) * size *
@@ -144,7 +144,8 @@ void bm_histxy(benchmark::State &state) {
 #ifdef __clang__
         [[clang::noinline]]
 #endif
-        Hist(d, width, height, 0, 0, roi_width, height, h, grain_size);
+        Hist(d, nullptr, width, height, 0, 0, roi_width, height, h,
+             grain_size);
         benchmark::DoNotOptimize(hist);
     }
     state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) *
@@ -197,7 +198,7 @@ std::vector<std::int64_t> const st_grain_sizes{0};
 #define DEFINE_HISTBM(stripes, unrolls, grainsizes, bits, thd)                \
     DEFINE_TUNING(stripes, unrolls)                                           \
     BENCHMARK(bm_hist<hist_striped_##thd<TUNING_NAME(stripes, unrolls),       \
-                                         bits_type<bits>, bits, 0,            \
+                                         bits_type<bits>, false, bits, 0,     \
                                          BM_STRIDE_COMPONENTS>,               \
                       bits, BM_STRIDE_COMPONENTS>)                            \
         ->Name(BENCH_NAME(stripes, unrolls, bits, roi_type::one_d))           \
@@ -206,7 +207,7 @@ std::vector<std::int64_t> const st_grain_sizes{0};
         ->ArgNames({"size", "spread", "grainsize"})                           \
         ->ArgsProduct({data_sizes, spread_pcts<bits>, grainsizes});           \
     BENCHMARK(bm_histxy<histxy_striped_##thd<TUNING_NAME(stripes, unrolls),   \
-                                             bits_type<bits>, bits, 0,        \
+                                             bits_type<bits>, false, bits, 0, \
                                              BM_STRIDE_COMPONENTS>,           \
                         roi_type::two_d_full, bits, BM_STRIDE_COMPONENTS>)    \
         ->Name(BENCH_NAME(stripes, unrolls, bits, roi_type::two_d_full))      \
@@ -216,7 +217,7 @@ std::vector<std::int64_t> const st_grain_sizes{0};
         ->ArgsProduct({data_sizes, spread_pcts<bits>, grainsizes});           \
     BENCHMARK(                                                                \
         bm_histxy<histxy_striped_##thd<TUNING_NAME(stripes, unrolls),         \
-                                       bits_type<bits>, bits, 0,              \
+                                       bits_type<bits>, false, bits, 0,       \
                                        BM_STRIDE_COMPONENTS>,                 \
                   roi_type::two_d_no_last_col, bits, BM_STRIDE_COMPONENTS>)   \
         ->Name(                                                               \

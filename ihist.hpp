@@ -107,10 +107,12 @@ constexpr auto first_aligned_index(T const *buffer) -> std::size_t {
 
 } // namespace internal
 
-template <typename T, unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
-          std::size_t Stride = 1, std::size_t Component0Offset = 0,
-          std::size_t... ComponentOffsets>
-void hist_unoptimized_st(T const *IHIST_RESTRICT data, std::size_t size,
+template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
+          unsigned LoBit = 0, std::size_t Stride = 1,
+          std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
+void hist_unoptimized_st(T const *IHIST_RESTRICT data,
+                         std::uint8_t const *IHIST_RESTRICT mask,
+                         std::size_t size,
                          std::uint32_t *IHIST_RESTRICT histogram,
                          std::size_t = 0) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
@@ -129,24 +131,27 @@ void hist_unoptimized_st(T const *IHIST_RESTRICT data, std::size_t size,
 #endif
     for (std::size_t j = 0; j < size; ++j) {
         auto const i = j * Stride;
-        for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
-            auto const offset = offsets[c];
-            auto const bin =
-                internal::bin_index<T, Bits, LoBit>(data[i + offset]);
-            if (bin != NBINS) {
-                ++histogram[c * NBINS + bin];
+        if (!UseMask || mask[i]) {
+            for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
+                auto const offset = offsets[c];
+                auto const bin =
+                    internal::bin_index<T, Bits, LoBit>(data[i + offset]);
+                if (bin != NBINS) {
+                    ++histogram[c * NBINS + bin];
+                }
             }
         }
     }
 }
 
-template <typename T, unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
-          std::size_t Stride = 1, std::size_t Component0Offset = 0,
-          std::size_t... ComponentOffsets>
-void histxy_unoptimized_st(T const *IHIST_RESTRICT data, std::size_t width,
-                           std::size_t height, std::size_t roi_x,
-                           std::size_t roi_y, std::size_t roi_width,
-                           std::size_t roi_height,
+template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
+          unsigned LoBit = 0, std::size_t Stride = 1,
+          std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
+void histxy_unoptimized_st(T const *IHIST_RESTRICT data,
+                           std::uint8_t const *IHIST_RESTRICT mask,
+                           std::size_t width, std::size_t height,
+                           std::size_t roi_x, std::size_t roi_y,
+                           std::size_t roi_width, std::size_t roi_height,
                            std::uint32_t *IHIST_RESTRICT histogram,
                            std::size_t = 0) {
     assert(width * height < std::numeric_limits<std::uint32_t>::max());
@@ -174,23 +179,26 @@ void histxy_unoptimized_st(T const *IHIST_RESTRICT data, std::size_t width,
         for (std::size_t x = roi_x; x < roi_x + roi_width; ++x) {
             auto const j = x + y * width;
             auto const i = j * Stride;
-            for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
-                auto const offset = offsets[c];
-                auto const bin =
-                    internal::bin_index<T, Bits, LoBit>(data[i + offset]);
-                if (bin != NBINS) {
-                    ++histogram[c * NBINS + bin];
+            if (!UseMask || mask[i]) {
+                for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
+                    auto const offset = offsets[c];
+                    auto const bin =
+                        internal::bin_index<T, Bits, LoBit>(data[i + offset]);
+                    if (bin != NBINS) {
+                        ++histogram[c * NBINS + bin];
+                    }
                 }
             }
         }
     }
 }
 
-template <tuning_parameters const &Tuning, typename T,
+template <tuning_parameters const &Tuning, typename T, bool UseMask = false,
           unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
           std::size_t Stride = 1, std::size_t Component0Offset = 0,
           std::size_t... ComponentOffsets>
-void hist_striped_st(T const *IHIST_RESTRICT data, std::size_t size,
+void hist_striped_st(T const *IHIST_RESTRICT data,
+                     std::uint8_t const *IHIST_RESTRICT mask, std::size_t size,
                      std::uint32_t *IHIST_RESTRICT histogram,
                      std::size_t = 0) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
@@ -226,15 +234,16 @@ void hist_striped_st(T const *IHIST_RESTRICT data, std::size_t size,
         }
     }();
 
-    hist_unoptimized_st<T, Bits, LoBit, Stride, Component0Offset,
-                        ComponentOffsets...>(data, prolog_size, histogram);
+    hist_unoptimized_st<T, UseMask, Bits, LoBit, Stride, Component0Offset,
+                        ComponentOffsets...>(data, mask, prolog_size,
+                                             histogram);
 
     std::size_t const size_after_prolog = size - prolog_size;
     if (size_after_prolog == 0) {
         return;
     }
 
-    T const *block_data =
+    T const *blocks_data =
 #if defined(__GNUC__) || defined(__clang__)
         (T const *)__builtin_assume_aligned(
 #endif
@@ -244,10 +253,13 @@ void hist_striped_st(T const *IHIST_RESTRICT data, std::size_t size,
             BLOCK_ALIGNMENT)
 #endif
         ;
+    std::uint8_t const *blocks_mask = UseMask ? mask + prolog_size : nullptr;
 
     std::size_t const n_blocks = size_after_prolog / BLOCKSIZE;
     std::size_t const epilog_size = size_after_prolog % BLOCKSIZE;
-    T const *epilog_data = block_data + n_blocks * BLOCKSIZE * Stride;
+    T const *epilog_data = blocks_data + n_blocks * BLOCKSIZE * Stride;
+    std::uint8_t const *epilog_mask =
+        UseMask ? blocks_mask + n_blocks * BLOCKSIZE : nullptr;
 
 #ifdef __clang__
 #pragma clang loop unroll(disable)
@@ -261,15 +273,19 @@ void hist_striped_st(T const *IHIST_RESTRICT data, std::size_t size,
         std::array<std::size_t, BLOCKSIZE * Stride> bins;
         for (std::size_t n = 0; n < BLOCKSIZE * Stride; ++n) {
             auto const i = block * BLOCKSIZE * Stride + n;
-            bins[n] = internal::bin_index<T, Bits, LoBit>(block_data[i]);
+            bins[n] = internal::bin_index<T, Bits, LoBit>(blocks_data[i]);
         }
+        auto const *block_mask =
+            UseMask ? blocks_mask + block * BLOCKSIZE : nullptr;
 
         for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
             auto const offset = offsets[c];
             for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
-                auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
-                auto const bin = bins[k * Stride + offset];
-                ++stripes[(stripe * NCOMPONENTS + c) * STRIPE_LEN + bin];
+                if (!UseMask || block_mask[k]) {
+                    auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
+                    auto const bin = bins[k * Stride + offset];
+                    ++stripes[(stripe * NCOMPONENTS + c) * STRIPE_LEN + bin];
+                }
             }
         }
     }
@@ -284,19 +300,20 @@ void hist_striped_st(T const *IHIST_RESTRICT data, std::size_t size,
         }
     }
 
-    hist_unoptimized_st<T, Bits, LoBit, Stride, Component0Offset,
-                        ComponentOffsets...>(epilog_data, epilog_size,
-                                             histogram);
+    hist_unoptimized_st<T, UseMask, Bits, LoBit, Stride, Component0Offset,
+                        ComponentOffsets...>(epilog_data, epilog_mask,
+                                             epilog_size, histogram);
 }
 
-template <tuning_parameters const &Tuning, typename T,
+template <tuning_parameters const &Tuning, typename T, bool UseMask = false,
           unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
           std::size_t Stride = 1, std::size_t Component0Offset = 0,
           std::size_t... ComponentOffsets>
-void histxy_striped_st(T const *IHIST_RESTRICT data, std::size_t width,
-                       std::size_t height, std::size_t roi_x,
-                       std::size_t roi_y, std::size_t roi_width,
-                       std::size_t roi_height,
+void histxy_striped_st(T const *IHIST_RESTRICT data,
+                       std::uint8_t const *IHIST_RESTRICT mask,
+                       std::size_t width, std::size_t height,
+                       std::size_t roi_x, std::size_t roi_y,
+                       std::size_t roi_width, std::size_t roi_height,
                        std::uint32_t *IHIST_RESTRICT histogram,
                        std::size_t = 0) {
     assert(width * height < std::numeric_limits<std::uint32_t>::max());
@@ -314,10 +331,11 @@ void histxy_striped_st(T const *IHIST_RESTRICT data, std::size_t width,
 
     // Simplify to single row if full-width.
     if (roi_width == width && height > 1) {
-        return histxy_striped_st<Tuning, T, Bits, LoBit, Stride,
+        return histxy_striped_st<Tuning, T, UseMask, Bits, LoBit, Stride,
                                  Component0Offset, ComponentOffsets...>(
-            data + roi_y * width * Stride, width * roi_height, 1, 0, 0,
-            width * roi_height, 1, histogram);
+            data + roi_y * width * Stride,
+            UseMask ? mask + roi_y * width : nullptr, width * roi_height, 1, 0,
+            0, width * roi_height, 1, histogram);
     }
 
     // Use extra bin for overflows if applicable.
@@ -332,8 +350,12 @@ void histxy_striped_st(T const *IHIST_RESTRICT data, std::size_t width,
 
     for (std::size_t y = roi_y; y < roi_y + roi_height; ++y) {
         T const *row_data = data + (y * width + roi_x) * Stride;
+        std::uint8_t const *row_mask =
+            UseMask ? mask + y * width + roi_x : nullptr;
         T const *row_epilog_data =
             row_data + n_blocks_per_row * BLOCKSIZE * Stride;
+        std::uint8_t const *row_epilog_mask =
+            UseMask ? row_mask + n_blocks_per_row * BLOCKSIZE : nullptr;
 #ifdef __clang__
 #pragma clang loop unroll(disable)
 #elif defined(__GNUC__)
@@ -345,21 +367,26 @@ void histxy_striped_st(T const *IHIST_RESTRICT data, std::size_t width,
                 auto const i = block * BLOCKSIZE * Stride + n;
                 bins[n] = internal::bin_index<T, Bits, LoBit>(row_data[i]);
             }
+            auto const *block_mask =
+                UseMask ? row_mask + block * BLOCKSIZE : nullptr;
 
             for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
                 auto const offset = offsets[c];
                 for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
-                    auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
-                    auto const bin = bins[k * Stride + offset];
-                    ++stripes[(stripe * NCOMPONENTS + c) * STRIPE_LEN + bin];
+                    if (!UseMask || block_mask[k]) {
+                        auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
+                        auto const bin = bins[k * Stride + offset];
+                        ++stripes[(stripe * NCOMPONENTS + c) * STRIPE_LEN +
+                                  bin];
+                    }
                 }
             }
         }
 
-        // Epilog goes straight to the final histogram, at least for now.
-        hist_unoptimized_st<T, Bits, LoBit, Stride, Component0Offset,
-                            ComponentOffsets...>(row_epilog_data,
-                                                 row_epilog_size, histogram);
+        // Epilog goes straight to the final histogram.
+        hist_unoptimized_st<T, UseMask, Bits, LoBit, Stride, Component0Offset,
+                            ComponentOffsets...>(
+            row_epilog_data, row_epilog_mask, row_epilog_size, histogram);
     }
 
     for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
@@ -390,9 +417,10 @@ struct first_parameter<R (*)(First, Args...)> {
 template <typename T>
 using first_parameter_t = typename first_parameter<T>::type;
 
-template <auto Hist, typename T, unsigned Bits, std::size_t Stride,
-          std::size_t NComponents>
-void hist_mt(T const *IHIST_RESTRICT data, std::size_t size,
+template <auto Hist, typename T, bool UseMask, unsigned Bits,
+          std::size_t Stride, std::size_t NComponents>
+void hist_mt(T const *IHIST_RESTRICT data,
+             std::uint8_t const *IHIST_RESTRICT mask, std::size_t size,
              std::uint32_t *IHIST_RESTRICT histogram,
              std::size_t grain_size = 1) {
     static_assert(
@@ -405,8 +433,9 @@ void hist_mt(T const *IHIST_RESTRICT data, std::size_t size,
     tbb::parallel_for(tbb::blocked_range<std::size_t>(0, size, grain_size),
                       [&](tbb::blocked_range<std::size_t> const &r) {
                           auto &h = local_hists.local();
-                          Hist(data + r.begin() * Stride, r.size(), h.data(),
-                               0);
+                          Hist(data + r.begin() * Stride,
+                               UseMask ? mask + r.begin() : nullptr, r.size(),
+                               h.data(), 0);
                       });
 
     local_hists.combine_each([&](hist_array const &h) {
@@ -416,9 +445,10 @@ void hist_mt(T const *IHIST_RESTRICT data, std::size_t size,
     });
 }
 
-template <auto HistXY, typename T, unsigned Bits, std::size_t Stride,
-          std::size_t NComponents>
-void histxy_mt(T const *IHIST_RESTRICT data, std::size_t width,
+template <auto HistXY, typename T, bool UseMask, unsigned Bits,
+          std::size_t Stride, std::size_t NComponents>
+void histxy_mt(T const *IHIST_RESTRICT data,
+               std::uint8_t const *IHIST_RESTRICT mask, std::size_t width,
                std::size_t height, std::size_t roi_x, std::size_t roi_y,
                std::size_t roi_width, std::size_t roi_height,
                std::uint32_t *IHIST_RESTRICT histogram,
@@ -437,8 +467,8 @@ void histxy_mt(T const *IHIST_RESTRICT data, std::size_t width,
         tbb::blocked_range<std::size_t>(0, roi_height, height_grain_size),
         [&](tbb::blocked_range<std::size_t> const &r) {
             auto &h = local_hists.local();
-            HistXY(data, width, height, roi_x, roi_y + r.begin(), roi_width,
-                   r.size(), h.data(), 0);
+            HistXY(data, mask, width, height, roi_x, roi_y + r.begin(),
+                   roi_width, r.size(), h.data(), 0);
         });
 
     local_hists.combine_each([&](hist_array const &h) {
@@ -450,65 +480,71 @@ void histxy_mt(T const *IHIST_RESTRICT data, std::size_t width,
 
 } // namespace internal
 
-template <typename T, unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
-          std::size_t Stride = 1, std::size_t Component0Offset = 0,
-          std::size_t... ComponentOffsets>
-void hist_unoptimized_mt(T const *IHIST_RESTRICT data, std::size_t size,
+template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
+          unsigned LoBit = 0, std::size_t Stride = 1,
+          std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
+void hist_unoptimized_mt(T const *IHIST_RESTRICT data,
+                         std::uint8_t const *IHIST_RESTRICT mask,
+                         std::size_t size,
                          std::uint32_t *IHIST_RESTRICT histogram,
                          std::size_t grain_size = 1) {
     internal::hist_mt<
-        hist_unoptimized_st<T, Bits, LoBit, Stride, Component0Offset,
+        hist_unoptimized_st<T, UseMask, Bits, LoBit, Stride, Component0Offset,
                             ComponentOffsets...>,
-        T, Bits, Stride, 1 + sizeof...(ComponentOffsets)>(
-        data, size, histogram, grain_size);
+        T, UseMask, Bits, Stride, 1 + sizeof...(ComponentOffsets)>(
+        data, mask, size, histogram, grain_size);
 }
 
-template <tuning_parameters const &Tuning, typename T,
+template <tuning_parameters const &Tuning, typename T, bool UseMask = false,
           unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
           std::size_t Stride = 1, std::size_t Component0Offset = 0,
           std::size_t... ComponentOffsets>
-void hist_striped_mt(T const *IHIST_RESTRICT data, std::size_t size,
+void hist_striped_mt(T const *IHIST_RESTRICT data,
+                     std::uint8_t const *IHIST_RESTRICT mask, std::size_t size,
                      std::uint32_t *IHIST_RESTRICT histogram,
                      std::size_t grain_size = 1) {
-    internal::hist_mt<hist_striped_st<Tuning, T, Bits, LoBit, Stride,
+    internal::hist_mt<hist_striped_st<Tuning, T, UseMask, Bits, LoBit, Stride,
                                       Component0Offset, ComponentOffsets...>,
-                      T, Bits, Stride, 1 + sizeof...(ComponentOffsets)>(
-        data, size, histogram, grain_size);
+                      T, UseMask, Bits, Stride,
+                      1 + sizeof...(ComponentOffsets)>(data, mask, size,
+                                                       histogram, grain_size);
 }
 
-template <typename T, unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
-          std::size_t Stride = 1, std::size_t Component0Offset = 0,
-          std::size_t... ComponentOffsets>
-void histxy_unoptimized_mt(T const *IHIST_RESTRICT data, std::size_t width,
-                           std::size_t height, std::size_t roi_x,
-                           std::size_t roi_y, std::size_t roi_width,
-                           std::size_t roi_height,
+template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
+          unsigned LoBit = 0, std::size_t Stride = 1,
+          std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
+void histxy_unoptimized_mt(T const *IHIST_RESTRICT data,
+                           std::uint8_t const *IHIST_RESTRICT mask,
+                           std::size_t width, std::size_t height,
+                           std::size_t roi_x, std::size_t roi_y,
+                           std::size_t roi_width, std::size_t roi_height,
                            std::uint32_t *IHIST_RESTRICT histogram,
                            std::size_t grain_size = 1) {
     internal::histxy_mt<
-        histxy_unoptimized_st<T, Bits, LoBit, Stride, Component0Offset,
-                              ComponentOffsets...>,
-        T, Bits, Stride, 1 + sizeof...(ComponentOffsets)>(
-        data, width, height, roi_x, roi_y, roi_width, roi_height, histogram,
-        grain_size);
+        histxy_unoptimized_st<T, UseMask, Bits, LoBit, Stride,
+                              Component0Offset, ComponentOffsets...>,
+        T, UseMask, Bits, Stride, 1 + sizeof...(ComponentOffsets)>(
+        data, mask, width, height, roi_x, roi_y, roi_width, roi_height,
+        histogram, grain_size);
 }
 
-template <tuning_parameters const &Tuning, typename T,
+template <tuning_parameters const &Tuning, typename T, bool UseMask = false,
           unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
           std::size_t Stride = 1, std::size_t Component0Offset = 0,
           std::size_t... ComponentOffsets>
-void histxy_striped_mt(T const *IHIST_RESTRICT data, std::size_t width,
-                       std::size_t height, std::size_t roi_x,
-                       std::size_t roi_y, std::size_t roi_width,
-                       std::size_t roi_height,
+void histxy_striped_mt(T const *IHIST_RESTRICT data,
+                       std::uint8_t const *IHIST_RESTRICT mask,
+                       std::size_t width, std::size_t height,
+                       std::size_t roi_x, std::size_t roi_y,
+                       std::size_t roi_width, std::size_t roi_height,
                        std::uint32_t *IHIST_RESTRICT histogram,
                        std::size_t grain_size = 1) {
     internal::histxy_mt<
-        histxy_striped_st<Tuning, T, Bits, LoBit, Stride, Component0Offset,
-                          ComponentOffsets...>,
-        T, Bits, Stride, 1 + sizeof...(ComponentOffsets)>(
-        data, width, height, roi_x, roi_y, roi_width, roi_height, histogram,
-        grain_size);
+        histxy_striped_st<Tuning, T, UseMask, Bits, LoBit, Stride,
+                          Component0Offset, ComponentOffsets...>,
+        T, UseMask, Bits, Stride, 1 + sizeof...(ComponentOffsets)>(
+        data, mask, width, height, roi_x, roi_y, roi_width, roi_height,
+        histogram, grain_size);
 }
 
 } // namespace ihist

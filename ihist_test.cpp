@@ -131,7 +131,7 @@ TEMPLATE_TEST_CASE("empty-data", "", std::uint8_t, std::uint16_t) {
 
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     std::array<std::uint32_t, NBINS> hist{};
-    hist_func(nullptr, 0, hist.data(), 1);
+    hist_func(nullptr, nullptr, 0, hist.data(), 1);
     std::array<std::uint32_t, NBINS> ref{};
     CHECK(hist == ref);
 }
@@ -162,7 +162,7 @@ TEMPLATE_TEST_CASE("empty-data-xy", "", std::uint8_t, std::uint16_t) {
 
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     std::array<std::uint32_t, NBINS> hist{};
-    histxy_func(nullptr, 0, 0, 0, 0, 0, 0, hist.data(), 1);
+    histxy_func(nullptr, nullptr, 0, 0, 0, 0, 0, 0, hist.data(), 1);
     std::array<std::uint32_t, NBINS> ref{};
     CHECK(hist == ref);
 }
@@ -197,13 +197,13 @@ TEMPLATE_TEST_CASE("const-data", "", std::uint8_t, std::uint16_t) {
     std::array<std::uint32_t, NBINS> ref{};
 
     SECTION("malloc-aligned") {
-        hist_func(data.data(), data.size(), hist.data(), 1);
+        hist_func(data.data(), nullptr, data.size(), hist.data(), 1);
         ref[value] = size;
         CHECK(hist == ref);
     }
 
     SECTION("unaligned") {
-        hist_func(data.data() + 1, data.size() - 1, hist.data(), 1);
+        hist_func(data.data() + 1, nullptr, data.size() - 1, hist.data(), 1);
         ref[value] = size - 1;
         CHECK(hist == ref);
     }
@@ -244,7 +244,7 @@ TEMPLATE_TEST_CASE("const-data-xy", "", std::uint8_t, std::uint16_t) {
     std::array<std::uint32_t, NBINS> ref{};
 
     SECTION("full-roi") {
-        histxy_func(data.data(), width, height, 0, 0, width, height,
+        histxy_func(data.data(), nullptr, width, height, 0, 0, width, height,
                     hist.data(), 1);
         ref[value] = width * height;
         CHECK(hist == ref);
@@ -252,8 +252,8 @@ TEMPLATE_TEST_CASE("const-data-xy", "", std::uint8_t, std::uint16_t) {
 
     SECTION("skip-row-0") {
         if (height > 1) {
-            histxy_func(data.data(), width, height, 0, 1, width, height - 1,
-                        hist.data(), 1);
+            histxy_func(data.data(), nullptr, width, height, 0, 1, width,
+                        height - 1, hist.data(), 1);
             ref[value] = width * (height - 1);
             CHECK(hist == ref);
         }
@@ -261,8 +261,8 @@ TEMPLATE_TEST_CASE("const-data-xy", "", std::uint8_t, std::uint16_t) {
 
     SECTION("skip-row-N") {
         if (height > 1) {
-            histxy_func(data.data(), width, height, 0, 0, width, height - 1,
-                        hist.data(), 1);
+            histxy_func(data.data(), nullptr, width, height, 0, 0, width,
+                        height - 1, hist.data(), 1);
             ref[value] = width * (height - 1);
             CHECK(hist == ref);
         }
@@ -270,8 +270,8 @@ TEMPLATE_TEST_CASE("const-data-xy", "", std::uint8_t, std::uint16_t) {
 
     SECTION("skip-col-0") {
         if (width > 1) {
-            histxy_func(data.data(), width, height, 1, 0, width - 1, height,
-                        hist.data(), 1);
+            histxy_func(data.data(), nullptr, width, height, 1, 0, width - 1,
+                        height, hist.data(), 1);
             ref[value] = (width - 1) * height;
             CHECK(hist == ref);
         }
@@ -279,8 +279,8 @@ TEMPLATE_TEST_CASE("const-data-xy", "", std::uint8_t, std::uint16_t) {
 
     SECTION("skip-col-N") {
         if (width > 1) {
-            histxy_func(data.data(), width, height, 0, 0, width - 1, height,
-                        hist.data(), 1);
+            histxy_func(data.data(), nullptr, width, height, 0, 0, width - 1,
+                        height, hist.data(), 1);
             ref[value] = (width - 1) * height;
             CHECK(hist == ref);
         }
@@ -300,15 +300,15 @@ TEMPLATE_TEST_CASE("const-data-hi-bit-filtering-discard-low", "", std::uint8_t,
     static constexpr tuning_parameters tune02{0, 2};
     static constexpr tuning_parameters tune03{0, 3};
     auto const hist_func =
-        GENERATE(hist_unoptimized_st<TestType, BITS, LO_BIT, 1, 0>,
-                 hist_striped_st<tune0, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_striped_st<tune1, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_striped_st<tune2, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_striped_st<tune3, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_striped_st<tune00, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_striped_st<tune01, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_striped_st<tune02, TestType, BITS, LO_BIT, 1, 0>,
-                 hist_striped_st<tune03, TestType, BITS, LO_BIT, 1, 0>);
+        GENERATE(hist_unoptimized_st<TestType, false, BITS, LO_BIT, 1, 0>,
+                 hist_striped_st<tune0, TestType, false, BITS, LO_BIT, 1, 0>,
+                 hist_striped_st<tune1, TestType, false, BITS, LO_BIT, 1, 0>,
+                 hist_striped_st<tune2, TestType, false, BITS, LO_BIT, 1, 0>,
+                 hist_striped_st<tune3, TestType, false, BITS, LO_BIT, 1, 0>,
+                 hist_striped_st<tune00, TestType, false, BITS, LO_BIT, 1, 0>,
+                 hist_striped_st<tune01, TestType, false, BITS, LO_BIT, 1, 0>,
+                 hist_striped_st<tune02, TestType, false, BITS, LO_BIT, 1, 0>,
+                 hist_striped_st<tune03, TestType, false, BITS, LO_BIT, 1, 0>);
 
     constexpr auto NBINS = 1 << BITS;
     std::size_t size = GENERATE(1, 7, 100);
@@ -320,7 +320,7 @@ TEMPLATE_TEST_CASE("const-data-hi-bit-filtering-discard-low", "", std::uint8_t,
     SECTION("zero-hi-bits") {
         std::vector<TestType> data(size, value);
         std::array<std::uint32_t, NBINS> hist{};
-        hist_func(data.data(), data.size(), hist.data(), 0);
+        hist_func(data.data(), nullptr, data.size(), hist.data(), 0);
         std::array<std::uint32_t, NBINS> ref{};
         ref[sample] = size;
         CHECK(hist == ref);
@@ -329,7 +329,7 @@ TEMPLATE_TEST_CASE("const-data-hi-bit-filtering-discard-low", "", std::uint8_t,
     SECTION("non-zero-hi-bits") {
         std::vector<TestType> data(size, value | (1 << (BITS + LO_BIT)));
         std::array<std::uint32_t, NBINS> hist{};
-        hist_func(data.data(), data.size(), hist.data(), 0);
+        hist_func(data.data(), nullptr, data.size(), hist.data(), 0);
         std::array<std::uint32_t, NBINS> ref{};
         CHECK(hist == ref);
     }
@@ -343,12 +343,12 @@ TEMPLATE_TEST_CASE("const-data-hi-bit-filtering-discard-low-xy", "",
     static constexpr tuning_parameters tune2{2};
     static constexpr tuning_parameters tune00{0, 0};
     static constexpr tuning_parameters tune02{0, 2};
-    auto const histxy_func =
-        GENERATE(histxy_unoptimized_st<TestType, BITS, LO_BIT, 1, 0>,
-                 histxy_striped_st<tune0, TestType, BITS, LO_BIT, 1, 0>,
-                 histxy_striped_st<tune2, TestType, BITS, LO_BIT, 1, 0>,
-                 histxy_striped_st<tune00, TestType, BITS, LO_BIT, 1, 0>,
-                 histxy_striped_st<tune02, TestType, BITS, LO_BIT, 1, 0>);
+    auto const histxy_func = GENERATE(
+        histxy_unoptimized_st<TestType, false, BITS, LO_BIT, 1, 0>,
+        histxy_striped_st<tune0, TestType, false, BITS, LO_BIT, 1, 0>,
+        histxy_striped_st<tune2, TestType, false, BITS, LO_BIT, 1, 0>,
+        histxy_striped_st<tune00, TestType, false, BITS, LO_BIT, 1, 0>,
+        histxy_striped_st<tune02, TestType, false, BITS, LO_BIT, 1, 0>);
 
     constexpr auto NBINS = 1 << BITS;
     std::size_t width = GENERATE(1, 7, 100);
@@ -361,7 +361,7 @@ TEMPLATE_TEST_CASE("const-data-hi-bit-filtering-discard-low-xy", "",
     SECTION("zero-hi-bits") {
         std::vector<TestType> data(width * height, value);
         std::array<std::uint32_t, NBINS> hist{};
-        histxy_func(data.data(), width, height, 0, 0, width, height,
+        histxy_func(data.data(), nullptr, width, height, 0, 0, width, height,
                     hist.data(), 0);
         std::array<std::uint32_t, NBINS> ref{};
         ref[sample] = width * height;
@@ -372,7 +372,7 @@ TEMPLATE_TEST_CASE("const-data-hi-bit-filtering-discard-low-xy", "",
         std::vector<TestType> data(width * height,
                                    value | (1 << (BITS + LO_BIT)));
         std::array<std::uint32_t, NBINS> hist{};
-        histxy_func(data.data(), width, height, 0, 0, width, height,
+        histxy_func(data.data(), nullptr, width, height, 0, 0, width, height,
                     hist.data(), 0);
         std::array<std::uint32_t, NBINS> ref{};
         CHECK(hist == ref);
@@ -391,25 +391,25 @@ TEMPLATE_TEST_CASE("const-data-multicomponent", "", std::uint8_t,
     static constexpr tuning_parameters tune01{0, 1};
     static constexpr tuning_parameters tune02{0, 2};
     static constexpr tuning_parameters tune03{0, 3};
-    auto const hist_func =
-        GENERATE(hist_unoptimized_st<TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_st<tune0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_st<tune1, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_st<tune2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_st<tune3, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_st<tune00, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_st<tune01, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_st<tune02, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_st<tune03, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_unoptimized_mt<TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_mt<tune0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_mt<tune1, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_mt<tune2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_mt<tune3, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_mt<tune00, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_mt<tune01, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_mt<tune02, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_mt<tune03, TestType, BITS, 0, STRIDE, 3, 0, 1>);
+    auto const hist_func = GENERATE(
+        hist_unoptimized_st<TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_st<tune0, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_st<tune1, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_st<tune2, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_st<tune3, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_st<tune00, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_st<tune01, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_st<tune02, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_st<tune03, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unoptimized_mt<TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_mt<tune0, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_mt<tune1, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_mt<tune2, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_mt<tune3, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_mt<tune00, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_mt<tune01, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_mt<tune02, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_mt<tune03, TestType, false, BITS, 0, STRIDE, 3, 0, 1>);
 
     constexpr auto NBINS = 1 << BITS;
     std::size_t size = GENERATE(0, 1, 7, 1000);
@@ -429,7 +429,7 @@ TEMPLATE_TEST_CASE("const-data-multicomponent", "", std::uint8_t,
     }
 
     std::vector<std::uint32_t> hist(3 * NBINS);
-    hist_func(data.data(), size, hist.data(), 1);
+    hist_func(data.data(), nullptr, size, hist.data(), 1);
     std::vector<std::uint32_t> ref(3 * NBINS);
     for (int c = 0; c < 3; ++c) {
         if (c == component) {
@@ -450,16 +450,16 @@ TEMPLATE_TEST_CASE("const-data-multicomponent-xy", "", std::uint8_t,
     static constexpr tuning_parameters tune00{0, 0};
     static constexpr tuning_parameters tune02{0, 2};
     auto const histxy_func = GENERATE(
-        histxy_unoptimized_st<TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_striped_st<tune0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_striped_st<tune2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_striped_st<tune00, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_striped_st<tune02, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_unoptimized_mt<TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_striped_mt<tune0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_striped_mt<tune2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_striped_mt<tune00, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_striped_mt<tune02, TestType, BITS, 0, STRIDE, 3, 0, 1>);
+        histxy_unoptimized_st<TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_striped_st<tune0, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_striped_st<tune2, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_striped_st<tune00, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_striped_st<tune02, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_unoptimized_mt<TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_striped_mt<tune0, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_striped_mt<tune2, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_striped_mt<tune00, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_striped_mt<tune02, TestType, false, BITS, 0, STRIDE, 3, 0, 1>);
 
     constexpr auto NBINS = 1 << BITS;
     std::size_t width = GENERATE(0, 1, 7, 1000);
@@ -480,8 +480,8 @@ TEMPLATE_TEST_CASE("const-data-multicomponent-xy", "", std::uint8_t,
     }
 
     std::vector<std::uint32_t> hist(3 * NBINS);
-    histxy_func(data.data(), width, height, 0, 0, width, height, hist.data(),
-                1);
+    histxy_func(data.data(), nullptr, width, height, 0, 0, width, height,
+                hist.data(), 1);
     std::vector<std::uint32_t> ref(3 * NBINS);
     for (int c = 0; c < 3; ++c) {
         if (c == component) {
@@ -517,9 +517,9 @@ TEMPLATE_TEST_CASE("random-data", "", std::uint8_t, std::uint16_t) {
     constexpr auto NBINS = 1 << (8 * sizeof(TestType));
     auto const data = test_data<TestType>(1 << (20 - sizeof(TestType)));
     std::array<std::uint32_t, NBINS> hist{};
-    hist_func(data.data(), data.size(), hist.data(), 1);
+    hist_func(data.data(), nullptr, data.size(), hist.data(), 1);
     std::array<std::uint32_t, NBINS> ref{};
-    ref_func(data.data(), data.size(), ref.data(), 1);
+    ref_func(data.data(), nullptr, data.size(), ref.data(), 1);
     CHECK(hist == ref);
 }
 
@@ -543,10 +543,10 @@ TEMPLATE_TEST_CASE("random-data-xy", "", std::uint8_t, std::uint16_t) {
     constexpr std::size_t height = 1 << 8;
     auto const data = test_data<TestType>(width * height);
     std::array<std::uint32_t, NBINS> hist{};
-    histxy_func(data.data(), width, height, 0, 0, width, height, hist.data(),
-                1);
+    histxy_func(data.data(), nullptr, width, height, 0, 0, width, height,
+                hist.data(), 1);
     std::array<std::uint32_t, NBINS> ref{};
-    ref_func(data.data(), data.size(), ref.data(), 1);
+    ref_func(data.data(), nullptr, data.size(), ref.data(), 1);
     CHECK(hist == ref);
 }
 
@@ -554,19 +554,19 @@ TEMPLATE_TEST_CASE("random-data-clean-filtered", "", std::uint8_t,
                    std::uint16_t) {
     constexpr auto BITS = 8 * sizeof(TestType) - 4;
     auto hist_func =
-        GENERATE(hist_unoptimized_st<TestType, BITS>,
-                 hist_striped_st<untuned_parameters, TestType, BITS>,
-                 hist_unoptimized_mt<TestType, BITS>,
-                 hist_striped_mt<untuned_parameters, TestType, BITS>);
-    auto ref_func = hist_unoptimized_st<TestType, BITS>;
+        GENERATE(hist_unoptimized_st<TestType, false, BITS>,
+                 hist_striped_st<untuned_parameters, TestType, false, BITS>,
+                 hist_unoptimized_mt<TestType, false, BITS>,
+                 hist_striped_mt<untuned_parameters, TestType, false, BITS>);
+    auto ref_func = hist_unoptimized_st<TestType, false, BITS>;
 
     constexpr auto NBINS = 1 << BITS;
     // Test with 4/12-bit data with no spurious high bits:
     auto const data = test_data<TestType, BITS>(1 << (20 - sizeof(TestType)));
     std::array<std::uint32_t, NBINS> hist{};
-    hist_func(data.data(), data.size(), hist.data(), 1);
+    hist_func(data.data(), nullptr, data.size(), hist.data(), 1);
     std::array<std::uint32_t, NBINS> ref{};
-    ref_func(data.data(), data.size(), ref.data(), 1);
+    ref_func(data.data(), nullptr, data.size(), ref.data(), 1);
     CHECK(hist == ref);
 }
 
@@ -574,11 +574,11 @@ TEMPLATE_TEST_CASE("random-data-clean-filtered-xy", "", std::uint8_t,
                    std::uint16_t) {
     constexpr auto BITS = 8 * sizeof(TestType) - 4;
     auto histxy_func =
-        GENERATE(histxy_unoptimized_st<TestType, BITS>,
-                 histxy_striped_st<untuned_parameters, TestType, BITS>,
-                 histxy_unoptimized_mt<TestType, BITS>,
-                 histxy_striped_mt<untuned_parameters, TestType, BITS>);
-    auto ref_func = hist_unoptimized_st<TestType, BITS>;
+        GENERATE(histxy_unoptimized_st<TestType, false, BITS>,
+                 histxy_striped_st<untuned_parameters, TestType, false, BITS>,
+                 histxy_unoptimized_mt<TestType, false, BITS>,
+                 histxy_striped_mt<untuned_parameters, TestType, false, BITS>);
+    auto ref_func = hist_unoptimized_st<TestType, false, BITS>;
 
     constexpr auto NBINS = 1 << BITS;
     // Test with 4/12-bit data with no spurious high bits:
@@ -586,10 +586,10 @@ TEMPLATE_TEST_CASE("random-data-clean-filtered-xy", "", std::uint8_t,
     constexpr std::size_t height = 1 << 8;
     auto const data = test_data<TestType, BITS>(width * height);
     std::array<std::uint32_t, NBINS> hist{};
-    histxy_func(data.data(), width, height, 0, 0, width, height, hist.data(),
-                1);
+    histxy_func(data.data(), nullptr, width, height, 0, 0, width, height,
+                hist.data(), 1);
     std::array<std::uint32_t, NBINS> ref{};
-    ref_func(data.data(), data.size(), ref.data(), 1);
+    ref_func(data.data(), nullptr, data.size(), ref.data(), 1);
     CHECK(hist == ref);
 }
 
@@ -606,25 +606,25 @@ TEMPLATE_TEST_CASE("random-data-clean-discard-low", "", std::uint8_t,
     static constexpr tuning_parameters tune02{0, 2};
     static constexpr tuning_parameters tune03{0, 3};
     auto const hist_func =
-        GENERATE(hist_unoptimized_st<TestType, BITS, LO_BIT>,
-                 hist_striped_st<tune0, TestType, BITS, LO_BIT>,
-                 hist_striped_st<tune1, TestType, BITS, LO_BIT>,
-                 hist_striped_st<tune2, TestType, BITS, LO_BIT>,
-                 hist_striped_st<tune3, TestType, BITS, LO_BIT>,
-                 hist_striped_st<tune00, TestType, BITS, LO_BIT>,
-                 hist_striped_st<tune01, TestType, BITS, LO_BIT>,
-                 hist_striped_st<tune02, TestType, BITS, LO_BIT>,
-                 hist_striped_st<tune03, TestType, BITS, LO_BIT>,
-                 hist_unoptimized_mt<TestType, BITS, LO_BIT>,
-                 hist_striped_mt<tune0, TestType, BITS, LO_BIT>,
-                 hist_striped_mt<tune1, TestType, BITS, LO_BIT>,
-                 hist_striped_mt<tune2, TestType, BITS, LO_BIT>,
-                 hist_striped_mt<tune3, TestType, BITS, LO_BIT>,
-                 hist_striped_mt<tune00, TestType, BITS, LO_BIT>,
-                 hist_striped_mt<tune01, TestType, BITS, LO_BIT>,
-                 hist_striped_mt<tune02, TestType, BITS, LO_BIT>,
-                 hist_striped_mt<tune03, TestType, BITS, LO_BIT>);
-    auto ref_func = hist_unoptimized_st<TestType, BITS, LO_BIT>;
+        GENERATE(hist_unoptimized_st<TestType, false, BITS, LO_BIT>,
+                 hist_striped_st<tune0, TestType, false, BITS, LO_BIT>,
+                 hist_striped_st<tune1, TestType, false, BITS, LO_BIT>,
+                 hist_striped_st<tune2, TestType, false, BITS, LO_BIT>,
+                 hist_striped_st<tune3, TestType, false, BITS, LO_BIT>,
+                 hist_striped_st<tune00, TestType, false, BITS, LO_BIT>,
+                 hist_striped_st<tune01, TestType, false, BITS, LO_BIT>,
+                 hist_striped_st<tune02, TestType, false, BITS, LO_BIT>,
+                 hist_striped_st<tune03, TestType, false, BITS, LO_BIT>,
+                 hist_unoptimized_mt<TestType, false, BITS, LO_BIT>,
+                 hist_striped_mt<tune0, TestType, false, BITS, LO_BIT>,
+                 hist_striped_mt<tune1, TestType, false, BITS, LO_BIT>,
+                 hist_striped_mt<tune2, TestType, false, BITS, LO_BIT>,
+                 hist_striped_mt<tune3, TestType, false, BITS, LO_BIT>,
+                 hist_striped_mt<tune00, TestType, false, BITS, LO_BIT>,
+                 hist_striped_mt<tune01, TestType, false, BITS, LO_BIT>,
+                 hist_striped_mt<tune02, TestType, false, BITS, LO_BIT>,
+                 hist_striped_mt<tune03, TestType, false, BITS, LO_BIT>);
+    auto ref_func = hist_unoptimized_st<TestType, false, BITS, LO_BIT>;
 
     constexpr auto NBINS = 1 << BITS;
     // Test with 6/12-bit data with no spurious high bits (but random low
@@ -632,9 +632,9 @@ TEMPLATE_TEST_CASE("random-data-clean-discard-low", "", std::uint8_t,
     auto const data =
         test_data<TestType, BITS + LO_BIT>(1 << (20 - sizeof(TestType)));
     std::array<std::uint32_t, NBINS> hist{};
-    hist_func(data.data(), data.size(), hist.data(), 1);
+    hist_func(data.data(), nullptr, data.size(), hist.data(), 1);
     std::array<std::uint32_t, NBINS> ref{};
-    ref_func(data.data(), data.size(), ref.data(), 1);
+    ref_func(data.data(), nullptr, data.size(), ref.data(), 1);
     CHECK(hist == ref);
 }
 
@@ -647,17 +647,17 @@ TEMPLATE_TEST_CASE("random-data-clean-discard-low-xy", "", std::uint8_t,
     static constexpr tuning_parameters tune00{0, 0};
     static constexpr tuning_parameters tune02{0, 2};
     auto const histxy_func =
-        GENERATE(histxy_unoptimized_st<TestType, BITS, LO_BIT>,
-                 histxy_striped_st<tune0, TestType, BITS, LO_BIT>,
-                 histxy_striped_st<tune2, TestType, BITS, LO_BIT>,
-                 histxy_striped_st<tune00, TestType, BITS, LO_BIT>,
-                 histxy_striped_st<tune02, TestType, BITS, LO_BIT>,
-                 histxy_unoptimized_mt<TestType, BITS, LO_BIT>,
-                 histxy_striped_mt<tune0, TestType, BITS, LO_BIT>,
-                 histxy_striped_mt<tune2, TestType, BITS, LO_BIT>,
-                 histxy_striped_mt<tune00, TestType, BITS, LO_BIT>,
-                 histxy_striped_mt<tune02, TestType, BITS, LO_BIT>);
-    auto ref_func = hist_unoptimized_st<TestType, BITS, LO_BIT>;
+        GENERATE(histxy_unoptimized_st<TestType, false, BITS, LO_BIT>,
+                 histxy_striped_st<tune0, TestType, false, BITS, LO_BIT>,
+                 histxy_striped_st<tune2, TestType, false, BITS, LO_BIT>,
+                 histxy_striped_st<tune00, TestType, false, BITS, LO_BIT>,
+                 histxy_striped_st<tune02, TestType, false, BITS, LO_BIT>,
+                 histxy_unoptimized_mt<TestType, false, BITS, LO_BIT>,
+                 histxy_striped_mt<tune0, TestType, false, BITS, LO_BIT>,
+                 histxy_striped_mt<tune2, TestType, false, BITS, LO_BIT>,
+                 histxy_striped_mt<tune00, TestType, false, BITS, LO_BIT>,
+                 histxy_striped_mt<tune02, TestType, false, BITS, LO_BIT>);
+    auto ref_func = hist_unoptimized_st<TestType, false, BITS, LO_BIT>;
 
     constexpr auto NBINS = 1 << BITS;
     // Test with 6/12-bit data with no spurious high bits (but random low
@@ -666,10 +666,10 @@ TEMPLATE_TEST_CASE("random-data-clean-discard-low-xy", "", std::uint8_t,
     constexpr std::size_t height = 1 << 8;
     auto const data = test_data<TestType, BITS + LO_BIT>(width * height);
     std::array<std::uint32_t, NBINS> hist{};
-    histxy_func(data.data(), width, height, 0, 0, width, height, hist.data(),
-                1);
+    histxy_func(data.data(), nullptr, width, height, 0, 0, width, height,
+                hist.data(), 1);
     std::array<std::uint32_t, NBINS> ref{};
-    ref_func(data.data(), data.size(), ref.data(), 1);
+    ref_func(data.data(), nullptr, data.size(), ref.data(), 1);
     CHECK(hist == ref);
 }
 
@@ -677,11 +677,11 @@ TEMPLATE_TEST_CASE("random-data-unclean-filtered", "", std::uint8_t,
                    std::uint16_t) {
     constexpr auto BITS = 8 * sizeof(TestType) - 4;
     auto hist_func =
-        GENERATE(hist_unoptimized_st<TestType, BITS>,
-                 hist_striped_st<untuned_parameters, TestType, BITS>,
-                 hist_unoptimized_mt<TestType, BITS>,
-                 hist_striped_mt<untuned_parameters, TestType, BITS>);
-    auto ref_func = hist_unoptimized_st<TestType, BITS>;
+        GENERATE(hist_unoptimized_st<TestType, false, BITS>,
+                 hist_striped_st<untuned_parameters, TestType, false, BITS>,
+                 hist_unoptimized_mt<TestType, false, BITS>,
+                 hist_striped_mt<untuned_parameters, TestType, false, BITS>);
+    auto ref_func = hist_unoptimized_st<TestType, false, BITS>;
 
     constexpr auto NBINS = 1 << BITS;
 
@@ -700,9 +700,9 @@ TEMPLATE_TEST_CASE("random-data-unclean-filtered", "", std::uint8_t,
     }();
 
     std::array<std::uint32_t, NBINS> hist{};
-    hist_func(data.data(), data.size(), hist.data(), 1);
+    hist_func(data.data(), nullptr, data.size(), hist.data(), 1);
     std::array<std::uint32_t, NBINS> ref{};
-    ref_func(clean_data.data(), clean_data.size(), ref.data(), 1);
+    ref_func(clean_data.data(), nullptr, clean_data.size(), ref.data(), 1);
     CHECK(hist == ref);
 }
 
@@ -710,11 +710,11 @@ TEMPLATE_TEST_CASE("random-data-unclean-filtered-xy", "", std::uint8_t,
                    std::uint16_t) {
     constexpr auto BITS = 8 * sizeof(TestType) - 4;
     auto histxy_func =
-        GENERATE(histxy_unoptimized_st<TestType, BITS>,
-                 histxy_striped_st<untuned_parameters, TestType, BITS>,
-                 histxy_unoptimized_mt<TestType, BITS>,
-                 histxy_striped_mt<untuned_parameters, TestType, BITS>);
-    auto ref_func = hist_unoptimized_st<TestType, BITS>;
+        GENERATE(histxy_unoptimized_st<TestType, false, BITS>,
+                 histxy_striped_st<untuned_parameters, TestType, false, BITS>,
+                 histxy_unoptimized_mt<TestType, false, BITS>,
+                 histxy_striped_mt<untuned_parameters, TestType, false, BITS>);
+    auto ref_func = hist_unoptimized_st<TestType, false, BITS>;
 
     constexpr auto NBINS = 1 << BITS;
 
@@ -734,10 +734,10 @@ TEMPLATE_TEST_CASE("random-data-unclean-filtered-xy", "", std::uint8_t,
     }();
 
     std::array<std::uint32_t, NBINS> hist{};
-    histxy_func(data.data(), width, height, 0, 0, width, height, hist.data(),
-                1);
+    histxy_func(data.data(), nullptr, width, height, 0, 0, width, height,
+                hist.data(), 1);
     std::array<std::uint32_t, NBINS> ref{};
-    ref_func(clean_data.data(), clean_data.size(), ref.data(), 1);
+    ref_func(clean_data.data(), nullptr, clean_data.size(), ref.data(), 1);
     CHECK(hist == ref);
 }
 
@@ -753,34 +753,34 @@ TEMPLATE_TEST_CASE("random-data-multicomponent", "", std::uint8_t,
     static constexpr tuning_parameters tune01{0, 1};
     static constexpr tuning_parameters tune02{0, 2};
     static constexpr tuning_parameters tune03{0, 3};
-    auto const hist_func =
-        GENERATE(hist_unoptimized_st<TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_st<tune0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_st<tune1, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_st<tune2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_st<tune3, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_st<tune00, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_st<tune01, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_st<tune02, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_st<tune03, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_unoptimized_mt<TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_mt<tune0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_mt<tune1, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_mt<tune2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_mt<tune3, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_mt<tune00, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_mt<tune01, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_mt<tune02, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-                 hist_striped_mt<tune03, TestType, BITS, 0, STRIDE, 3, 0, 1>);
+    auto const hist_func = GENERATE(
+        hist_unoptimized_st<TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_st<tune0, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_st<tune1, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_st<tune2, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_st<tune3, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_st<tune00, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_st<tune01, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_st<tune02, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_st<tune03, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_unoptimized_mt<TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_mt<tune0, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_mt<tune1, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_mt<tune2, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_mt<tune3, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_mt<tune00, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_mt<tune01, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_mt<tune02, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        hist_striped_mt<tune03, TestType, false, BITS, 0, STRIDE, 3, 0, 1>);
     auto const ref_func =
-        hist_unoptimized_st<TestType, BITS, 0, STRIDE, 3, 0, 1>;
+        hist_unoptimized_st<TestType, false, BITS, 0, STRIDE, 3, 0, 1>;
 
     constexpr auto NBINS = 1 << BITS;
     auto const data = test_data<TestType>(STRIDE << (20 - sizeof(TestType)));
     std::vector<std::uint32_t> hist(3 * NBINS);
-    hist_func(data.data(), data.size() / STRIDE, hist.data(), 1);
+    hist_func(data.data(), nullptr, data.size() / STRIDE, hist.data(), 1);
     std::vector<std::uint32_t> ref(3 * NBINS);
-    ref_func(data.data(), data.size() / STRIDE, ref.data(), 1);
+    ref_func(data.data(), nullptr, data.size() / STRIDE, ref.data(), 1);
     CHECK(hist == ref);
 }
 
@@ -793,28 +793,28 @@ TEMPLATE_TEST_CASE("random-data-multicomponent-xy", "", std::uint8_t,
     static constexpr tuning_parameters tune00{0, 0};
     static constexpr tuning_parameters tune02{0, 2};
     auto const histxy_func = GENERATE(
-        histxy_unoptimized_st<TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_striped_st<tune0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_striped_st<tune2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_striped_st<tune00, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_striped_st<tune02, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_unoptimized_mt<TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_striped_mt<tune0, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_striped_mt<tune2, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_striped_mt<tune00, TestType, BITS, 0, STRIDE, 3, 0, 1>,
-        histxy_striped_mt<tune02, TestType, BITS, 0, STRIDE, 3, 0, 1>);
+        histxy_unoptimized_st<TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_striped_st<tune0, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_striped_st<tune2, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_striped_st<tune00, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_striped_st<tune02, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_unoptimized_mt<TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_striped_mt<tune0, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_striped_mt<tune2, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_striped_mt<tune00, TestType, false, BITS, 0, STRIDE, 3, 0, 1>,
+        histxy_striped_mt<tune02, TestType, false, BITS, 0, STRIDE, 3, 0, 1>);
     auto const ref_func =
-        hist_unoptimized_st<TestType, BITS, 0, STRIDE, 3, 0, 1>;
+        hist_unoptimized_st<TestType, false, BITS, 0, STRIDE, 3, 0, 1>;
 
     constexpr auto NBINS = 1 << BITS;
     constexpr std::size_t width = 1 << 9;
     constexpr std::size_t height = 1 << 8;
     auto const data = test_data<TestType>(STRIDE * width * height);
     std::vector<std::uint32_t> hist(3 * NBINS);
-    histxy_func(data.data(), width, height, 0, 0, width, height, hist.data(),
-                1);
+    histxy_func(data.data(), nullptr, width, height, 0, 0, width, height,
+                hist.data(), 1);
     std::vector<std::uint32_t> ref(3 * NBINS);
-    ref_func(data.data(), width * height, ref.data(), 1);
+    ref_func(data.data(), nullptr, width * height, ref.data(), 1);
     CHECK(hist == ref);
 }
 
