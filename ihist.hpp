@@ -74,19 +74,12 @@ constexpr auto bin_index(T value) -> std::size_t {
     constexpr auto TYPE_BITS = 8 * sizeof(T);
     constexpr auto SAMP_BITS = Bits + LoBit;
     static_assert(Bits > 0);
-    static_assert(Bits <= TYPE_BITS);
-    static_assert(LoBit < TYPE_BITS);
     static_assert(SAMP_BITS <= TYPE_BITS);
 
-    constexpr T SIGNIF_MASK = (1uLL << Bits) - 1;
-    std::size_t const bin = (value >> LoBit) & SIGNIF_MASK;
-
+    std::size_t const bin = value >> LoBit;
     if constexpr (SAMP_BITS < TYPE_BITS) {
-        constexpr auto HI_BITS = TYPE_BITS - SAMP_BITS;
-        constexpr T HI_BITS_MASK = (1uLL << HI_BITS) - 1;
-        constexpr std::size_t MASKED_BIN = 1uLL << Bits;
-        auto const hi_bits = (value >> SAMP_BITS) & HI_BITS_MASK;
-        return (hi_bits == T(0)) ? bin : MASKED_BIN;
+        constexpr std::size_t OVERFLOW_BIN = 1uLL << Bits;
+        return value >> SAMP_BITS ? OVERFLOW_BIN : bin;
     } else {
         return bin;
     }
