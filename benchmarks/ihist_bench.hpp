@@ -35,6 +35,18 @@
 
 namespace ihist::bench {
 
+using u8 = std::uint8_t;
+using u16 = std::uint16_t;
+
+template <std::size_t Bits>
+using bits_type = std::conditional_t<(Bits > 8), u16, u8>;
+
+enum class roi_type {
+    one_d,
+    two_d_full,
+    two_d_no_last_col,
+};
+
 template <typename T, unsigned Bits = 8 * sizeof(T)>
 auto generate_data(std::size_t count, float spread_frac) -> std::vector<T> {
     static_assert(std::is_unsigned_v<T>);
@@ -76,17 +88,24 @@ auto generate_data(std::size_t count, float spread_frac) -> std::vector<T> {
     return data;
 }
 
-using u8 = std::uint8_t;
-using u16 = std::uint16_t;
-
-template <std::size_t Bits>
-using bits_type = std::conditional_t<(Bits > 8), u16, u8>;
-
-enum class roi_type {
-    one_d,
-    two_d_full,
-    two_d_no_last_col,
-};
+inline auto generate_circle_mask(std::intptr_t width, std::intptr_t height)
+    -> std::vector<u8> {
+    std::vector<u8> mask(width * height);
+    auto const center_x = width / 2;
+    auto const center_y = height / 2;
+    for (std::intptr_t y = 0; y < height; ++y) {
+        for (std::intptr_t x = 0; x < width; ++x) {
+            auto const xx =
+                (x - center_x) * (x - center_x) * center_y * center_y;
+            auto const yy =
+                (y - center_y) * (y - center_y) * center_x * center_x;
+            bool is_inside =
+                xx + yy < center_x * center_x * center_y * center_y;
+            mask[x + y * width] = static_cast<u8>(is_inside);
+        }
+    }
+    return mask;
+}
 
 template <auto Hist, unsigned Bits, std::size_t Stride = 1,
           std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
@@ -99,9 +118,11 @@ void bm_hist(benchmark::State &state) {
     auto const spread_frac = static_cast<float>(state.range(1)) / 100.0f;
     auto const grain_size = static_cast<std::size_t>(state.range(2));
     auto const data = generate_data<T, Bits>(size * Stride, spread_frac);
+    auto const mask = generate_circle_mask(width, height);
     for ([[maybe_unused]] auto _ : state) {
         std::array<std::uint32_t, NCOMPONENTS * (1 << Bits)> hist{};
         auto const *d = data.data();
+        auto const *m = mask.data();
         auto *h = hist.data();
 #ifdef __clang__
         // If the function gets inlined here, it may be able to receive
@@ -110,7 +131,7 @@ void bm_hist(benchmark::State &state) {
         // benchmark.
         [[clang::noinline]]
 #endif
-        Hist(d, nullptr, size, h, grain_size);
+        Hist(d, m, size, h, grain_size);
         benchmark::DoNotOptimize(hist);
     }
     state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) * size *
@@ -137,15 +158,16 @@ void bm_histxy(benchmark::State &state) {
         (RoiType == roi_type::two_d_no_last_col) ? width - 1 : width;
     auto const roi_size = roi_width * height;
     auto const data = generate_data<T, Bits>(size * Stride, spread_frac);
+    auto const mask = generate_circle_mask(width, height);
     for ([[maybe_unused]] auto _ : state) {
         std::array<std::uint32_t, NCOMPONENTS * (1 << Bits)> hist{};
         auto const *d = data.data();
+        auto const *m = mask.data();
         auto *h = hist.data();
 #ifdef __clang__
         [[clang::noinline]]
 #endif
-        Hist(d, nullptr, width, height, 0, 0, roi_width, height, h,
-             grain_size);
+        Hist(d, m, width, height, 0, 0, roi_width, height, h, grain_size);
         benchmark::DoNotOptimize(hist);
     }
     state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) *
@@ -189,9 +211,9 @@ std::vector<std::int64_t> const st_grain_sizes{0};
     inline constexpr tuning_parameters TUNING_NAME(stripes, unrolls){         \
         stripes, unrolls};
 
-#define BENCH_NAME(stripes, unrolls, bits, roitype)                           \
+#define BENCH_NAME(stripes, unrolls, bits, roitype, mask)                     \
     TOSTRING(BM_NAME_PREFIX)                                                  \
-    "/bits:" #bits "/" #roitype                                               \
+    "/bits:" #bits "/" #roitype "/mask:" #mask                                \
     "/mt:" TOSTRING(BM_MULTITHREADED) "/stripes:" #stripes                    \
                                       "/unrolls:" #unrolls
 
@@ -201,7 +223,16 @@ std::vector<std::int64_t> const st_grain_sizes{0};
                                          bits_type<bits>, false, bits, 0,     \
                                          BM_STRIDE_COMPONENTS>,               \
                       bits, BM_STRIDE_COMPONENTS>)                            \
-        ->Name(BENCH_NAME(stripes, unrolls, bits, roi_type::one_d))           \
+        ->Name(BENCH_NAME(stripes, unrolls, bits, roi_type::one_d, 0))        \
+        ->MeasureProcessCPUTime()                                             \
+        ->UseRealTime()                                                       \
+        ->ArgNames({"size", "spread", "grainsize"})                           \
+        ->ArgsProduct({data_sizes, spread_pcts<bits>, grainsizes});           \
+    BENCHMARK(bm_hist<hist_striped_##thd<TUNING_NAME(stripes, unrolls),       \
+                                         bits_type<bits>, true, bits, 0,      \
+                                         BM_STRIDE_COMPONENTS>,               \
+                      bits, BM_STRIDE_COMPONENTS>)                            \
+        ->Name(BENCH_NAME(stripes, unrolls, bits, roi_type::one_d, 1))        \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
         ->ArgNames({"size", "spread", "grainsize"})                           \
@@ -210,7 +241,7 @@ std::vector<std::int64_t> const st_grain_sizes{0};
                                              bits_type<bits>, false, bits, 0, \
                                              BM_STRIDE_COMPONENTS>,           \
                         roi_type::two_d_full, bits, BM_STRIDE_COMPONENTS>)    \
-        ->Name(BENCH_NAME(stripes, unrolls, bits, roi_type::two_d_full))      \
+        ->Name(BENCH_NAME(stripes, unrolls, bits, roi_type::two_d_full, 0))   \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
         ->ArgNames({"size", "spread", "grainsize"})                           \
@@ -220,8 +251,8 @@ std::vector<std::int64_t> const st_grain_sizes{0};
                                        bits_type<bits>, false, bits, 0,       \
                                        BM_STRIDE_COMPONENTS>,                 \
                   roi_type::two_d_no_last_col, bits, BM_STRIDE_COMPONENTS>)   \
-        ->Name(                                                               \
-            BENCH_NAME(stripes, unrolls, bits, roi_type::two_d_no_last_col))  \
+        ->Name(BENCH_NAME(stripes, unrolls, bits,                             \
+                          roi_type::two_d_no_last_col, 0))                    \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
         ->ArgNames({"size", "spread", "grainsize"})                           \
