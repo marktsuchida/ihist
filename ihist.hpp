@@ -131,7 +131,7 @@ void hist_unoptimized_st(T const *IHIST_RESTRICT data,
 #endif
     for (std::size_t j = 0; j < size; ++j) {
         auto const i = j * Stride;
-        if (!UseMask || mask[i]) {
+        if (!UseMask || mask[j]) {
             for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
                 auto const offset = offsets[c];
                 auto const bin =
@@ -179,7 +179,7 @@ void histxy_unoptimized_st(T const *IHIST_RESTRICT data,
         for (std::size_t x = roi_x; x < roi_x + roi_width; ++x) {
             auto const j = x + y * width;
             auto const i = j * Stride;
-            if (!UseMask || mask[i]) {
+            if (!UseMask || mask[j]) {
                 for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
                     auto const offset = offsets[c];
                     auto const bin =

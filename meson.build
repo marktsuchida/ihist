@@ -54,6 +54,8 @@ dependencies = [
     onetbb_dep,
 ]
 
+install_headers('ihist.hpp', subdir: 'ihist')
+
 shlib_args = ['-DIHIST_BUILDING_SHARED']
 
 lib = library(
@@ -65,25 +67,13 @@ lib = library(
     dependencies: dependencies,
 )
 
-test_exe = executable(
-    'ihist_test',
-    'ihist_test.cpp',
-    dependencies: [
-        dependencies,
-        catch2_with_main_dep,
-    ],
-    link_with: lib,
-)
-test('ihist', test_exe)
-
 ihist_dep = declare_dependency(
     include_directories: include_directories('.'),
     dependencies: dependencies,
     link_with: lib,
 )
 
-install_headers('ihist.hpp', subdir: 'ihist')
-
+subdir('tests')
 subdir('benchmarks')
 
 # Make this library usable as a Meson subproject.
