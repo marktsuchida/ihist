@@ -17,24 +17,16 @@
 #include <limits>
 #include <type_traits>
 
-#if defined _WIN32 || defined __CYGWIN__
-#ifdef IHIST_BUILDING_SHARED
-#define IHIST_PUBLIC __declspec(dllexport)
-#else
-#define IHIST_PUBLIC __declspec(dllimport)
-#endif
-#else
-#ifdef IHIST_BUILDING_SHARED
-#define IHIST_PUBLIC __attribute__((visibility("default")))
-#else
-#define IHIST_PUBLIC
-#endif
-#endif
-
 #ifdef _MSC_VER
 #define IHIST_RESTRICT __restrict
 #else
 #define IHIST_RESTRICT __restrict__
+#endif
+
+#ifdef _MSC_VER
+#define IHIST_NOINLINE __declspec(noinline)
+#else
+#define IHIST_NOINLINE [[gnu::noinline]]
 #endif
 
 namespace ihist {
@@ -110,11 +102,10 @@ constexpr auto first_aligned_index(T const *buffer) -> std::size_t {
 template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
           unsigned LoBit = 0, std::size_t Stride = 1,
           std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
-void hist_unoptimized_st(T const *IHIST_RESTRICT data,
-                         std::uint8_t const *IHIST_RESTRICT mask,
-                         std::size_t size,
-                         std::uint32_t *IHIST_RESTRICT histogram,
-                         std::size_t = 0) {
+/* not noinline */ void
+hist_unoptimized_st(T const *IHIST_RESTRICT data,
+                    std::uint8_t const *IHIST_RESTRICT mask, std::size_t size,
+                    std::uint32_t *IHIST_RESTRICT histogram, std::size_t = 0) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
 
     static_assert(std::max({Component0Offset, ComponentOffsets...}) < Stride);
@@ -147,13 +138,11 @@ void hist_unoptimized_st(T const *IHIST_RESTRICT data,
 template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
           unsigned LoBit = 0, std::size_t Stride = 1,
           std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
-void histxy_unoptimized_st(T const *IHIST_RESTRICT data,
-                           std::uint8_t const *IHIST_RESTRICT mask,
-                           std::size_t width, std::size_t height,
-                           std::size_t roi_x, std::size_t roi_y,
-                           std::size_t roi_width, std::size_t roi_height,
-                           std::uint32_t *IHIST_RESTRICT histogram,
-                           std::size_t = 0) {
+/* not noinline */ void histxy_unoptimized_st(
+    T const *IHIST_RESTRICT data, std::uint8_t const *IHIST_RESTRICT mask,
+    std::size_t width, [[maybe_unused]] std::size_t height, std::size_t roi_x,
+    std::size_t roi_y, std::size_t roi_width, std::size_t roi_height,
+    std::uint32_t *IHIST_RESTRICT histogram, std::size_t = 0) {
     assert(width * height < std::numeric_limits<std::uint32_t>::max());
     assert(roi_x + roi_width <= width);
     assert(roi_y + roi_height <= height);
@@ -197,10 +186,10 @@ template <tuning_parameters const &Tuning, typename T, bool UseMask = false,
           unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
           std::size_t Stride = 1, std::size_t Component0Offset = 0,
           std::size_t... ComponentOffsets>
-void hist_striped_st(T const *IHIST_RESTRICT data,
-                     std::uint8_t const *IHIST_RESTRICT mask, std::size_t size,
-                     std::uint32_t *IHIST_RESTRICT histogram,
-                     std::size_t = 0) {
+IHIST_NOINLINE void
+hist_striped_st(T const *IHIST_RESTRICT data,
+                std::uint8_t const *IHIST_RESTRICT mask, std::size_t size,
+                std::uint32_t *IHIST_RESTRICT histogram, std::size_t = 0) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
 
     static_assert(std::max({Component0Offset, ComponentOffsets...}) < Stride);
@@ -309,13 +298,12 @@ template <tuning_parameters const &Tuning, typename T, bool UseMask = false,
           unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
           std::size_t Stride = 1, std::size_t Component0Offset = 0,
           std::size_t... ComponentOffsets>
-void histxy_striped_st(T const *IHIST_RESTRICT data,
-                       std::uint8_t const *IHIST_RESTRICT mask,
-                       std::size_t width, std::size_t height,
-                       std::size_t roi_x, std::size_t roi_y,
-                       std::size_t roi_width, std::size_t roi_height,
-                       std::uint32_t *IHIST_RESTRICT histogram,
-                       std::size_t = 0) {
+IHIST_NOINLINE void
+histxy_striped_st(T const *IHIST_RESTRICT data,
+                  std::uint8_t const *IHIST_RESTRICT mask, std::size_t width,
+                  std::size_t height, std::size_t roi_x, std::size_t roi_y,
+                  std::size_t roi_width, std::size_t roi_height,
+                  std::uint32_t *IHIST_RESTRICT histogram, std::size_t = 0) {
     assert(width * height < std::numeric_limits<std::uint32_t>::max());
     assert(roi_x + roi_width <= width);
     assert(roi_y + roi_height <= height);
@@ -483,11 +471,11 @@ void histxy_mt(T const *IHIST_RESTRICT data,
 template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
           unsigned LoBit = 0, std::size_t Stride = 1,
           std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
-void hist_unoptimized_mt(T const *IHIST_RESTRICT data,
-                         std::uint8_t const *IHIST_RESTRICT mask,
-                         std::size_t size,
-                         std::uint32_t *IHIST_RESTRICT histogram,
-                         std::size_t grain_size = 1) {
+IHIST_NOINLINE void
+hist_unoptimized_mt(T const *IHIST_RESTRICT data,
+                    std::uint8_t const *IHIST_RESTRICT mask, std::size_t size,
+                    std::uint32_t *IHIST_RESTRICT histogram,
+                    std::size_t grain_size = 1) {
     internal::hist_mt<
         hist_unoptimized_st<T, UseMask, Bits, LoBit, Stride, Component0Offset,
                             ComponentOffsets...>,
@@ -499,10 +487,11 @@ template <tuning_parameters const &Tuning, typename T, bool UseMask = false,
           unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
           std::size_t Stride = 1, std::size_t Component0Offset = 0,
           std::size_t... ComponentOffsets>
-void hist_striped_mt(T const *IHIST_RESTRICT data,
-                     std::uint8_t const *IHIST_RESTRICT mask, std::size_t size,
-                     std::uint32_t *IHIST_RESTRICT histogram,
-                     std::size_t grain_size = 1) {
+IHIST_NOINLINE void hist_striped_mt(T const *IHIST_RESTRICT data,
+                                    std::uint8_t const *IHIST_RESTRICT mask,
+                                    std::size_t size,
+                                    std::uint32_t *IHIST_RESTRICT histogram,
+                                    std::size_t grain_size = 1) {
     internal::hist_mt<hist_striped_st<Tuning, T, UseMask, Bits, LoBit, Stride,
                                       Component0Offset, ComponentOffsets...>,
                       T, UseMask, Bits, Stride,
@@ -513,13 +502,11 @@ void hist_striped_mt(T const *IHIST_RESTRICT data,
 template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
           unsigned LoBit = 0, std::size_t Stride = 1,
           std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
-void histxy_unoptimized_mt(T const *IHIST_RESTRICT data,
-                           std::uint8_t const *IHIST_RESTRICT mask,
-                           std::size_t width, std::size_t height,
-                           std::size_t roi_x, std::size_t roi_y,
-                           std::size_t roi_width, std::size_t roi_height,
-                           std::uint32_t *IHIST_RESTRICT histogram,
-                           std::size_t grain_size = 1) {
+IHIST_NOINLINE void histxy_unoptimized_mt(
+    T const *IHIST_RESTRICT data, std::uint8_t const *IHIST_RESTRICT mask,
+    std::size_t width, std::size_t height, std::size_t roi_x,
+    std::size_t roi_y, std::size_t roi_width, std::size_t roi_height,
+    std::uint32_t *IHIST_RESTRICT histogram, std::size_t grain_size = 1) {
     internal::histxy_mt<
         histxy_unoptimized_st<T, UseMask, Bits, LoBit, Stride,
                               Component0Offset, ComponentOffsets...>,
@@ -532,13 +519,11 @@ template <tuning_parameters const &Tuning, typename T, bool UseMask = false,
           unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
           std::size_t Stride = 1, std::size_t Component0Offset = 0,
           std::size_t... ComponentOffsets>
-void histxy_striped_mt(T const *IHIST_RESTRICT data,
-                       std::uint8_t const *IHIST_RESTRICT mask,
-                       std::size_t width, std::size_t height,
-                       std::size_t roi_x, std::size_t roi_y,
-                       std::size_t roi_width, std::size_t roi_height,
-                       std::uint32_t *IHIST_RESTRICT histogram,
-                       std::size_t grain_size = 1) {
+IHIST_NOINLINE void histxy_striped_mt(
+    T const *IHIST_RESTRICT data, std::uint8_t const *IHIST_RESTRICT mask,
+    std::size_t width, std::size_t height, std::size_t roi_x,
+    std::size_t roi_y, std::size_t roi_width, std::size_t roi_height,
+    std::uint32_t *IHIST_RESTRICT histogram, std::size_t grain_size = 1) {
     internal::histxy_mt<
         histxy_striped_st<Tuning, T, UseMask, Bits, LoBit, Stride,
                           Component0Offset, ComponentOffsets...>,

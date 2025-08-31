@@ -4,6 +4,7 @@
 
 test_srcs = files(
     'all_values.cpp',
+    'api.cpp',
     'constant_input.cpp',
     'empty_input.cpp',
     'internal_utils.cpp',

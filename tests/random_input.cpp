@@ -7,49 +7,14 @@
 #include <ihist.hpp>
 
 #include "parameterization.hpp"
+#include "test_data.hpp"
 
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <random>
-#include <type_traits>
 #include <vector>
-
-namespace {
-
-// This produces portably deterministic data given the same seed.
-template <typename T, unsigned Bits = 8 * sizeof(T)>
-auto generate_random_data(std::size_t count, std::uint32_t seed)
-    -> std::vector<T> {
-    static_assert(std::is_integral_v<T>);
-    static_assert(sizeof(T) <= 8);
-    static_assert(Bits <= 8 * sizeof(T));
-
-    // We cannot use std::uniform_int_distribution because it may behave
-    // differently depending on the platform, and also does not support 8-bit
-    // integers. Instead, we take the low bits.
-
-    std::mt19937_64 engine(seed);
-    std::vector<T> data;
-    data.resize(count);
-    constexpr auto MASK = (1uLL << Bits) - 1;
-    std::generate(data.begin(), data.end(),
-                  [&] { return static_cast<T>(engine() & MASK); });
-    return data;
-}
-
-// Reproducible tests!
-constexpr std::uint32_t TEST_SEED = 1343208745u;
-
-template <typename T, unsigned Bits = 8 * sizeof(T)>
-auto test_data(std::size_t count) -> std::vector<T> {
-    return generate_random_data<T, Bits>(count, TEST_SEED);
-}
-
-} // namespace
 
 namespace ihist {
 
@@ -78,7 +43,7 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
     constexpr std::size_t quad_height = 29;
     constexpr std::size_t size = width * height;
 
-    auto const mask = test_data<std::uint8_t>(size);
+    auto const mask = test_data<std::uint8_t, 1>(size);
 
     SECTION("mono") {
         auto const data = test_data<T>(size);

@@ -54,7 +54,7 @@ dependencies = [
     onetbb_dep,
 ]
 
-install_headers('ihist.hpp', subdir: 'ihist')
+install_headers('ihist.h', subdir: 'ihist')
 
 shlib_args = ['-DIHIST_BUILDING_SHARED']
 

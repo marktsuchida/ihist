@@ -124,13 +124,6 @@ void bm_hist(benchmark::State &state) {
         auto const *d = data.data();
         auto const *m = mask.data();
         auto *h = hist.data();
-#ifdef __clang__
-        // If the function gets inlined here, it may be able to receive
-        // additional optimizations that otherwise would not be possible (e.g.,
-        // based on alignment of data and hist). We do not want that for a fair
-        // benchmark.
-        [[clang::noinline]]
-#endif
         Hist(d, m, size, h, grain_size);
         benchmark::DoNotOptimize(hist);
     }
@@ -164,9 +157,6 @@ void bm_histxy(benchmark::State &state) {
         auto const *d = data.data();
         auto const *m = mask.data();
         auto *h = hist.data();
-#ifdef __clang__
-        [[clang::noinline]]
-#endif
         Hist(d, m, width, height, 0, 0, roi_width, height, h, grain_size);
         benchmark::DoNotOptimize(hist);
     }
