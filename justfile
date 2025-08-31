@@ -89,8 +89,17 @@ configure BUILD_TYPE *FLAGS:
         {{FLAGS}}
 
 _configure_if_not_configured:
-    if [ ! -d builddir ] || [ ! -d dependencies/oneTBB-release ]; then \
-        just configure release; fi
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    if [ ! -d builddir ]; then
+        just configure release
+    else
+        BUILDTYPE=$(meson introspect --buildoptions builddir | jq -r \
+            '.[] | select(.name == "buildtype") | .value')
+        if [ ! -d dependencies/oneTBB-$BUILDTYPE ]; then
+            just configure $BUILDTYPE
+        fi
+    fi
 
 build: _configure_if_not_configured
     meson compile -C builddir
