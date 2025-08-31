@@ -19,7 +19,7 @@
 #endif
 #define IHIST_BENCH_HPP_INCLUDED 1
 
-#include <ihist.hpp>
+#include "ihist.hpp"
 
 #include <benchmark/benchmark.h>
 

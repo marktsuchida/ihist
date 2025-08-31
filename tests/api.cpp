@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include <ihist.h>
-#include <ihist.hpp>
+#include <ihist/ihist.h>
+
+#include "ihist.hpp"
 
 #include "test_data.hpp"
 

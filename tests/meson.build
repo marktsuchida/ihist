@@ -14,11 +14,11 @@ test_srcs = files(
 test_exe = executable(
     'ihist_test',
     test_srcs,
+    include_directories: ihist_private_inc,
     dependencies: [
         ihist_dep,
         catch2_with_main_dep,
     ],
-    link_with: lib,
 )
 
 test_shard_count = 16

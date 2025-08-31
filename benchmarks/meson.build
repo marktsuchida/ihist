@@ -39,6 +39,7 @@ benchmark_sources = files(
 bench_exe = executable(
     'ihist_bench',
     benchmark_sources,
+    include_directories: ihist_private_inc,
     dependencies: [
         ihist_dep,
         benchmark_dep,

@@ -54,13 +54,15 @@ dependencies = [
     onetbb_dep,
 ]
 
-install_headers('ihist.h', subdir: 'ihist')
+subdir('include')
+subdir('src')
 
 shlib_args = ['-DIHIST_BUILDING_SHARED']
 
 lib = library(
     'ihist',
-    'ihist.cpp',
+    ihist_srcs,
+    include_directories: ihist_public_inc,
     install: true,
     cpp_shared_args: shlib_args,
     gnu_symbol_visibility: 'hidden',
@@ -68,7 +70,7 @@ lib = library(
 )
 
 ihist_dep = declare_dependency(
-    include_directories: include_directories('.'),
+    include_directories: ihist_public_inc,
     dependencies: dependencies,
     link_with: lib,
 )
