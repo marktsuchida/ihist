@@ -34,27 +34,11 @@ namespace ihist {
 struct tuning_parameters {
     // Number of separate histograms to iterate over (to tune for store-to-load
     // latency hiding vs spatial locality).
-    std::size_t n_stripes = 1;
+    std::size_t n_stripes;
 
     // Approximate samples processed per main loop iteration (divided by
     // component count to determine pixels processed per iteration).
-    std::size_t n_unroll = 1;
-};
-
-inline constexpr tuning_parameters untuned_parameters;
-
-template <typename T, unsigned Bits>
-constexpr tuning_parameters default_tuning_parameters{
-#if defined(__APPLE__) && defined(__aarch64__)
-    sizeof(T) > 1 ? 2 : 8, // TODO Tune the default
-    sizeof(T) > 2   ? 1
-    : sizeof(T) > 1 ? 4
-                    : 16,
-#elif defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) ||       \
-    defined(__amd64) || defined(_M_X64)
-    sizeof(T) > 1 ? 1 : 2, // TODO Tune the default
-    sizeof(T) > 1 ? 1 : 4,
-#endif
+    std::size_t n_unroll;
 };
 
 namespace internal {
