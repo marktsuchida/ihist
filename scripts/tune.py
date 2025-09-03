@@ -6,6 +6,7 @@
 # requires-python = ">=3.13"
 # dependencies = [
 #     "matplotlib",
+#     "numpy",
 #     "pandas",
 #     "seaborn",
 # ]
@@ -17,6 +18,7 @@ import subprocess
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 
@@ -89,12 +91,35 @@ def load_results(results_json: Path) -> pd.DataFrame:
     )
 
 
+def add_scores_to_plot(data: pd.DataFrame, **kwargs):
+    # This will be called for each stripes/unrolls/mask value.
+    masked = bool(data.iloc[0]["mask"])
+    score_type = "masked" if masked else "nomask"
+
+    def geo_mean(v):
+        return np.exp(np.mean(np.log(v)))
+
+    # Geometric mean of the different spreads (0, 1, 6, 25, 100) naturally
+    # weight the middle values (1, 6, 25) a little more than the extreme values
+    # (0, 100), which is probably what we want.
+    score = geo_mean(data["pixels_per_second"] * 1e-9)
+    axes = plt.gca()
+    axes.text(
+        0.02,
+        0.98 if not masked else 0.92,
+        f"{score_type}: {score:.2f}",
+        transform=axes.transAxes,
+        verticalalignment="top",
+    )
+
+
 def plot_results(df: pd.DataFrame) -> None:
     sns.set_theme(style="whitegrid", palette="muted")
     grid = sns.FacetGrid(df, col="stripes", row="unrolls", hue="mask")
     grid.map_dataframe(
         sns.stripplot, x="spread_percent", y="pixels_per_second"
     )
+    grid.map_dataframe(add_scores_to_plot)
     grid.set(ylim=(0, None))
     grid.figure.suptitle(f"{df.iloc[0]['pixel_type']}{df.iloc[0]['bits']}")
     plt.subplots_adjust(
