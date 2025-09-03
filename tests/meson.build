@@ -30,5 +30,6 @@ foreach i : range(test_shard_count)
             '--shard-count=' + test_shard_count.to_string(),
             '--shard-index=' + i.to_string(),
         ],
+        timeout: 60,
     )
 endforeach
