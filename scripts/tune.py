@@ -26,7 +26,9 @@ _script_dir = Path(__file__).parent.absolute()
 _benchmark_dir = _script_dir / "../builddir/benchmarks"
 
 
-def run_benchmark(pixel_type: str, bits: int, out_json: Path) -> None:
+def run_benchmark(
+    pixel_type: str, bits: int, repetitions: int, out_json: Path
+) -> None:
     pixel_type = {
         "mono": "mono",
         "abc": "rgb",
@@ -37,7 +39,7 @@ def run_benchmark(pixel_type: str, bits: int, out_json: Path) -> None:
             [
                 f"{_benchmark_dir}/ihist_bench",
                 f"--benchmark_filter=^{pixel_type}/bits:{bits}/roi_type::two_d/.*/mt:0/",
-                "--benchmark_repetitions=3",
+                f"--benchmark_repetitions={repetitions}",
                 "--benchmark_enable_random_interleaving",
                 f"--benchmark_out={out_json}",
                 "--benchmark_counters_tabular",
@@ -128,10 +130,14 @@ def plot_results(df: pd.DataFrame) -> None:
     plt.show()
 
 
-def benchmark_and_plot(pixel_type: str, bits: int, *, show_plot: bool) -> None:
+def benchmark_and_plot(
+    pixel_type: str, bits: int, *, repetitions: int, show_plot: bool
+) -> None:
     results_file = Path(f"{_benchmark_dir}/{pixel_type}{bits}.json")
     if not results_file.exists():
-        run_benchmark(pixel_type, bits, out_json=results_file)
+        run_benchmark(
+            pixel_type, bits, repetitions=repetitions, out_json=results_file
+        )
     if show_plot:
         results = load_results(results_file)
         plot_results(results)
@@ -155,14 +161,24 @@ def main() -> None:
         default="mono",
     )
     parser.add_argument("--bits", type=int, metavar="BITS", default=8)
+    parser.add_argument("--repetitions", type=int, metavar="N", default=5)
     parser.add_argument("--plot", action="store_true", dest="plot")
     args = parser.parse_args()
 
     if args.all:
         for pixel_format in all_pixel_formats():
-            benchmark_and_plot(*pixel_format, show_plot=args.plot)
+            benchmark_and_plot(
+                *pixel_format,
+                repetitions=args.repetitions,
+                show_plot=args.plot,
+            )
     else:
-        benchmark_and_plot(args.pixel_type, args.bits, show_plot=args.plot)
+        benchmark_and_plot(
+            args.pixel_type,
+            args.bits,
+            repetitions=args.repetitions,
+            show_plot=args.plot,
+        )
 
 
 if __name__ == "__main__":
