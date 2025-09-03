@@ -130,17 +130,8 @@ def plot_results(df: pd.DataFrame) -> None:
     plt.show()
 
 
-def benchmark_and_plot(
-    pixel_type: str, bits: int, *, repetitions: int, show_plot: bool
-) -> None:
-    results_file = Path(f"{_benchmark_dir}/{pixel_type}{bits}.json")
-    if not results_file.exists():
-        run_benchmark(
-            pixel_type, bits, repetitions=repetitions, out_json=results_file
-        )
-    if show_plot:
-        results = load_results(results_file)
-        plot_results(results)
+def results_file(pixel_type: str, bits: int) -> Path:
+    return Path(f"{_benchmark_dir}/{pixel_type}{bits}.json")
 
 
 def all_pixel_formats() -> list[tuple[str, int]]:
@@ -165,20 +156,20 @@ def main() -> None:
     parser.add_argument("--plot", action="store_true", dest="plot")
     args = parser.parse_args()
 
-    if args.all:
-        for pixel_format in all_pixel_formats():
-            benchmark_and_plot(
-                *pixel_format,
-                repetitions=args.repetitions,
-                show_plot=args.plot,
+    pixel_formats = (
+        all_pixel_formats() if args.all else [(args.pixel_type, args.bits)]
+    )
+
+    for pixel_format in pixel_formats:
+        f = results_file(*pixel_format)
+        if not f.exists():
+            run_benchmark(
+                *pixel_format, repetitions=args.repetitions, out_json=f
             )
-    else:
-        benchmark_and_plot(
-            args.pixel_type,
-            args.bits,
-            repetitions=args.repetitions,
-            show_plot=args.plot,
-        )
+    if args.plot:
+        for pixel_format in pixel_formats:
+            f = results_file(*pixel_format)
+            plot_results(load_results(f))
 
 
 if __name__ == "__main__":
