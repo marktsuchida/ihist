@@ -1,0 +1,11 @@
+# This file is part of ihist
+# Copyright 2025 Board of Regents of the University of Wisconsin System
+# SPDX-License-Identifier: MIT
+
+line-length = 79
+
+[lint]
+select = ["E", "F", "UP", "B", "SIM", "I"]
+ignore = [
+    "E501", # Line too long
+]

@@ -43,8 +43,7 @@ using bits_type = std::conditional_t<(Bits > 8), u16, u8>;
 
 enum class roi_type {
     one_d,
-    two_d_full,
-    two_d_no_last_col,
+    two_d,
 };
 
 template <typename T, unsigned Bits = 8 * sizeof(T)>
@@ -147,9 +146,8 @@ void bm_histxy(benchmark::State &state) {
     auto const size = width * height;
     auto const spread_frac = static_cast<float>(state.range(1)) / 100.0f;
     auto const grain_size = static_cast<std::size_t>(state.range(2));
-    auto const roi_width =
-        (RoiType == roi_type::two_d_no_last_col) ? width - 1 : width;
-    auto const roi_size = roi_width * height;
+    // For now, ROI is full image.
+    auto const roi_size = width * height;
     auto const data = generate_data<T, Bits>(size * Stride, spread_frac);
     auto const mask = generate_circle_mask(width, height);
     for ([[maybe_unused]] auto _ : state) {
@@ -157,7 +155,7 @@ void bm_histxy(benchmark::State &state) {
         auto const *d = data.data();
         auto const *m = mask.data();
         auto *h = hist.data();
-        Hist(d, m, width, height, 0, 0, roi_width, height, h, grain_size);
+        Hist(d, m, width, height, 0, 0, width, height, h, grain_size);
         benchmark::DoNotOptimize(hist);
     }
     state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) *
@@ -230,19 +228,17 @@ std::vector<std::int64_t> const st_grain_sizes{0};
     BENCHMARK(bm_histxy<histxy_striped_##thd<TUNING_NAME(stripes, unrolls),   \
                                              bits_type<bits>, false, bits, 0, \
                                              BM_STRIDE_COMPONENTS>,           \
-                        roi_type::two_d_full, bits, BM_STRIDE_COMPONENTS>)    \
-        ->Name(BENCH_NAME(stripes, unrolls, bits, roi_type::two_d_full, 0))   \
+                        roi_type::two_d, bits, BM_STRIDE_COMPONENTS>)         \
+        ->Name(BENCH_NAME(stripes, unrolls, bits, roi_type::two_d, 0))        \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
         ->ArgNames({"size", "spread", "grainsize"})                           \
         ->ArgsProduct({data_sizes, spread_pcts<bits>, grainsizes});           \
-    BENCHMARK(                                                                \
-        bm_histxy<histxy_striped_##thd<TUNING_NAME(stripes, unrolls),         \
-                                       bits_type<bits>, false, bits, 0,       \
-                                       BM_STRIDE_COMPONENTS>,                 \
-                  roi_type::two_d_no_last_col, bits, BM_STRIDE_COMPONENTS>)   \
-        ->Name(BENCH_NAME(stripes, unrolls, bits,                             \
-                          roi_type::two_d_no_last_col, 0))                    \
+    BENCHMARK(bm_histxy<histxy_striped_##thd<TUNING_NAME(stripes, unrolls),   \
+                                             bits_type<bits>, true, bits, 0,  \
+                                             BM_STRIDE_COMPONENTS>,           \
+                        roi_type::two_d, bits, BM_STRIDE_COMPONENTS>)         \
+        ->Name(BENCH_NAME(stripes, unrolls, bits, roi_type::two_d, 1))        \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
         ->ArgNames({"size", "spread", "grainsize"})                           \
@@ -252,13 +248,15 @@ std::vector<std::int64_t> const st_grain_sizes{0};
     DEFINE_HISTBM(1, unrolls, grainsizes, bits, thd)                          \
     DEFINE_HISTBM(2, unrolls, grainsizes, bits, thd)                          \
     DEFINE_HISTBM(4, unrolls, grainsizes, bits, thd)                          \
-    DEFINE_HISTBM(8, unrolls, grainsizes, bits, thd)
+    DEFINE_HISTBM(8, unrolls, grainsizes, bits, thd)                          \
+    DEFINE_HISTBM(16, unrolls, grainsizes, bits, thd)
 
 #define DEFINE_HISTBM_UNROLLS(grainsizes, bits, thd)                          \
     DEFINE_HISTBM_STRIPES(1, grainsizes, bits, thd)                           \
     DEFINE_HISTBM_STRIPES(2, grainsizes, bits, thd)                           \
     DEFINE_HISTBM_STRIPES(4, grainsizes, bits, thd)                           \
-    DEFINE_HISTBM_STRIPES(8, grainsizes, bits, thd)
+    DEFINE_HISTBM_STRIPES(8, grainsizes, bits, thd)                           \
+    DEFINE_HISTBM_STRIPES(16, grainsizes, bits, thd)
 
 #if BM_MULTITHREADED
 #define DEFINE_HIST_BENCHMARKS(bits)                                          \
