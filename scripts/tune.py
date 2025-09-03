@@ -103,12 +103,13 @@ def plot_results(df: pd.DataFrame) -> None:
     plt.show()
 
 
-def benchmark_and_plot(pixel_type: str, bits: int) -> None:
+def benchmark_and_plot(pixel_type: str, bits: int, *, show_plot: bool) -> None:
     results_file = Path(f"{_benchmark_dir}/{pixel_type}{bits}.json")
     if not results_file.exists():
         run_benchmark(pixel_type, bits, out_json=results_file)
-    results = load_results(results_file)
-    plot_results(results)
+    if show_plot:
+        results = load_results(results_file)
+        plot_results(results)
 
 
 def all_pixel_formats() -> list[tuple[str, int]]:
@@ -129,13 +130,14 @@ def main() -> None:
         default="mono",
     )
     parser.add_argument("--bits", type=int, metavar="BITS", default=8)
+    parser.add_argument("--plot", action="store_true", dest="plot")
     args = parser.parse_args()
 
     if args.all:
         for pixel_format in all_pixel_formats():
-            benchmark_and_plot(*pixel_format)
+            benchmark_and_plot(*pixel_format, show_plot=args.plot)
     else:
-        benchmark_and_plot(args.pixel_type, args.bits)
+        benchmark_and_plot(args.pixel_type, args.bits, show_plot=args.plot)
 
 
 if __name__ == "__main__":
