@@ -107,10 +107,11 @@ def add_scores_to_plot(data: pd.DataFrame, **kwargs):
     score = geo_mean(data["pixels_per_second"] * 1e-9)
     axes = plt.gca()
     axes.text(
-        0.02,
-        0.98 if not masked else 0.92,
+        0.02 if not masked else 0.98,
+        0.98,
         f"{score_type}: {score:.2f}",
         transform=axes.transAxes,
+        horizontalalignment="left" if not masked else "right",
         verticalalignment="top",
     )
 
