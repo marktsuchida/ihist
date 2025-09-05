@@ -4,3 +4,6 @@
 
 /builddir/
 /dependencies/
+
+# Sometimes left behind by Meson
+.wraplock
