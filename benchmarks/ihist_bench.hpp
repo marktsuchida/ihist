@@ -10,7 +10,8 @@
 //
 // The following macros must be defined before including this header:
 // BM_NAME_PREFIX (mono, rgb, rgbx)
-// BM_STRIDE_COMPONENTS
+// BM_STRIDE
+// BM_COMPONENT_OFFSETS
 // BM_BITS
 // BM_MULTITHREADING (0, 1)
 
@@ -209,8 +210,8 @@ std::vector<std::int64_t> const st_grain_sizes{0};
     DEFINE_TUNING(stripes, unrolls)                                           \
     BENCHMARK(bm_hist<hist_striped_##thd<TUNING_NAME(stripes, unrolls),       \
                                          bits_type<bits>, false, bits, 0,     \
-                                         BM_STRIDE_COMPONENTS>,               \
-                      bits, BM_STRIDE_COMPONENTS>)                            \
+                                         BM_STRIDE, BM_COMPONENT_OFFSETS>,    \
+                      bits, BM_STRIDE, BM_COMPONENT_OFFSETS>)                 \
         ->Name(BENCH_NAME(stripes, unrolls, bits, roi_type::one_d, 0))        \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
@@ -218,32 +219,35 @@ std::vector<std::int64_t> const st_grain_sizes{0};
         ->ArgsProduct({data_sizes, spread_pcts<bits>, grainsizes});           \
     BENCHMARK(bm_hist<hist_striped_##thd<TUNING_NAME(stripes, unrolls),       \
                                          bits_type<bits>, true, bits, 0,      \
-                                         BM_STRIDE_COMPONENTS>,               \
-                      bits, BM_STRIDE_COMPONENTS>)                            \
+                                         BM_STRIDE, BM_COMPONENT_OFFSETS>,    \
+                      bits, BM_STRIDE, BM_COMPONENT_OFFSETS>)                 \
         ->Name(BENCH_NAME(stripes, unrolls, bits, roi_type::one_d, 1))        \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
         ->ArgNames({"size", "spread", "grainsize"})                           \
         ->ArgsProduct({data_sizes, spread_pcts<bits>, grainsizes});           \
-    BENCHMARK(bm_histxy<histxy_striped_##thd<TUNING_NAME(stripes, unrolls),   \
-                                             bits_type<bits>, false, bits, 0, \
-                                             BM_STRIDE_COMPONENTS>,           \
-                        roi_type::two_d, bits, BM_STRIDE_COMPONENTS>)         \
+    BENCHMARK(                                                                \
+        bm_histxy<histxy_striped_##thd<TUNING_NAME(stripes, unrolls),         \
+                                       bits_type<bits>, false, bits, 0,       \
+                                       BM_STRIDE, BM_COMPONENT_OFFSETS>,      \
+                  roi_type::two_d, bits, BM_STRIDE, BM_COMPONENT_OFFSETS>)    \
         ->Name(BENCH_NAME(stripes, unrolls, bits, roi_type::two_d, 0))        \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
         ->ArgNames({"size", "spread", "grainsize"})                           \
         ->ArgsProduct({data_sizes, spread_pcts<bits>, grainsizes});           \
-    BENCHMARK(bm_histxy<histxy_striped_##thd<TUNING_NAME(stripes, unrolls),   \
-                                             bits_type<bits>, true, bits, 0,  \
-                                             BM_STRIDE_COMPONENTS>,           \
-                        roi_type::two_d, bits, BM_STRIDE_COMPONENTS>)         \
+    BENCHMARK(                                                                \
+        bm_histxy<histxy_striped_##thd<TUNING_NAME(stripes, unrolls),         \
+                                       bits_type<bits>, true, bits, 0,        \
+                                       BM_STRIDE, BM_COMPONENT_OFFSETS>,      \
+                  roi_type::two_d, bits, BM_STRIDE, BM_COMPONENT_OFFSETS>)    \
         ->Name(BENCH_NAME(stripes, unrolls, bits, roi_type::two_d, 1))        \
         ->MeasureProcessCPUTime()                                             \
         ->UseRealTime()                                                       \
         ->ArgNames({"size", "spread", "grainsize"})                           \
         ->ArgsProduct({data_sizes, spread_pcts<bits>, grainsizes});
 
+#if BM_STRIDE == 1
 #define DEFINE_HISTBM_STRIPES(unrolls, grainsizes, bits, thd)                 \
     DEFINE_HISTBM(1, unrolls, grainsizes, bits, thd)                          \
     DEFINE_HISTBM(2, unrolls, grainsizes, bits, thd)                          \
@@ -257,6 +261,17 @@ std::vector<std::int64_t> const st_grain_sizes{0};
     DEFINE_HISTBM_STRIPES(4, grainsizes, bits, thd)                           \
     DEFINE_HISTBM_STRIPES(8, grainsizes, bits, thd)                           \
     DEFINE_HISTBM_STRIPES(16, grainsizes, bits, thd)
+#else // Stride = 3, 4
+#define DEFINE_HISTBM_STRIPES(unrolls, grainsizes, bits, thd)                 \
+    DEFINE_HISTBM(1, unrolls, grainsizes, bits, thd)                          \
+    DEFINE_HISTBM(2, unrolls, grainsizes, bits, thd)                          \
+    DEFINE_HISTBM(4, unrolls, grainsizes, bits, thd)
+
+#define DEFINE_HISTBM_UNROLLS(grainsizes, bits, thd)                          \
+    DEFINE_HISTBM_STRIPES(1, grainsizes, bits, thd)                           \
+    DEFINE_HISTBM_STRIPES(2, grainsizes, bits, thd)                           \
+    DEFINE_HISTBM_STRIPES(4, grainsizes, bits, thd)
+#endif
 
 #if BM_MULTITHREADED
 #define DEFINE_HIST_BENCHMARKS(bits)                                          \

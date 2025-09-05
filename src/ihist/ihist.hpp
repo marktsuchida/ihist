@@ -191,7 +191,7 @@ hist_striped_st(T const *IHIST_RESTRICT data,
     std::vector<std::uint32_t> stripes(NSTRIPES * NCOMPONENTS * STRIPE_LEN);
 
     constexpr std::size_t BLOCKSIZE =
-        std::max(std::size_t(1), Tuning.n_unroll / NCOMPONENTS);
+        std::max(std::size_t(1), Tuning.n_unroll);
     constexpr std::size_t BLOCKSIZE_BYTES = BLOCKSIZE * Stride * sizeof(T);
     constexpr bool BLOCKSIZE_BYTES_IS_POWER_OF_2 =
         (BLOCKSIZE_BYTES & (BLOCKSIZE_BYTES - 1)) == 0;
@@ -316,7 +316,7 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
     std::vector<std::uint32_t> stripes(NSTRIPES * NCOMPONENTS * STRIPE_LEN);
 
     constexpr std::size_t BLOCKSIZE =
-        std::max(std::size_t(1), Tuning.n_unroll / NCOMPONENTS);
+        std::max(std::size_t(1), Tuning.n_unroll);
     std::size_t const n_blocks_per_row = roi_width / BLOCKSIZE;
     std::size_t const row_epilog_size = roi_width % BLOCKSIZE;
 

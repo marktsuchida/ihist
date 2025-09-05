@@ -5,7 +5,8 @@
  */
 
 #define BM_NAME_PREFIX mono
-#define BM_STRIDE_COMPONENTS 1, 0
+#define BM_STRIDE 1
+#define BM_COMPONENT_OFFSETS 0
 #define BM_BITS 8
 #define BM_MULTITHREADED 0
 
