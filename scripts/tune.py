@@ -13,6 +13,7 @@
 # ///
 
 import argparse
+import itertools
 import json
 import subprocess
 from pathlib import Path
@@ -93,18 +94,28 @@ def load_results(results_json: Path) -> pd.DataFrame:
     )
 
 
-def add_scores_to_plot(data: pd.DataFrame, **kwargs):
-    # This will be called for each stripes/unrolls/mask value.
-    masked = bool(data.iloc[0]["mask"])
-    score_type = "masked" if masked else "nomask"
-
-    def geo_mean(v):
-        return np.exp(np.mean(np.log(v)))
+def compute_score(df: pd.DataFrame) -> float:
+    spreads = df["spread_percent"].unique()
+    medians = np.zeros((len(spreads),))
+    for i, s in enumerate(spreads):
+        medians[i] = np.median(
+            df[df["spread_percent"] == s]["pixels_per_second"]
+        )
 
     # Geometric mean of the different spreads (0, 1, 6, 25, 100) naturally
     # weight the middle values (1, 6, 25) a little more than the extreme values
     # (0, 100), which is probably what we want.
-    score = geo_mean(data["pixels_per_second"] * 1e-9)
+    def geo_mean(v):
+        return np.exp(np.mean(np.log(v)))
+
+    return geo_mean(medians * 1e-9)
+
+
+def add_scores_to_plot(data: pd.DataFrame, **kwargs):
+    # This will be called for each stripes/unrolls/mask value.
+    masked = bool(data.iloc[0]["mask"])
+    score_type = "masked" if masked else "nomask"
+    score = compute_score(data)
     axes = plt.gca()
     axes.text(
         0.02 if not masked else 0.98,
@@ -167,10 +178,35 @@ def main() -> None:
             run_benchmark(
                 *pixel_format, repetitions=args.repetitions, out_json=f
             )
-    if args.plot:
-        for pixel_format in pixel_formats:
-            f = results_file(*pixel_format)
-            plot_results(load_results(f))
+    for pixel_format in pixel_formats:
+        f = results_file(*pixel_format)
+        df = load_results(f)
+        for mask in (False, True):
+            dataset: pd.DataFrame = df[df["mask"] == mask]
+            striping = dataset["stripes"].unique()
+            unrolling = dataset["unrolls"].unique()
+            scores = np.zeros((len(striping), len(unrolling)))
+            for (i, stripes), (j, unrolls) in itertools.product(
+                enumerate(striping), enumerate(unrolling)
+            ):
+                scores[i, j] = compute_score(
+                    dataset[
+                        np.logical_and(
+                            dataset["stripes"] == stripes,
+                            dataset["unrolls"] == unrolls,
+                        )
+                    ]
+                )
+            pixel_type, bits = pixel_format
+            i_stripes, i_unrolls = np.unravel_index(
+                np.argmax(scores), scores.shape
+            )
+            i_mask = int(mask)
+            print(
+                f"TUNE({pixel_type}, {bits}, {i_mask}, {striping[i_stripes]}, {unrolling[i_unrolls]})"
+            )
+        if args.plot:
+            plot_results(df)
 
 
 if __name__ == "__main__":
