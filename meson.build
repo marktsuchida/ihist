@@ -50,6 +50,21 @@ benchmark_dep = dependency(
     static: true,
 )
 
+opencv_dep = dependency('opencv4', required: false)
+
+opencv_cpp_args = []
+if opencv_dep.found()
+    opencv_cpp_args += '-DIHIST_HAVE_OPENCV=1'
+    if cxx.get_id() == 'clang'
+        opencv_cpp_args += '-Wno-c11-extensions'
+    endif
+endif
+
+opencv_dep = declare_dependency(
+    dependencies: opencv_dep,
+    compile_args: opencv_cpp_args,
+)
+
 dependencies = [
     onetbb_dep,
 ]
