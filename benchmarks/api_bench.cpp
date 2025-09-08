@@ -214,17 +214,16 @@ std::vector const unoptimized_hist_16{
     },
 };
 
-std::vector<std::int64_t> const data_sizes{1 << 12};
+std::vector<i64> const data_sizes{1 << 12};
 
-template <unsigned Bits>
-std::vector<std::int64_t> const spread_pcts{0, 1, 6, 25, 100};
+template <unsigned Bits> std::vector<i64> const spread_pcts{0, 1, 6, 25, 100};
 
 } // namespace ihist::bench
 
-int main(int argc, char **argv) {
+auto main(int argc, char **argv) -> int {
     using namespace ihist::bench;
 
-    auto RegisterBenchmark = [](std::string const &name, auto lambda) {
+    auto register_benchmark = [](std::string const &name, auto lambda) {
         return benchmark::RegisterBenchmark(name.c_str(), lambda)
             ->MeasureProcessCPUTime()
             ->UseRealTime()
@@ -248,70 +247,70 @@ int main(int argc, char **argv) {
             std::size_t const stride = strides[i];
             std::size_t const n_components = component_counts[i];
 
-            RegisterBenchmark("ihist/" + pixel_type + "/bits:8/" + mask_param,
-                              [=](benchmark::State &state) {
-                                  bm_ihist_api<u8>(state, api_hist_8[i], 8,
-                                                   stride, n_components, mask,
-                                                   false);
-                              })
-                ->ArgsProduct({data_sizes, spread_pcts<8>});
-
-            RegisterBenchmark("ihist/" + pixel_type + "/bits:12/" + mask_param,
-                              [=](benchmark::State &state) {
-                                  bm_ihist_api<u16>(state, api_hist_16[i], 12,
+            register_benchmark("ihist/" + pixel_type + "/bits:8/" + mask_param,
+                               [=](benchmark::State &state) {
+                                   bm_ihist_api<u8>(state, api_hist_8[i], 8,
                                                     stride, n_components, mask,
                                                     false);
-                              })
-                ->ArgsProduct({data_sizes, spread_pcts<12>});
-
-            RegisterBenchmark("ihist/" + pixel_type + "/bits:16/" + mask_param,
-                              [=](benchmark::State &state) {
-                                  bm_ihist_api<u16>(state, api_hist_16[i], 16,
-                                                    stride, n_components, mask,
-                                                    false);
-                              })
+                               })
                 ->ArgsProduct({data_sizes, spread_pcts<8>});
 
-            RegisterBenchmark("unopt/" + pixel_type + "/bits:8/" + mask_param,
-                              [=](benchmark::State &state) {
-                                  bm_ihist_internal<u8>(
-                                      state, unoptimized_hist_8[mask][i], 8,
-                                      stride, n_components, mask);
-                              })
-                ->ArgsProduct({data_sizes, spread_pcts<8>});
-
-            RegisterBenchmark("unopt/" + pixel_type + "/bits:12/" + mask_param,
-                              [=](benchmark::State &state) {
-                                  bm_ihist_internal<u16>(
-                                      state, unoptimized_hist_12[mask][i], 12,
-                                      stride, n_components, mask);
-                              })
+            register_benchmark(
+                "ihist/" + pixel_type + "/bits:12/" + mask_param,
+                [=](benchmark::State &state) {
+                    bm_ihist_api<u16>(state, api_hist_16[i], 12, stride,
+                                      n_components, mask, false);
+                })
                 ->ArgsProduct({data_sizes, spread_pcts<12>});
 
-            RegisterBenchmark("unopt/" + pixel_type + "/bits:16/" + mask_param,
-                              [=](benchmark::State &state) {
-                                  bm_ihist_internal<u16>(
-                                      state, unoptimized_hist_16[mask][i], 16,
-                                      stride, n_components, mask);
-                              })
+            register_benchmark(
+                "ihist/" + pixel_type + "/bits:16/" + mask_param,
+                [=](benchmark::State &state) {
+                    bm_ihist_api<u16>(state, api_hist_16[i], 16, stride,
+                                      n_components, mask, false);
+                })
+                ->ArgsProduct({data_sizes, spread_pcts<8>});
+
+            register_benchmark("unopt/" + pixel_type + "/bits:8/" + mask_param,
+                               [=](benchmark::State &state) {
+                                   bm_ihist_internal<u8>(
+                                       state, unoptimized_hist_8[mask][i], 8,
+                                       stride, n_components, mask);
+                               })
+                ->ArgsProduct({data_sizes, spread_pcts<8>});
+
+            register_benchmark(
+                "unopt/" + pixel_type + "/bits:12/" + mask_param,
+                [=](benchmark::State &state) {
+                    bm_ihist_internal<u16>(state, unoptimized_hist_12[mask][i],
+                                           12, stride, n_components, mask);
+                })
+                ->ArgsProduct({data_sizes, spread_pcts<12>});
+
+            register_benchmark(
+                "unopt/" + pixel_type + "/bits:16/" + mask_param,
+                [=](benchmark::State &state) {
+                    bm_ihist_internal<u16>(state, unoptimized_hist_16[mask][i],
+                                           16, stride, n_components, mask);
+                })
                 ->ArgsProduct({data_sizes, spread_pcts<16>});
 
 #if IHIST_HAVE_OPENCV
-            RegisterBenchmark("opencv/" + pixel_type + "/bits:8/" + mask_param,
-                              [=](benchmark::State &state) {
-                                  bm_opencv<u8>(state, 8, stride, n_components,
-                                                mask);
-                              })
+            register_benchmark(
+                "opencv/" + pixel_type + "/bits:8/" + mask_param,
+                [=](benchmark::State &state) {
+                    bm_opencv<u8>(state, 8, stride, n_components, mask);
+                })
                 ->ArgsProduct({data_sizes, spread_pcts<8>});
 
-            RegisterBenchmark(
+            register_benchmark(
                 "opencv/" + pixel_type + "/bits:12/" + mask_param,
                 [=](benchmark::State &state) {
                     bm_opencv<u16>(state, 12, stride, n_components, mask);
                 })
                 ->ArgsProduct({data_sizes, spread_pcts<12>});
 
-            RegisterBenchmark(
+            register_benchmark(
                 "opencv/" + pixel_type + "/bits:16/" + mask_param,
                 [=](benchmark::State &state) {
                     bm_opencv<u16>(state, 16, stride, n_components, mask);

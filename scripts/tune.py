@@ -30,16 +30,11 @@ _benchmark_dir = _script_dir / "../builddir/benchmarks"
 def run_benchmark(
     pixel_type: str, bits: int, repetitions: int, out_json: Path
 ) -> None:
-    pixel_type = {
-        "mono": "mono",
-        "abc": "rgb",
-        "abcx": "rgbx",
-    }[pixel_type]
     try:
         subprocess.run(
             [
                 f"{_benchmark_dir}/ihist_bench",
-                f"--benchmark_filter=^{pixel_type}/bits:{bits}/roi_type::two_d/.*/mt:0/",
+                f"--benchmark_filter=^{pixel_type}/bits:{bits}/input:2d/.*/mt:0/",
                 f"--benchmark_repetitions={repetitions}",
                 "--benchmark_enable_random_interleaving",
                 f"--benchmark_out={out_json}",
@@ -71,7 +66,7 @@ def convert_json_entry(
     return {
         "pixel_type": pixel_type,
         "bits": int(name_dict["bits"]),
-        "roi_type": name_dict["roi_type"].lstrip(":"),
+        "input": name_dict["input"],
         "mask": bool(int(name_dict["mask"])),
         "mt": bool(int(name_dict["mt"])),
         "stripes": int(name_dict["stripes"]),
