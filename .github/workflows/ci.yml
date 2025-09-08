@@ -63,4 +63,5 @@ jobs:
       - uses: actions/checkout@v5
       - name: Build and test
         run: |
+          just build  # Make sure benchmarks build, too
           just test
