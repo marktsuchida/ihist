@@ -7,6 +7,7 @@
 #include "ihist.hpp"
 
 #include "benchmark_data.hpp"
+#include "tmpl_instantiations.hpp"
 
 #include <benchmark/benchmark.h>
 
@@ -172,9 +173,6 @@ auto bench_name(pixel_type ptype, std::size_t bits, input_dim dim, bool mask,
            "/mt:" + (mt ? '1' : '0') + "/stripes:" + std::to_string(stripes) +
            "/unrolls:" + std::to_string(unrolls);
 }
-
-template <std::size_t Stripes, std::size_t Unrolls>
-constexpr tuning_parameters tuning{Stripes, Unrolls};
 
 // Tag types for 'Dim' parameter.
 struct input_dim_tag_1d {};
