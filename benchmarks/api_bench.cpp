@@ -231,6 +231,11 @@ int main(int argc, char **argv) {
             ->ArgNames({"size", "spread"});
     };
 
+#if IHIST_HAVE_OPENCV
+    // For now, we are benchmarking the single-threaded case only:
+    cv::setNumThreads(1);
+#endif
+
     const std::vector<std::string> pixel_types{"mono", "abc", "abcx"};
     const std::vector<std::size_t> strides{1, 3, 4};
     const std::vector<std::size_t> component_counts{1, 3, 3};
