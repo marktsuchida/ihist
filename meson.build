@@ -79,22 +79,32 @@ dependencies = [
 subdir('include')
 subdir('src')
 
-shlib_args = ['-DIHIST_BUILDING_SHARED']
-
-lib = library(
+ihist_lib = library(
     'ihist',
     ihist_srcs,
     include_directories: ihist_public_inc,
     install: true,
-    cpp_shared_args: shlib_args,
+    cpp_shared_args: [
+        '-DIHIST_BUILDING_SHARED',
+    ],
     gnu_symbol_visibility: 'hidden',
     dependencies: dependencies,
 )
 
+lib_user_args = []
+if get_option('default_library') == 'shared'
+    lib_user_args += '-DIHIST_SHARED'
+elif get_option('default_library') == 'both'
+    # Ideally we would define IHIST_SHARED, but only if linking to shared. But
+    # there's no clean way to do so, and the shared library works without the
+    # definition.
+endif
+
 ihist_dep = declare_dependency(
     include_directories: ihist_public_inc,
+    compile_args: lib_user_args,
     dependencies: dependencies,
-    link_with: lib,
+    link_with: ihist_lib,
 )
 
 subdir('tests')
@@ -105,7 +115,7 @@ meson.override_dependency('ihist', ihist_dep)
 
 pkg_mod = import('pkgconfig')
 pkg_mod.generate(
-    lib,
+    ihist_lib,
     description: 'Meson sample project.',
     subdirs: 'ihist',
 )
