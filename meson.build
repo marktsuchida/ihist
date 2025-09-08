@@ -50,13 +50,20 @@ benchmark_dep = dependency(
     static: true,
 )
 
+# E.g., Homebrew has opencv4 (pkg-config), Scoop has OpenCV (cmake).
 opencv_dep = dependency('opencv4', required: false)
+if not opencv_dep.found()
+    opencv_dep = dependency('OpenCV', required: false)
+endif
 
 opencv_cpp_args = []
 if opencv_dep.found()
     opencv_cpp_args += '-DIHIST_HAVE_OPENCV=1'
     if cxx.get_id() == 'clang'
         opencv_cpp_args += '-Wno-c11-extensions'
+    endif
+    if cxx.get_id() in ['clang-cl', 'msvc']
+        opencv_cpp_args += '-D_CRT_SECURE_NO_WARNINGS'
     endif
 endif
 
