@@ -188,7 +188,17 @@ hist_striped_st(T const *IHIST_RESTRICT data,
     // Use extra bin for overflows if applicable.
     constexpr auto STRIPE_LEN =
         NBINS + static_cast<std::size_t>(Bits + LoBit < 8 * sizeof(T));
-    std::vector<std::uint32_t> stripes(NSTRIPES * NCOMPONENTS * STRIPE_LEN);
+    constexpr bool USE_STRIPES = NSTRIPES > 1 || STRIPE_LEN > NBINS;
+
+    std::vector<std::uint32_t> stripes_storage;
+    std::uint32_t *stripes = [&]() {
+        if constexpr (USE_STRIPES) {
+            stripes_storage.resize(NSTRIPES * NCOMPONENTS * STRIPE_LEN);
+            return stripes_storage.data();
+        } else {
+            return histogram;
+        }
+    }();
 
     constexpr std::size_t BLOCKSIZE =
         std::max(std::size_t(1), Tuning.n_unroll);
@@ -263,13 +273,16 @@ hist_striped_st(T const *IHIST_RESTRICT data,
         }
     }
 
-    for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
-        for (std::size_t bin = 0; bin < NBINS; ++bin) {
-            std::uint32_t sum = 0;
-            for (std::size_t stripe = 0; stripe < NSTRIPES; ++stripe) {
-                sum += stripes[(stripe * NCOMPONENTS + c) * STRIPE_LEN + bin];
+    if constexpr (USE_STRIPES) {
+        for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
+            for (std::size_t bin = 0; bin < NBINS; ++bin) {
+                std::uint32_t sum = 0;
+                for (std::size_t stripe = 0; stripe < NSTRIPES; ++stripe) {
+                    sum +=
+                        stripes[(stripe * NCOMPONENTS + c) * STRIPE_LEN + bin];
+                }
+                histogram[c * NBINS + bin] += sum;
             }
-            histogram[c * NBINS + bin] += sum;
         }
     }
 
@@ -313,7 +326,17 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
     // Use extra bin for overflows if applicable.
     constexpr auto STRIPE_LEN =
         NBINS + static_cast<std::size_t>(Bits + LoBit < 8 * sizeof(T));
-    std::vector<std::uint32_t> stripes(NSTRIPES * NCOMPONENTS * STRIPE_LEN);
+    constexpr bool USE_STRIPES = NSTRIPES > 1 || STRIPE_LEN > NBINS;
+
+    std::vector<std::uint32_t> stripes_storage;
+    std::uint32_t *stripes = [&]() {
+        if constexpr (USE_STRIPES) {
+            stripes_storage.resize(NSTRIPES * NCOMPONENTS * STRIPE_LEN);
+            return stripes_storage.data();
+        } else {
+            return histogram;
+        }
+    }();
 
     constexpr std::size_t BLOCKSIZE =
         std::max(std::size_t(1), Tuning.n_unroll);
@@ -361,13 +384,16 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
             row_epilog_data, row_epilog_mask, row_epilog_size, histogram);
     }
 
-    for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
-        for (std::size_t bin = 0; bin < NBINS; ++bin) {
-            std::uint32_t sum = 0;
-            for (std::size_t stripe = 0; stripe < NSTRIPES; ++stripe) {
-                sum += stripes[(stripe * NCOMPONENTS + c) * STRIPE_LEN + bin];
+    if constexpr (USE_STRIPES) {
+        for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
+            for (std::size_t bin = 0; bin < NBINS; ++bin) {
+                std::uint32_t sum = 0;
+                for (std::size_t stripe = 0; stripe < NSTRIPES; ++stripe) {
+                    sum +=
+                        stripes[(stripe * NCOMPONENTS + c) * STRIPE_LEN + bin];
+                }
+                histogram[c * NBINS + bin] += sum;
             }
-            histogram[c * NBINS + bin] += sum;
         }
     }
 }
