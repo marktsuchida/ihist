@@ -15,6 +15,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <numeric>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -157,9 +158,22 @@ std::vector<i64> const spread_pcts{0, 1, 6, 25, 100};
 // data_sizes is the width and height of the data.
 std::vector<i64> const data_sizes{1 << 12};
 
-auto grain_sizes(bool mt) -> std::vector<i64> {
+auto grain_sizes(bool mt, std::size_t hist_size) -> std::vector<i64> {
     if (mt) {
-        return {1 << 14, 1 << 16, 1 << 18};
+        // We scale the grain size (roughly: 2x the minimum task size to run)
+        // according to the histogram size, because the primary factor to
+        // consider is the overhead of the per-thread stripe reduction, which
+        // is duplicated for each task.
+        std::vector<i64> ret(6);
+        std::iota(ret.begin(), ret.end(), 0);
+        std::transform(ret.begin(), ret.end(), ret.begin(), [&](i64 i) {
+            auto const shift = i - 2;
+            if (shift < 0)
+                return i64(hist_size >> -shift);
+            else
+                return i64(hist_size << shift);
+        });
+        return ret;
     } else {
         return {0};
     }
@@ -380,6 +394,9 @@ auto main(int argc, char **argv) -> int {
                             continue;
                         }
                         for (auto bits : u8_bits) {
+                            std::size_t const hist_size =
+                                (1uLL << bits) *
+                                (ptype == pixel_type::mono ? 1 : 3);
                             register_benchmark(
                                 bench_name(ptype, bits, input_dim::one_d, mask,
                                            mt, s, u),
@@ -391,7 +408,7 @@ auto main(int argc, char **argv) -> int {
                                         bits, ptype);
                                 })
                                 ->ArgsProduct({data_sizes, spread_pcts,
-                                               grain_sizes(mt)});
+                                               grain_sizes(mt, hist_size)});
                             register_benchmark(
                                 bench_name(ptype, bits, input_dim::two_d, mask,
                                            mt, s, u),
@@ -403,9 +420,12 @@ auto main(int argc, char **argv) -> int {
                                         bits, ptype);
                                 })
                                 ->ArgsProduct({data_sizes, spread_pcts,
-                                               grain_sizes(mt)});
+                                               grain_sizes(mt, hist_size)});
                         }
                         for (auto bits : u16_bits) {
+                            std::size_t const hist_size =
+                                (1uLL << bits) *
+                                (ptype == pixel_type::mono ? 1 : 3);
                             register_benchmark(
                                 bench_name(ptype, bits, input_dim::one_d, mask,
                                            mt, s, u),
@@ -417,7 +437,7 @@ auto main(int argc, char **argv) -> int {
                                         bits, ptype);
                                 })
                                 ->ArgsProduct({data_sizes, spread_pcts,
-                                               grain_sizes(mt)});
+                                               grain_sizes(mt, hist_size)});
                             register_benchmark(
                                 bench_name(ptype, bits, input_dim::two_d, mask,
                                            mt, s, u),
@@ -429,7 +449,7 @@ auto main(int argc, char **argv) -> int {
                                         bits, ptype);
                                 })
                                 ->ArgsProduct({data_sizes, spread_pcts,
-                                               grain_sizes(mt)});
+                                               grain_sizes(mt, hist_size)});
                         }
                     }
                 }
