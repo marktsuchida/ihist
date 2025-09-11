@@ -68,12 +68,10 @@ def convert_json_entry(
         "bits": int(name_dict["bits"]),
         "input": name_dict["input"],
         "mask": bool(int(name_dict["mask"])),
-        "mt": bool(int(name_dict["mt"])),
         "stripes": int(name_dict["stripes"]),
         "unrolls": int(name_dict["unrolls"]),
         "n_pixels": int(name_dict["size"]),
         "spread_percent": int(name_dict["spread"]),
-        "mt_grain_size": int(name_dict["grainsize"]),
         "repetition_index": raw["repetition_index"],
         "pixels_per_second": raw["pixels_per_second"],
     }

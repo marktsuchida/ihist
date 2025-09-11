@@ -164,6 +164,10 @@ auto grain_sizes(bool mt, std::size_t hist_size) -> std::vector<i64> {
         // according to the histogram size, because the primary factor to
         // consider is the overhead of the per-thread stripe reduction, which
         // is duplicated for each task.
+        // In practice (with HyperThreading effects removed), quite small grain
+        // sizes seem to work without significant loss of efficiency, while
+        // high grain sizes run into a wall when they get close to the input
+        // size.
         std::vector<i64> ret(6);
         std::iota(ret.begin(), ret.end(), 0);
         std::transform(ret.begin(), ret.end(), ret.begin(), [&](i64 i) {
