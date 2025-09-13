@@ -31,6 +31,7 @@ bench_exe = executable(
     include_directories: ihist_private_inc,
     link_with: tmpl_lib,
     dependencies: [
+        ihist_dep,
         onetbb_dep,
         benchmark_dep,
     ],
