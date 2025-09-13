@@ -207,6 +207,7 @@ def main() -> None:
     parser.add_argument("--bits", type=int, metavar="BITS", default=8)
     parser.add_argument("--repetitions", type=int, metavar="N", default=5)
     parser.add_argument("--plot", action="store_true", dest="plot")
+    parser.add_argument("--rerun", action="store_true")
     args = parser.parse_args()
 
     pixel_formats = (
@@ -217,7 +218,7 @@ def main() -> None:
         for mask in (False, True):
             stripes, unrolls = read_tuning(*pixel_format, mask, args.tuning)
             f = results_file(*pixel_format, mask)
-            if not f.exists():
+            if args.rerun or not f.exists():
                 run_benchmark(
                     *pixel_format,
                     mask,
