@@ -104,7 +104,7 @@ auto get_physical_core_count_win32() -> int {
 }
 #endif
 
-auto get_physical_core_count() -> int {
+IHIST_PUBLIC auto get_physical_core_count() -> int {
     static int count =
 #ifdef __linux__
         get_physical_core_count_linux();
