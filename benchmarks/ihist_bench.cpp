@@ -10,16 +10,23 @@
 #include "tmpl_instantiations.hpp"
 
 #include <benchmark/benchmark.h>
+#include <tbb/global_control.h>
 
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <numeric>
 #include <string>
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#endif
 
 namespace ihist::bench {
 
@@ -371,8 +378,38 @@ constexpr auto dyn_hist_func(std::size_t bits, pixel_type ptype, bool mask,
 
 } // namespace ihist::bench
 
+namespace {
+
+auto get_env_var(char const *name) -> std::string {
+#ifdef _WIN32
+    auto const buf_size = GetEnvironmentVariableA(name, nullptr, 0);
+    if (buf_size == 0) {
+        return {};
+    }
+    std::string buffer(buf_size, '\0');
+    GetEnvironmentVariableA(name, buffer.data(), buf_size);
+    buffer.resize(buf_size - 1);
+    return buffer;
+#else
+    char const *value = std::getenv(name);
+    return value ? value : std::string{};
+#endif
+}
+
+} // namespace
+
 auto main(int argc, char **argv) -> int {
     using namespace ihist::bench;
+
+    // Limit threading (for testing and tuning purposes).
+    auto const max_threads_str = get_env_var("IHIST_BENCH_MAX_THREADS");
+    int const max_threads =
+        max_threads_str.empty()
+            ? tbb::global_control::active_value(
+                  tbb::global_control::parameter::max_allowed_parallelism)
+            : std::stoi(max_threads_str);
+    auto const ctrl = tbb::global_control(
+        tbb::global_control::parameter::max_allowed_parallelism, max_threads);
 
     auto register_benchmark = [](std::string const &name, auto lambda) {
         return benchmark::RegisterBenchmark(name.c_str(), lambda)
