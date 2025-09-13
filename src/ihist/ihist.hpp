@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "phys_core_count.hpp"
+
 #include <tbb/blocked_range.h>
 #include <tbb/combinable.h>
 #include <tbb/parallel_for.h>
@@ -420,14 +422,21 @@ void hist_mt(hist_st_func<T> *hist_func, T const *IHIST_RESTRICT data,
     using hist_array = std::array<std::uint32_t, HistSize>;
     tbb::combinable<hist_array> local_hists([] { return hist_array{}; });
 
-    tbb::parallel_for(tbb::blocked_range<std::size_t>(0, size, grain_size),
-                      [&](tbb::blocked_range<std::size_t> const &r) {
-                          auto &h = local_hists.local();
-                          hist_func(data + r.begin() * stride,
-                                    mask == nullptr ? nullptr
-                                                    : mask + r.begin(),
-                                    r.size(), h.data(), 0);
-                      });
+    // Histogramming scales very poorly with simultaneous multithreading
+    // (Hyper-Threading), so only schedule 1 thread per physical core.
+    int const n_phys_cores = get_physical_core_count();
+    auto arena =
+        n_phys_cores > 0 ? tbb::task_arena(n_phys_cores) : tbb::task_arena();
+    arena.execute([&] {
+        tbb::parallel_for(tbb::blocked_range<std::size_t>(0, size, grain_size),
+                          [&](tbb::blocked_range<std::size_t> const &r) {
+                              auto &h = local_hists.local();
+                              hist_func(data + r.begin() * stride,
+                                        mask == nullptr ? nullptr
+                                                        : mask + r.begin(),
+                                        r.size(), h.data(), 0);
+                          });
+    });
 
     local_hists.combine_each([&](hist_array const &h) {
         std::transform(h.begin(), h.end(), histogram, histogram,
@@ -448,13 +457,21 @@ void histxy_mt(histxy_st_func<T> *histxy_func, T const *IHIST_RESTRICT data,
     auto const h_grain_size = std::max(
         std::size_t(1), grain_size / std::max(std::size_t(1), roi_width));
 
-    tbb::parallel_for(
-        tbb::blocked_range<std::size_t>(0, roi_height, h_grain_size),
-        [&](tbb::blocked_range<std::size_t> const &r) {
-            auto &h = local_hists.local();
-            histxy_func(data, mask, width, height, roi_x, roi_y + r.begin(),
-                        roi_width, r.size(), h.data(), 0);
-        });
+    // Histogramming scales very poorly with simultaneous multithreading
+    // (Hyper-Threading), so only schedule 1 thread per physical core.
+    int const n_phys_cores = get_physical_core_count();
+    auto arena =
+        n_phys_cores > 0 ? tbb::task_arena(n_phys_cores) : tbb::task_arena();
+    arena.execute([&] {
+        tbb::parallel_for(
+            tbb::blocked_range<std::size_t>(0, roi_height, h_grain_size),
+            [&](tbb::blocked_range<std::size_t> const &r) {
+                auto &h = local_hists.local();
+                histxy_func(data, mask, width, height, roi_x,
+                            roi_y + r.begin(), roi_width, r.size(), h.data(),
+                            0);
+            });
+    });
 
     local_hists.combine_each([&](hist_array const &h) {
         std::transform(h.begin(), h.end(), histogram, histogram,
