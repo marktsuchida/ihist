@@ -78,7 +78,7 @@ def convert_json_entry(
         "mt": bool(int(name_dict["mt"])),
         "stripes": int(name_dict["stripes"]),
         "unrolls": int(name_dict["unrolls"]),
-        "n_pixels": int(name_dict["size"]),
+        "n_pixels": int(name_dict["size"]) ** 2,
         "spread_percent": int(name_dict["spread"]),
         "grain_size": int(name_dict["grainsize"]),
         "repetition_index": raw["repetition_index"],
@@ -120,12 +120,12 @@ def plot_results(df: pd.DataFrame) -> None:
     data["efficiency"] = data.apply(calc_eff, axis=1)
 
     # Treat grain size as categories, not continuous variable.
-    grain_sizes = sorted(data['grain_size'].unique())
+    grain_sizes = sorted(data["grain_size"].unique())
     grain_sizes.remove(0)
     grain_sizes = list(str(gs) for gs in grain_sizes) + ["st"]
-    data['grain_size'] = pd.Categorical(
-        data['grain_size'].astype(str),
-        categories=[str(x) for x in grain_sizes]
+    data["grain_size"] = pd.Categorical(
+        data["grain_size"].astype(str),
+        categories=[str(x) for x in grain_sizes],
     )
     data.loc[np.logical_not(data["mt"]), "grain_size"] = "st"
     data["grain_size"] = data["grain_size"].astype("category")

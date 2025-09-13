@@ -70,7 +70,7 @@ def convert_json_entry(
         "mask": bool(int(name_dict["mask"])),
         "stripes": int(name_dict["stripes"]),
         "unrolls": int(name_dict["unrolls"]),
-        "n_pixels": int(name_dict["size"]),
+        "n_pixels": int(name_dict["size"]) ** 2,
         "spread_percent": int(name_dict["spread"]),
         "repetition_index": raw["repetition_index"],
         "pixels_per_second": raw["pixels_per_second"],
