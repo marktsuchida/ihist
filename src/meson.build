@@ -4,4 +4,7 @@
 
 ihist_private_inc = include_directories('ihist')
 
-ihist_srcs = files('ihist/ihist.cpp')
+ihist_srcs = files(
+    'ihist/ihist.cpp',
+    'ihist/phys_core_count.cpp',
+)
