@@ -31,8 +31,6 @@ def run_benchmark(
     pixel_type: str,
     bits: int,
     mask: bool,
-    stripes: int,
-    unrolls: int,
     data_size: int,
     repetitions: int,
     out_json: Path,
@@ -41,8 +39,8 @@ def run_benchmark(
     try:
         subprocess.run(
             [
-                f"{_benchmark_dir}/ihist_bench",
-                f"--benchmark_filter=^{pixel_type}/bits:{bits}/input:2d/mask:{imask}/mt:./stripes:{stripes}/unrolls:{unrolls}/size:{data_size}/",
+                f"{_benchmark_dir}/api_bench",
+                f"--benchmark_filter=/{pixel_type}/bits:{bits}/mask:{imask}/size:{data_size}/",
                 f"--benchmark_repetitions={repetitions}",
                 "--benchmark_enable_random_interleaving",
                 f"--benchmark_out={out_json}",
@@ -66,26 +64,23 @@ def convert_json_entry(
 
     assert isinstance(raw["name"], str)
     name_items = raw["name"].split("/")
+    implementation = name_items.pop(0)
     pixel_type = name_items.pop(0)
     name_items.remove("real_time")
     name_items.remove("process_time")
     name_dict = dict(i.split(":", 1) for i in name_items)
 
     return {
+        "impl": implementation,
         "pixel_type": pixel_type,
         "bits": int(name_dict["bits"]),
-        "input": name_dict["input"],
         "mask": bool(int(name_dict["mask"])),
-        "mt": bool(int(name_dict["mt"])),
-        "stripes": int(name_dict["stripes"]),
-        "unrolls": int(name_dict["unrolls"]),
         "n_pixels": int(name_dict["size"]) ** 2,
         "spread_percent": int(name_dict["spread"]),
-        "grain_size": int(name_dict["grainsize"]),
         "repetition_index": raw["repetition_index"],
         "pixels_per_second": raw["pixels_per_second"],
-        "real_time": raw["real_time"],
-        "cpu_time": raw["cpu_time"],
+        "real_time_ms": raw["real_time"],
+        "cpu_time_ms": raw["cpu_time"],
     }
 
 
@@ -102,87 +97,74 @@ def load_results(results_json: Path) -> pd.DataFrame:
 def plot_results(df: pd.DataFrame) -> None:
     data = df.copy()
 
-    def calc_speedup(row):
+    def geometric_mean(v):
+        return np.prod(v) ** (1 / len(v))
+
+    # OpenCV is not always MT-enabled, so skip opencv-mt in that case.
+    def calc_opencv_speedup(row):
+        if row["impl"] != "opencv-mt":
+            return pd.NA
         single_threaded = data[
-            (data["pixel_type"] == row["pixel_type"])
+            (data["impl"] == "opencv")
+            & (data["pixel_type"] == row["pixel_type"])
             & (data["bits"] == row["bits"])
-            & (data["input"] == row["input"])
             & (data["mask"] == row["mask"])
-            & np.logical_not(data["mt"])
-            & (data["stripes"] == row["stripes"])
-            & (data["unrolls"] == row["unrolls"])
             & (data["n_pixels"] == row["n_pixels"])
             & (data["spread_percent"] == row["spread_percent"])
             & (data["repetition_index"] == row["repetition_index"])
         ]
         assert len(single_threaded) == 1
         st_row = single_threaded.iloc[0]
-        return st_row["real_time"] / row["real_time"]
+        return st_row["real_time_ms"] / row["real_time_ms"]
 
-    def calc_effncores(row):
-        return row["cpu_time"] / row["real_time"]
-
-    def calc_eff(row):
-        single_threaded = data[
-            (data["pixel_type"] == row["pixel_type"])
-            & (data["bits"] == row["bits"])
-            & (data["input"] == row["input"])
-            & (data["mask"] == row["mask"])
-            & np.logical_not(data["mt"])
-            & (data["stripes"] == row["stripes"])
-            & (data["unrolls"] == row["unrolls"])
-            & (data["n_pixels"] == row["n_pixels"])
-            & (data["spread_percent"] == row["spread_percent"])
-            & (data["repetition_index"] == row["repetition_index"])
-        ]
-        assert len(single_threaded) == 1
-        st_row = single_threaded.iloc[0]
-        return st_row["cpu_time"] / row["cpu_time"]
-
-    data["speedup"] = data.apply(calc_speedup, axis=1)
-    data["effective_n_cores"] = data.apply(calc_effncores, axis=1)
-    data["efficiency"] = data.apply(calc_eff, axis=1)
-
-    # Treat grain size as categories, not continuous variable.
-    grain_sizes = sorted(data["grain_size"].unique())
-    grain_sizes.remove(0)
-    grain_sizes = list(str(gs) for gs in grain_sizes) + ["st"]
-    data["grain_size"] = pd.Categorical(
-        data["grain_size"].astype(str),
-        categories=[str(x) for x in grain_sizes],
+    opencv_speedups_mask0 = (
+        data[np.logical_not(data["mask"])]
+        .apply(calc_opencv_speedup, axis=1)
+        .dropna()
     )
-    data.loc[np.logical_not(data["mt"]), "grain_size"] = "st"
+    opencv_speedups_mask1 = (
+        data[data["mask"]].apply(calc_opencv_speedup, axis=1).dropna()
+    )
+    opencv_speedup_cutoff = 1.05
+    if (
+        len(opencv_speedups_mask0)
+        and geometric_mean(opencv_speedups_mask0) < opencv_speedup_cutoff
+        and len(opencv_speedups_mask1)
+        and geometric_mean(opencv_speedups_mask1) < opencv_speedup_cutoff
+    ):
+        data = data.drop(data[data["impl"] == "opencv-mt"].index)
+
+    impls = sorted(data["impl"].unique())
+    data["impl"] = pd.Categorical(data["impl"], categories=impls)
+
+    spreads = sorted(data["spread_percent"].unique())
+    data["spread_percent"] = pd.Categorical(
+        data["spread_percent"], categories=spreads
+    )
 
     sns.set_theme(style="whitegrid", palette="muted")
-    fig, axes = plt.subplots(3, 2, figsize=(12, 8), sharex=True, sharey="row")
 
-    masking = (False, True)
-    for i, mask in enumerate(masking):
-        sns.swarmplot(
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex=True, sharey="row")
+    for i, mask in enumerate((False, True)):
+        sns.stripplot(
             data[data["mask"] == mask],
             x="spread_percent",
-            y="speedup",
-            hue="grain_size",
+            y="real_time_ms",
+            hue="impl",
+            alpha=0.75,
             ax=axes[0, i],
         )
         axes[0, i].set_title(f"mask {int(mask)}")
-        sns.swarmplot(
+        sns.stripplot(
             data[data["mask"] == mask],
             x="spread_percent",
-            y="effective_n_cores",
-            hue="grain_size",
+            y="pixels_per_second",
+            hue="impl",
+            alpha=0.75,
             ax=axes[1, i],
-        )
-        sns.swarmplot(
-            data[data["mask"] == mask],
-            x="spread_percent",
-            y="efficiency",
-            hue="grain_size",
-            ax=axes[2, i],
         )
     axes[0, 0].set_ylim(bottom=0)
     axes[1, 0].set_ylim(bottom=0)
-    axes[2, 0].set_ylim(bottom=0)
 
     for ax in axes.flat:
         ax.get_legend().remove()
@@ -192,46 +174,41 @@ def plot_results(df: pd.DataFrame) -> None:
         labels,
         loc="center right",
         bbox_to_anchor=(1.0, 0.5),
-        title="grain_size",
+        title="impl",
     )
 
     pixel_type = data.iloc[0]["pixel_type"]
     bits = data.iloc[0]["bits"]
     n_pixels = data.iloc[0]["n_pixels"]
-    fig.suptitle(f"{pixel_type}{bits} | n_pixels = {n_pixels}")
+    size = int(np.sqrt(n_pixels))
+    fig.suptitle(f"{pixel_type}{bits} | {size}x{size}")
+
     plt.subplots_adjust(
         top=0.925, bottom=0.075
     )  # Prevent title from overlapping.
     plt.show()
 
 
-def results_file(pixel_type: str, bits: int, mask: bool) -> Path:
+def results_file(
+    pixel_type: str, bits: int, mask: bool, data_size: int
+) -> Path:
     imask = 1 if mask else 0
-    return Path(f"{_benchmark_dir}/mt_{pixel_type}{bits}_mask{imask}.json")
+    return Path(
+        f"{_benchmark_dir}/benchmarks_api_{pixel_type}{bits}_mask{imask}_size{data_size}.json"
+    )
 
 
 def all_pixel_formats() -> list[tuple[str, int]]:
     return list((t, b) for t in ("mono", "abc", "abcx") for b in (8, 12, 16))
 
 
-def read_tuning(
-    pixel_type: str, bits: int, mask: bool, file: Path
-) -> tuple[int, int]:
-    imask = 1 if mask else 0
-    ptrn = f"TUNE\\({pixel_type}, {bits}, {imask}, ([0-9]+), ([0-9]+)\\)"
-    with open(file) as f:
-        while line := f.readline():
-            if m := re.match(ptrn, line):
-                return int(m.group(1)), int(m.group(2))
-    raise ValueError(
-        f"Tuning for {pixel_type}{bits}_mask{imask} not found in {file}"
-    )
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--tuning", metavar="FILE", required=True)
-    parser.add_argument("--all", action="store_true")
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="all pixel formats (but single input data size)",
+    )
     parser.add_argument(
         "--pixel-type",
         choices=("mono", "abc", "abcx"),
@@ -240,7 +217,12 @@ def main() -> None:
     )
     parser.add_argument("--bits", type=int, metavar="BITS", default=8)
     parser.add_argument(
-        "--size", type=int, metavar="SIZE", dest="data_size", default=4096
+        "--size",
+        type=int,
+        metavar="SIZE",
+        dest="data_size",
+        default=4096,
+        help="input data size (square root of pixel count)",
     )
     parser.add_argument("--repetitions", type=int, metavar="N", default=3)
     parser.add_argument("--plot", action="store_true", dest="plot")
@@ -253,21 +235,18 @@ def main() -> None:
 
     for pixel_format in pixel_formats:
         for mask in (False, True):
-            stripes, unrolls = read_tuning(*pixel_format, mask, args.tuning)
-            f = results_file(*pixel_format, mask)
+            f = results_file(*pixel_format, mask, args.data_size)
             if args.rerun or not f.exists():
                 run_benchmark(
                     *pixel_format,
                     mask,
-                    stripes,
-                    unrolls,
                     data_size=args.data_size,
                     repetitions=args.repetitions,
                     out_json=f,
                 )
     for pixel_format in pixel_formats:
-        unmasked_f = results_file(*pixel_format, False)
-        masked_f = results_file(*pixel_format, True)
+        unmasked_f = results_file(*pixel_format, False, args.data_size)
+        masked_f = results_file(*pixel_format, True, args.data_size)
         unmasked_df = load_results(unmasked_f)
         masked_df = load_results(masked_f)
         df = pd.concat([unmasked_df, masked_df], ignore_index=True)

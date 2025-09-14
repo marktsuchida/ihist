@@ -269,7 +269,7 @@ def main() -> None:
         masked_f = results_file(*pixel_format, True)
         unmasked_df = load_results(unmasked_f)
         masked_df = load_results(masked_f)
-        df = pd.concat([unmasked_df, masked_df])
+        df = pd.concat([unmasked_df, masked_df], ignore_index=True)
         if args.plot:
             plot_results(df)
 

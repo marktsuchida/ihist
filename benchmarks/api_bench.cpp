@@ -219,7 +219,7 @@ std::vector const unoptimized_hist_16{
     },
 };
 
-std::vector<i64> const data_sizes{1 << 12};
+std::vector<i64> const data_sizes{512, 1024, 2048, 4096, 8192};
 
 template <unsigned Bits> std::vector<i64> const spread_pcts{0, 1, 6, 25, 100};
 
