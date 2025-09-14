@@ -33,6 +33,7 @@ def run_benchmark(
     mask: bool,
     stripes: int,
     unrolls: int,
+    data_size: int,
     repetitions: int,
     out_json: Path,
 ) -> None:
@@ -41,7 +42,7 @@ def run_benchmark(
         subprocess.run(
             [
                 f"{_benchmark_dir}/ihist_bench",
-                f"--benchmark_filter=^{pixel_type}/bits:{bits}/input:2d/mask:{imask}/mt:./stripes:{stripes}/unrolls:{unrolls}/",
+                f"--benchmark_filter=^{pixel_type}/bits:{bits}/input:2d/mask:{imask}/mt:./stripes:{stripes}/unrolls:{unrolls}/size:{data_size}/",
                 f"--benchmark_repetitions={repetitions}",
                 "--benchmark_enable_random_interleaving",
                 f"--benchmark_out={out_json}",
@@ -101,6 +102,26 @@ def load_results(results_json: Path) -> pd.DataFrame:
 def plot_results(df: pd.DataFrame) -> None:
     data = df.copy()
 
+    def calc_speedup(row):
+        single_threaded = data[
+            (data["pixel_type"] == row["pixel_type"])
+            & (data["bits"] == row["bits"])
+            & (data["input"] == row["input"])
+            & (data["mask"] == row["mask"])
+            & np.logical_not(data["mt"])
+            & (data["stripes"] == row["stripes"])
+            & (data["unrolls"] == row["unrolls"])
+            & (data["n_pixels"] == row["n_pixels"])
+            & (data["spread_percent"] == row["spread_percent"])
+            & (data["repetition_index"] == row["repetition_index"])
+        ]
+        assert len(single_threaded) == 1
+        st_row = single_threaded.iloc[0]
+        return st_row["real_time"] / row["real_time"]
+
+    def calc_effncores(row):
+        return row["cpu_time"] / row["real_time"]
+
     def calc_eff(row):
         single_threaded = data[
             (data["pixel_type"] == row["pixel_type"])
@@ -110,6 +131,7 @@ def plot_results(df: pd.DataFrame) -> None:
             & np.logical_not(data["mt"])
             & (data["stripes"] == row["stripes"])
             & (data["unrolls"] == row["unrolls"])
+            & (data["n_pixels"] == row["n_pixels"])
             & (data["spread_percent"] == row["spread_percent"])
             & (data["repetition_index"] == row["repetition_index"])
         ]
@@ -117,6 +139,8 @@ def plot_results(df: pd.DataFrame) -> None:
         st_row = single_threaded.iloc[0]
         return st_row["cpu_time"] / row["cpu_time"]
 
+    data["speedup"] = data.apply(calc_speedup, axis=1)
+    data["effective_n_cores"] = data.apply(calc_effncores, axis=1)
     data["efficiency"] = data.apply(calc_eff, axis=1)
 
     # Treat grain size as categories, not continuous variable.
@@ -128,30 +152,37 @@ def plot_results(df: pd.DataFrame) -> None:
         categories=[str(x) for x in grain_sizes],
     )
     data.loc[np.logical_not(data["mt"]), "grain_size"] = "st"
-    data["grain_size"] = data["grain_size"].astype("category")
 
     sns.set_theme(style="whitegrid", palette="muted")
-    fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex=True, sharey="row")
+    fig, axes = plt.subplots(3, 2, figsize=(12, 8), sharex=True, sharey="row")
 
     masking = (False, True)
     for i, mask in enumerate(masking):
-        sns.stripplot(
+        sns.swarmplot(
             data[data["mask"] == mask],
             x="spread_percent",
-            y="pixels_per_second",
+            y="speedup",
             hue="grain_size",
             ax=axes[0, i],
         )
         axes[0, i].set_title(f"mask {int(mask)}")
-        sns.stripplot(
+        sns.swarmplot(
+            data[data["mask"] == mask],
+            x="spread_percent",
+            y="effective_n_cores",
+            hue="grain_size",
+            ax=axes[1, i],
+        )
+        sns.swarmplot(
             data[data["mask"] == mask],
             x="spread_percent",
             y="efficiency",
             hue="grain_size",
-            ax=axes[1, i],
+            ax=axes[2, i],
         )
     axes[0, 0].set_ylim(bottom=0)
     axes[1, 0].set_ylim(bottom=0)
+    axes[2, 0].set_ylim(bottom=0)
 
     for ax in axes.flat:
         ax.get_legend().remove()
@@ -164,7 +195,10 @@ def plot_results(df: pd.DataFrame) -> None:
         title="grain_size",
     )
 
-    fig.suptitle(f"{data.iloc[0]['pixel_type']}{data.iloc[0]['bits']}")
+    pixel_type = data.iloc[0]["pixel_type"]
+    bits = data.iloc[0]["bits"]
+    n_pixels = data.iloc[0]["n_pixels"]
+    fig.suptitle(f"{pixel_type}{bits} | n_pixels = {n_pixels}")
     plt.subplots_adjust(
         top=0.925, bottom=0.075
     )  # Prevent title from overlapping.
@@ -205,7 +239,10 @@ def main() -> None:
         default="mono",
     )
     parser.add_argument("--bits", type=int, metavar="BITS", default=8)
-    parser.add_argument("--repetitions", type=int, metavar="N", default=5)
+    parser.add_argument(
+        "--size", type=int, metavar="SIZE", dest="data_size", default=4096
+    )
+    parser.add_argument("--repetitions", type=int, metavar="N", default=3)
     parser.add_argument("--plot", action="store_true", dest="plot")
     parser.add_argument("--rerun", action="store_true")
     args = parser.parse_args()
@@ -224,6 +261,7 @@ def main() -> None:
                     mask,
                     stripes,
                     unrolls,
+                    data_size=args.data_size,
                     repetitions=args.repetitions,
                     out_json=f,
                 )

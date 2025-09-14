@@ -34,7 +34,7 @@ def run_benchmark(
         subprocess.run(
             [
                 f"{_benchmark_dir}/ihist_bench",
-                f"--benchmark_filter=^{pixel_type}/bits:{bits}/input:2d/.*/mt:0/",
+                f"--benchmark_filter=^{pixel_type}/bits:{bits}/input:2d/.*/mt:0/.*/size:4096/",
                 f"--benchmark_repetitions={repetitions}",
                 "--benchmark_enable_random_interleaving",
                 f"--benchmark_out={out_json}",
