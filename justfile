@@ -77,14 +77,14 @@ configure BUILD_TYPE *FLAGS:
     UNAME=$(uname -s)
     if [[ "$UNAME" == MINGW* || "$UNAME" == MSYS* ]]; then
         # The .pc file doesn't work on Windows.
-        TBB_CONFIG_OPT=--cmake-prefix-path='{{justfile_directory()}}/dependencies/oneTBB-{{BUILD_TYPE}}/lib/cmake'
+        DEPS_PATH_OPT=--cmake-prefix-path="{{justfile_directory()}}/dependencies/oneTBB-{{BUILD_TYPE}}/lib/cmake;$USERPROFILE/scoop/apps/opencv/current"
     else
         # But CMake doesn't work on Linux, at least sometimes.
-        TBB_CONFIG_OPT=--pkg-config-path='{{justfile_directory()}}/dependencies/oneTBB-{{BUILD_TYPE}}/lib/pkgconfig'
+        DEPS_PATH_OPT=--pkg-config-path='{{justfile_directory()}}/dependencies/oneTBB-{{BUILD_TYPE}}/lib/pkgconfig'
     fi
     meson setup --reconfigure builddir \
         --buildtype=$BUILD_TYPE $SANITIZE_FLAGS \
-        $TBB_CONFIG_OPT \
+        $DEPS_PATH_OPT \
         -Dcatch2:tests=false -Dgoogle-benchmark:tests=disabled \
         {{FLAGS}}
 
