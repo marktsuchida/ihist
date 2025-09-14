@@ -144,7 +144,7 @@ def plot_results(df: pd.DataFrame) -> None:
 
     sns.set_theme(style="whitegrid", palette="muted")
 
-    fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex=True, sharey="row")
+    fig, axes = plt.subplots(3, 2, figsize=(12, 8), sharex=True, sharey="row")
     for i, mask in enumerate((False, True)):
         sns.stripplot(
             data[data["mask"] == mask],
@@ -158,13 +158,22 @@ def plot_results(df: pd.DataFrame) -> None:
         sns.stripplot(
             data[data["mask"] == mask],
             x="spread_percent",
-            y="pixels_per_second",
+            y="cpu_time_ms",
             hue="impl",
             alpha=0.75,
             ax=axes[1, i],
         )
+        sns.stripplot(
+            data[data["mask"] == mask],
+            x="spread_percent",
+            y="pixels_per_second",
+            hue="impl",
+            alpha=0.75,
+            ax=axes[2, i],
+        )
     axes[0, 0].set_ylim(bottom=0)
     axes[1, 0].set_ylim(bottom=0)
+    axes[2, 0].set_ylim(bottom=0)
 
     for ax in axes.flat:
         ax.get_legend().remove()
