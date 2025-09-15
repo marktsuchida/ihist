@@ -126,12 +126,12 @@ void opencv_histogram(T const *data, u8 const *mask, std::size_t width,
     // histogram is always float32 (for which OpenCV has good reason, but here
     // we convert back to u32 -- this overhead is probably small anyway).
     cv::Mat hist;
-    for (std::size_t c = 0; c < n_samples; ++c) {
-        int const channels[] = {int(c)};
+    for (std::size_t s = 0; s < n_samples; ++s) {
+        int const channels[] = {int(s)};
         cv::calcHist(&data_mat, 1, channels, mask_mat, hist, 1, hist_size,
                      hist_range);
         std::transform(hist.begin<float>(), hist.end<float>(),
-                       std::next(histogram, c * n_bins),
+                       std::next(histogram, s * n_bins),
                        [](float v) { return static_cast<u32>(v); });
     }
 }

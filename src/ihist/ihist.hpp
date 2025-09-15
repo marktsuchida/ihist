@@ -109,12 +109,12 @@ hist_unoptimized_st(T const *IHIST_RESTRICT data,
     for (std::size_t j = 0; j < size; ++j) {
         auto const i = j * SamplesPerPixel;
         if (!UseMask || mask[j]) {
-            for (std::size_t c = 0; c < NSAMPLES; ++c) {
-                auto const s_index = s_indices[c];
+            for (std::size_t s = 0; s < NSAMPLES; ++s) {
+                auto const s_index = s_indices[s];
                 auto const bin =
                     internal::bin_index<T, Bits, LoBit>(data[i + s_index]);
                 if (bin != NBINS) {
-                    ++histogram[c * NBINS + bin];
+                    ++histogram[s * NBINS + bin];
                 }
             }
         }
@@ -156,12 +156,12 @@ template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
             auto const j = x + y * width;
             auto const i = j * SamplesPerPixel;
             if (!UseMask || mask[j]) {
-                for (std::size_t c = 0; c < NSAMPLES; ++c) {
-                    auto const s_index = s_indices[c];
+                for (std::size_t s = 0; s < NSAMPLES; ++s) {
+                    auto const s_index = s_indices[s];
                     auto const bin =
                         internal::bin_index<T, Bits, LoBit>(data[i + s_index]);
                     if (bin != NBINS) {
-                        ++histogram[c * NBINS + bin];
+                        ++histogram[s * NBINS + bin];
                     }
                 }
             }
@@ -266,26 +266,26 @@ hist_striped_st(T const *IHIST_RESTRICT data,
         auto const *block_mask =
             UseMask ? blocks_mask + block * BLOCKSIZE : nullptr;
 
-        for (std::size_t c = 0; c < NSAMPLES; ++c) {
-            auto const s_index = s_indices[c];
+        for (std::size_t s = 0; s < NSAMPLES; ++s) {
+            auto const s_index = s_indices[s];
             for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
                 if (!UseMask || block_mask[k]) {
                     auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
                     auto const bin = bins[k * SamplesPerPixel + s_index];
-                    ++stripes[(stripe * NSAMPLES + c) * STRIPE_LEN + bin];
+                    ++stripes[(stripe * NSAMPLES + s) * STRIPE_LEN + bin];
                 }
             }
         }
     }
 
     if constexpr (USE_STRIPES) {
-        for (std::size_t c = 0; c < NSAMPLES; ++c) {
+        for (std::size_t s = 0; s < NSAMPLES; ++s) {
             for (std::size_t bin = 0; bin < NBINS; ++bin) {
                 std::uint32_t sum = 0;
                 for (std::size_t stripe = 0; stripe < NSTRIPES; ++stripe) {
-                    sum += stripes[(stripe * NSAMPLES + c) * STRIPE_LEN + bin];
+                    sum += stripes[(stripe * NSAMPLES + s) * STRIPE_LEN + bin];
                 }
-                histogram[c * NBINS + bin] += sum;
+                histogram[s * NBINS + bin] += sum;
             }
         }
     }
@@ -371,13 +371,13 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
             auto const *block_mask =
                 UseMask ? row_mask + block * BLOCKSIZE : nullptr;
 
-            for (std::size_t c = 0; c < NSAMPLES; ++c) {
-                auto const s_index = s_indices[c];
+            for (std::size_t s = 0; s < NSAMPLES; ++s) {
+                auto const s_index = s_indices[s];
                 for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
                     if (!UseMask || block_mask[k]) {
                         auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
                         auto const bin = bins[k * SamplesPerPixel + s_index];
-                        ++stripes[(stripe * NSAMPLES + c) * STRIPE_LEN + bin];
+                        ++stripes[(stripe * NSAMPLES + s) * STRIPE_LEN + bin];
                     }
                 }
             }
@@ -390,13 +390,13 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
     }
 
     if constexpr (USE_STRIPES) {
-        for (std::size_t c = 0; c < NSAMPLES; ++c) {
+        for (std::size_t s = 0; s < NSAMPLES; ++s) {
             for (std::size_t bin = 0; bin < NBINS; ++bin) {
                 std::uint32_t sum = 0;
                 for (std::size_t stripe = 0; stripe < NSTRIPES; ++stripe) {
-                    sum += stripes[(stripe * NSAMPLES + c) * STRIPE_LEN + bin];
+                    sum += stripes[(stripe * NSAMPLES + s) * STRIPE_LEN + bin];
                 }
-                histogram[c * NBINS + bin] += sum;
+                histogram[s * NBINS + bin] += sum;
             }
         }
     }
