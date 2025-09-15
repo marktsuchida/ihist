@@ -98,9 +98,9 @@ hist_unoptimized_st(T const *IHIST_RESTRICT data,
                   SamplesPerPixel);
 
     constexpr std::size_t NBINS = 1uLL << Bits;
-    constexpr std::size_t NCOMPONENTS = 1 + sizeof...(SampleIndices);
-    constexpr std::array<std::size_t, NCOMPONENTS> s_indices{Sample0Index,
-                                                             SampleIndices...};
+    constexpr std::size_t NSAMPLES = 1 + sizeof...(SampleIndices);
+    constexpr std::array<std::size_t, NSAMPLES> s_indices{Sample0Index,
+                                                          SampleIndices...};
 
 #ifdef __clang__
 #pragma clang loop unroll(disable)
@@ -110,7 +110,7 @@ hist_unoptimized_st(T const *IHIST_RESTRICT data,
     for (std::size_t j = 0; j < size; ++j) {
         auto const i = j * SamplesPerPixel;
         if (!UseMask || mask[j]) {
-            for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
+            for (std::size_t c = 0; c < NSAMPLES; ++c) {
                 auto const s_index = s_indices[c];
                 auto const bin =
                     internal::bin_index<T, Bits, LoBit>(data[i + s_index]);
@@ -138,9 +138,9 @@ template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
                   SamplesPerPixel);
 
     constexpr std::size_t NBINS = 1uLL << Bits;
-    constexpr std::size_t NCOMPONENTS = 1 + sizeof...(SampleIndices);
-    constexpr std::array<std::size_t, NCOMPONENTS> s_indices{Sample0Index,
-                                                             SampleIndices...};
+    constexpr std::size_t NSAMPLES = 1 + sizeof...(SampleIndices);
+    constexpr std::array<std::size_t, NSAMPLES> s_indices{Sample0Index,
+                                                          SampleIndices...};
 
 #ifdef __clang__
 #pragma clang loop unroll(disable)
@@ -157,7 +157,7 @@ template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
             auto const j = x + y * width;
             auto const i = j * SamplesPerPixel;
             if (!UseMask || mask[j]) {
-                for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
+                for (std::size_t c = 0; c < NSAMPLES; ++c) {
                     auto const s_index = s_indices[c];
                     auto const bin =
                         internal::bin_index<T, Bits, LoBit>(data[i + s_index]);
@@ -186,9 +186,9 @@ hist_striped_st(T const *IHIST_RESTRICT data,
     constexpr std::size_t NSTRIPES =
         std::max(std::size_t(1), Tuning.n_stripes);
     constexpr std::size_t NBINS = 1 << Bits;
-    constexpr std::size_t NCOMPONENTS = 1 + sizeof...(SampleIndices);
-    constexpr std::array<std::size_t, NCOMPONENTS> s_indices{Sample0Index,
-                                                             SampleIndices...};
+    constexpr std::size_t NSAMPLES = 1 + sizeof...(SampleIndices);
+    constexpr std::array<std::size_t, NSAMPLES> s_indices{Sample0Index,
+                                                          SampleIndices...};
 
     // Use extra bin for overflows if applicable.
     constexpr auto STRIPE_LEN =
@@ -198,7 +198,7 @@ hist_striped_st(T const *IHIST_RESTRICT data,
     std::vector<std::uint32_t> stripes_storage;
     std::uint32_t *stripes = [&]() {
         if constexpr (USE_STRIPES) {
-            stripes_storage.resize(NSTRIPES * NCOMPONENTS * STRIPE_LEN);
+            stripes_storage.resize(NSTRIPES * NSAMPLES * STRIPE_LEN);
             return stripes_storage.data();
         } else {
             return histogram;
@@ -267,25 +267,24 @@ hist_striped_st(T const *IHIST_RESTRICT data,
         auto const *block_mask =
             UseMask ? blocks_mask + block * BLOCKSIZE : nullptr;
 
-        for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
+        for (std::size_t c = 0; c < NSAMPLES; ++c) {
             auto const s_index = s_indices[c];
             for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
                 if (!UseMask || block_mask[k]) {
                     auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
                     auto const bin = bins[k * SamplesPerPixel + s_index];
-                    ++stripes[(stripe * NCOMPONENTS + c) * STRIPE_LEN + bin];
+                    ++stripes[(stripe * NSAMPLES + c) * STRIPE_LEN + bin];
                 }
             }
         }
     }
 
     if constexpr (USE_STRIPES) {
-        for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
+        for (std::size_t c = 0; c < NSAMPLES; ++c) {
             for (std::size_t bin = 0; bin < NBINS; ++bin) {
                 std::uint32_t sum = 0;
                 for (std::size_t stripe = 0; stripe < NSTRIPES; ++stripe) {
-                    sum +=
-                        stripes[(stripe * NCOMPONENTS + c) * STRIPE_LEN + bin];
+                    sum += stripes[(stripe * NSAMPLES + c) * STRIPE_LEN + bin];
                 }
                 histogram[c * NBINS + bin] += sum;
             }
@@ -317,9 +316,9 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
     constexpr std::size_t NSTRIPES =
         std::max(std::size_t(1), Tuning.n_stripes);
     constexpr std::size_t NBINS = 1 << Bits;
-    constexpr std::size_t NCOMPONENTS = 1 + sizeof...(SampleIndices);
-    constexpr std::array<std::size_t, NCOMPONENTS> s_indices{Sample0Index,
-                                                             SampleIndices...};
+    constexpr std::size_t NSAMPLES = 1 + sizeof...(SampleIndices);
+    constexpr std::array<std::size_t, NSAMPLES> s_indices{Sample0Index,
+                                                          SampleIndices...};
 
     // Simplify to single row if full-width.
     if (roi_width == width && height > 1) {
@@ -339,7 +338,7 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
     std::vector<std::uint32_t> stripes_storage;
     std::uint32_t *stripes = [&]() {
         if constexpr (USE_STRIPES) {
-            stripes_storage.resize(NSTRIPES * NCOMPONENTS * STRIPE_LEN);
+            stripes_storage.resize(NSTRIPES * NSAMPLES * STRIPE_LEN);
             return stripes_storage.data();
         } else {
             return histogram;
@@ -373,14 +372,13 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
             auto const *block_mask =
                 UseMask ? row_mask + block * BLOCKSIZE : nullptr;
 
-            for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
+            for (std::size_t c = 0; c < NSAMPLES; ++c) {
                 auto const s_index = s_indices[c];
                 for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
                     if (!UseMask || block_mask[k]) {
                         auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
                         auto const bin = bins[k * SamplesPerPixel + s_index];
-                        ++stripes[(stripe * NCOMPONENTS + c) * STRIPE_LEN +
-                                  bin];
+                        ++stripes[(stripe * NSAMPLES + c) * STRIPE_LEN + bin];
                     }
                 }
             }
@@ -393,12 +391,11 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
     }
 
     if constexpr (USE_STRIPES) {
-        for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
+        for (std::size_t c = 0; c < NSAMPLES; ++c) {
             for (std::size_t bin = 0; bin < NBINS; ++bin) {
                 std::uint32_t sum = 0;
                 for (std::size_t stripe = 0; stripe < NSTRIPES; ++stripe) {
-                    sum +=
-                        stripes[(stripe * NCOMPONENTS + c) * STRIPE_LEN + bin];
+                    sum += stripes[(stripe * NSAMPLES + c) * STRIPE_LEN + bin];
                 }
                 histogram[c * NBINS + bin] += sum;
             }
@@ -494,8 +491,8 @@ hist_unoptimized_mt(T const *IHIST_RESTRICT data,
                     std::uint8_t const *IHIST_RESTRICT mask, std::size_t size,
                     std::uint32_t *IHIST_RESTRICT histogram,
                     std::size_t grain_size = 1) {
-    constexpr auto NCOMPONENTS = 1 + sizeof...(SampleIndices);
-    internal::hist_mt<T, (1uLL << Bits) * NCOMPONENTS>(
+    constexpr auto NSAMPLES = 1 + sizeof...(SampleIndices);
+    internal::hist_mt<T, (1uLL << Bits) * NSAMPLES>(
         hist_unoptimized_st<T, UseMask, Bits, LoBit, SamplesPerPixel,
                             Sample0Index, SampleIndices...>,
         data, mask, size, SamplesPerPixel, histogram, grain_size);
@@ -510,8 +507,8 @@ IHIST_NOINLINE void hist_striped_mt(T const *IHIST_RESTRICT data,
                                     std::size_t size,
                                     std::uint32_t *IHIST_RESTRICT histogram,
                                     std::size_t grain_size = 1) {
-    constexpr auto NCOMPONENTS = 1 + sizeof...(SampleIndices);
-    internal::hist_mt<T, (1uLL << Bits) * NCOMPONENTS>(
+    constexpr auto NSAMPLES = 1 + sizeof...(SampleIndices);
+    internal::hist_mt<T, (1uLL << Bits) * NSAMPLES>(
         hist_striped_st<Tuning, T, UseMask, Bits, LoBit, SamplesPerPixel,
                         Sample0Index, SampleIndices...>,
         data, mask, size, SamplesPerPixel, histogram, grain_size);
@@ -525,8 +522,8 @@ IHIST_NOINLINE void histxy_unoptimized_mt(
     std::size_t width, std::size_t height, std::size_t roi_x,
     std::size_t roi_y, std::size_t roi_width, std::size_t roi_height,
     std::uint32_t *IHIST_RESTRICT histogram, std::size_t grain_size = 1) {
-    constexpr auto NCOMPONENTS = 1 + sizeof...(SampleIndices);
-    internal::histxy_mt<T, (1uLL << Bits) * NCOMPONENTS>(
+    constexpr auto NSAMPLES = 1 + sizeof...(SampleIndices);
+    internal::histxy_mt<T, (1uLL << Bits) * NSAMPLES>(
         histxy_unoptimized_st<T, UseMask, Bits, LoBit, SamplesPerPixel,
                               Sample0Index, SampleIndices...>,
         data, mask, width, height, roi_x, roi_y, roi_width, roi_height,
@@ -542,8 +539,8 @@ IHIST_NOINLINE void histxy_striped_mt(
     std::size_t width, std::size_t height, std::size_t roi_x,
     std::size_t roi_y, std::size_t roi_width, std::size_t roi_height,
     std::uint32_t *IHIST_RESTRICT histogram, std::size_t grain_size = 1) {
-    constexpr auto NCOMPONENTS = 1 + sizeof...(SampleIndices);
-    internal::histxy_mt<T, (1uLL << Bits) * NCOMPONENTS>(
+    constexpr auto NSAMPLES = 1 + sizeof...(SampleIndices);
+    internal::histxy_mt<T, (1uLL << Bits) * NSAMPLES>(
         histxy_striped_st<Tuning, T, UseMask, Bits, LoBit, SamplesPerPixel,
                           Sample0Index, SampleIndices...>,
         data, mask, width, height, roi_x, roi_y, roi_width, roi_height,
