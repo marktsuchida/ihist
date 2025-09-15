@@ -106,8 +106,8 @@ void copy_hist_from_higher_bits(std::size_t sample_bits,
 
 template <typename T, std::size_t Bits,
           ihist::tuning_parameters const &NomaskTuning,
-          ihist::tuning_parameters const &MaskedTuning, std::size_t Stride,
-          std::size_t... ComponentOffsets>
+          ihist::tuning_parameters const &MaskedTuning,
+          std::size_t SamplesPerPixel, std::size_t... ComponentOffsets>
 void hist_2d_impl(std::size_t sample_bits, T const *IHIST_RESTRICT image,
                   std::uint8_t const *IHIST_RESTRICT mask, std::size_t width,
                   std::size_t height, std::size_t roi_x, std::size_t roi_y,
@@ -131,25 +131,25 @@ void hist_2d_impl(std::size_t sample_bits, T const *IHIST_RESTRICT image,
 
     if (maybe_parallel && roi_width * roi_height >= parallel_size_threshold) {
         if (mask != nullptr) {
-            ihist::histxy_striped_mt<MaskedTuning, T, true, Bits, 0, Stride,
-                                     ComponentOffsets...>(
+            ihist::histxy_striped_mt<MaskedTuning, T, true, Bits, 0,
+                                     SamplesPerPixel, ComponentOffsets...>(
                 image, mask, width, height, roi_x, roi_y, roi_width,
                 roi_height, hist, parallel_grain_size);
         } else {
-            ihist::histxy_striped_mt<NomaskTuning, T, false, Bits, 0, Stride,
-                                     ComponentOffsets...>(
+            ihist::histxy_striped_mt<NomaskTuning, T, false, Bits, 0,
+                                     SamplesPerPixel, ComponentOffsets...>(
                 image, mask, width, height, roi_x, roi_y, roi_width,
                 roi_height, hist, parallel_grain_size);
         }
     } else {
         if (mask != nullptr) {
-            ihist::histxy_striped_st<MaskedTuning, T, true, Bits, 0, Stride,
-                                     ComponentOffsets...>(
+            ihist::histxy_striped_st<MaskedTuning, T, true, Bits, 0,
+                                     SamplesPerPixel, ComponentOffsets...>(
                 image, mask, width, height, roi_x, roi_y, roi_width,
                 roi_height, hist);
         } else {
-            ihist::histxy_striped_st<NomaskTuning, T, false, Bits, 0, Stride,
-                                     ComponentOffsets...>(
+            ihist::histxy_striped_st<NomaskTuning, T, false, Bits, 0,
+                                     SamplesPerPixel, ComponentOffsets...>(
                 image, mask, width, height, roi_x, roi_y, roi_width,
                 roi_height, hist);
         }

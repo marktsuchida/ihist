@@ -86,7 +86,7 @@ constexpr auto first_aligned_index(T const *buffer) -> std::size_t {
 } // namespace internal
 
 template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
-          unsigned LoBit = 0, std::size_t Stride = 1,
+          unsigned LoBit = 0, std::size_t SamplesPerPixel = 1,
           std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
 /* not noinline */ void
 hist_unoptimized_st(T const *IHIST_RESTRICT data,
@@ -94,7 +94,8 @@ hist_unoptimized_st(T const *IHIST_RESTRICT data,
                     std::uint32_t *IHIST_RESTRICT histogram, std::size_t = 0) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
 
-    static_assert(std::max({Component0Offset, ComponentOffsets...}) < Stride);
+    static_assert(std::max({Component0Offset, ComponentOffsets...}) <
+                  SamplesPerPixel);
 
     constexpr std::size_t NBINS = 1uLL << Bits;
     constexpr std::size_t NCOMPONENTS = 1 + sizeof...(ComponentOffsets);
@@ -107,7 +108,7 @@ hist_unoptimized_st(T const *IHIST_RESTRICT data,
 #pragma GCC unroll 0
 #endif
     for (std::size_t j = 0; j < size; ++j) {
-        auto const i = j * Stride;
+        auto const i = j * SamplesPerPixel;
         if (!UseMask || mask[j]) {
             for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
                 auto const offset = offsets[c];
@@ -122,7 +123,7 @@ hist_unoptimized_st(T const *IHIST_RESTRICT data,
 }
 
 template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
-          unsigned LoBit = 0, std::size_t Stride = 1,
+          unsigned LoBit = 0, std::size_t SamplesPerPixel = 1,
           std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
 /* not noinline */ void histxy_unoptimized_st(
     T const *IHIST_RESTRICT data, std::uint8_t const *IHIST_RESTRICT mask,
@@ -133,7 +134,8 @@ template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
     assert(roi_x + roi_width <= width);
     assert(roi_y + roi_height <= height);
 
-    static_assert(std::max({Component0Offset, ComponentOffsets...}) < Stride);
+    static_assert(std::max({Component0Offset, ComponentOffsets...}) <
+                  SamplesPerPixel);
 
     constexpr std::size_t NBINS = 1uLL << Bits;
     constexpr std::size_t NCOMPONENTS = 1 + sizeof...(ComponentOffsets);
@@ -153,7 +155,7 @@ template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
 #endif
         for (std::size_t x = roi_x; x < roi_x + roi_width; ++x) {
             auto const j = x + y * width;
-            auto const i = j * Stride;
+            auto const i = j * SamplesPerPixel;
             if (!UseMask || mask[j]) {
                 for (std::size_t c = 0; c < NCOMPONENTS; ++c) {
                     auto const offset = offsets[c];
@@ -170,7 +172,7 @@ template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
 
 template <tuning_parameters const &Tuning, typename T, bool UseMask = false,
           unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
-          std::size_t Stride = 1, std::size_t Component0Offset = 0,
+          std::size_t SamplesPerPixel = 1, std::size_t Component0Offset = 0,
           std::size_t... ComponentOffsets>
 IHIST_NOINLINE void
 hist_striped_st(T const *IHIST_RESTRICT data,
@@ -178,7 +180,8 @@ hist_striped_st(T const *IHIST_RESTRICT data,
                 std::uint32_t *IHIST_RESTRICT histogram, std::size_t = 0) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
 
-    static_assert(std::max({Component0Offset, ComponentOffsets...}) < Stride);
+    static_assert(std::max({Component0Offset, ComponentOffsets...}) <
+                  SamplesPerPixel);
 
     constexpr std::size_t NSTRIPES =
         std::max(std::size_t(1), Tuning.n_stripes);
@@ -204,7 +207,8 @@ hist_striped_st(T const *IHIST_RESTRICT data,
 
     constexpr std::size_t BLOCKSIZE =
         std::max(std::size_t(1), Tuning.n_unroll);
-    constexpr std::size_t BLOCKSIZE_BYTES = BLOCKSIZE * Stride * sizeof(T);
+    constexpr std::size_t BLOCKSIZE_BYTES =
+        BLOCKSIZE * SamplesPerPixel * sizeof(T);
     constexpr bool BLOCKSIZE_BYTES_IS_POWER_OF_2 =
         (BLOCKSIZE_BYTES & (BLOCKSIZE_BYTES - 1)) == 0;
     constexpr std::size_t BLOCK_ALIGNMENT =
@@ -219,9 +223,9 @@ hist_striped_st(T const *IHIST_RESTRICT data,
         }
     }();
 
-    hist_unoptimized_st<T, UseMask, Bits, LoBit, Stride, Component0Offset,
-                        ComponentOffsets...>(data, mask, prolog_size,
-                                             histogram);
+    hist_unoptimized_st<T, UseMask, Bits, LoBit, SamplesPerPixel,
+                        Component0Offset, ComponentOffsets...>(
+        data, mask, prolog_size, histogram);
 
     std::size_t const size_after_prolog = size - prolog_size;
     if (size_after_prolog == 0) {
@@ -232,7 +236,7 @@ hist_striped_st(T const *IHIST_RESTRICT data,
 #if defined(__GNUC__) || defined(__clang__)
         (T const *)__builtin_assume_aligned(
 #endif
-            data + prolog_size * Stride
+            data + prolog_size * SamplesPerPixel
 #if defined(__GNUC__) || defined(__clang__)
             ,
             BLOCK_ALIGNMENT)
@@ -242,7 +246,8 @@ hist_striped_st(T const *IHIST_RESTRICT data,
 
     std::size_t const n_blocks = size_after_prolog / BLOCKSIZE;
     std::size_t const epilog_size = size_after_prolog % BLOCKSIZE;
-    T const *epilog_data = blocks_data + n_blocks * BLOCKSIZE * Stride;
+    T const *epilog_data =
+        blocks_data + n_blocks * BLOCKSIZE * SamplesPerPixel;
     std::uint8_t const *epilog_mask =
         UseMask ? blocks_mask + n_blocks * BLOCKSIZE : nullptr;
 
@@ -255,9 +260,9 @@ hist_striped_st(T const *IHIST_RESTRICT data,
         // We pre-compute all the bin indices for the block here, which
         // facilitates experimenting with potential optimizations, but the
         // compiler may well interleave this with the bin increments below.
-        std::array<std::size_t, BLOCKSIZE * Stride> bins;
-        for (std::size_t n = 0; n < BLOCKSIZE * Stride; ++n) {
-            auto const i = block * BLOCKSIZE * Stride + n;
+        std::array<std::size_t, BLOCKSIZE * SamplesPerPixel> bins;
+        for (std::size_t n = 0; n < BLOCKSIZE * SamplesPerPixel; ++n) {
+            auto const i = block * BLOCKSIZE * SamplesPerPixel + n;
             bins[n] = internal::bin_index<T, Bits, LoBit>(blocks_data[i]);
         }
         auto const *block_mask =
@@ -268,7 +273,7 @@ hist_striped_st(T const *IHIST_RESTRICT data,
             for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
                 if (!UseMask || block_mask[k]) {
                     auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
-                    auto const bin = bins[k * Stride + offset];
+                    auto const bin = bins[k * SamplesPerPixel + offset];
                     ++stripes[(stripe * NCOMPONENTS + c) * STRIPE_LEN + bin];
                 }
             }
@@ -288,14 +293,14 @@ hist_striped_st(T const *IHIST_RESTRICT data,
         }
     }
 
-    hist_unoptimized_st<T, UseMask, Bits, LoBit, Stride, Component0Offset,
-                        ComponentOffsets...>(epilog_data, epilog_mask,
-                                             epilog_size, histogram);
+    hist_unoptimized_st<T, UseMask, Bits, LoBit, SamplesPerPixel,
+                        Component0Offset, ComponentOffsets...>(
+        epilog_data, epilog_mask, epilog_size, histogram);
 }
 
 template <tuning_parameters const &Tuning, typename T, bool UseMask = false,
           unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
-          std::size_t Stride = 1, std::size_t Component0Offset = 0,
+          std::size_t SamplesPerPixel = 1, std::size_t Component0Offset = 0,
           std::size_t... ComponentOffsets>
 IHIST_NOINLINE void
 histxy_striped_st(T const *IHIST_RESTRICT data,
@@ -307,7 +312,8 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
     assert(roi_x + roi_width <= width);
     assert(roi_y + roi_height <= height);
 
-    static_assert(std::max({Component0Offset, ComponentOffsets...}) < Stride);
+    static_assert(std::max({Component0Offset, ComponentOffsets...}) <
+                  SamplesPerPixel);
 
     constexpr std::size_t NSTRIPES =
         std::max(std::size_t(1), Tuning.n_stripes);
@@ -318,9 +324,10 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
 
     // Simplify to single row if full-width.
     if (roi_width == width && height > 1) {
-        return histxy_striped_st<Tuning, T, UseMask, Bits, LoBit, Stride,
-                                 Component0Offset, ComponentOffsets...>(
-            data + roi_y * width * Stride,
+        return histxy_striped_st<Tuning, T, UseMask, Bits, LoBit,
+                                 SamplesPerPixel, Component0Offset,
+                                 ComponentOffsets...>(
+            data + roi_y * width * SamplesPerPixel,
             UseMask ? mask + roi_y * width : nullptr, width * roi_height, 1, 0,
             0, width * roi_height, 1, histogram);
     }
@@ -346,11 +353,11 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
     std::size_t const row_epilog_size = roi_width % BLOCKSIZE;
 
     for (std::size_t y = roi_y; y < roi_y + roi_height; ++y) {
-        T const *row_data = data + (y * width + roi_x) * Stride;
+        T const *row_data = data + (y * width + roi_x) * SamplesPerPixel;
         std::uint8_t const *row_mask =
             UseMask ? mask + y * width + roi_x : nullptr;
         T const *row_epilog_data =
-            row_data + n_blocks_per_row * BLOCKSIZE * Stride;
+            row_data + n_blocks_per_row * BLOCKSIZE * SamplesPerPixel;
         std::uint8_t const *row_epilog_mask =
             UseMask ? row_mask + n_blocks_per_row * BLOCKSIZE : nullptr;
 #ifdef __clang__
@@ -359,9 +366,9 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
 #pragma GCC unroll 0
 #endif
         for (std::size_t block = 0; block < n_blocks_per_row; ++block) {
-            std::array<std::size_t, BLOCKSIZE * Stride> bins;
-            for (std::size_t n = 0; n < BLOCKSIZE * Stride; ++n) {
-                auto const i = block * BLOCKSIZE * Stride + n;
+            std::array<std::size_t, BLOCKSIZE * SamplesPerPixel> bins;
+            for (std::size_t n = 0; n < BLOCKSIZE * SamplesPerPixel; ++n) {
+                auto const i = block * BLOCKSIZE * SamplesPerPixel + n;
                 bins[n] = internal::bin_index<T, Bits, LoBit>(row_data[i]);
             }
             auto const *block_mask =
@@ -372,7 +379,7 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
                 for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
                     if (!UseMask || block_mask[k]) {
                         auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
-                        auto const bin = bins[k * Stride + offset];
+                        auto const bin = bins[k * SamplesPerPixel + offset];
                         ++stripes[(stripe * NCOMPONENTS + c) * STRIPE_LEN +
                                   bin];
                     }
@@ -381,8 +388,8 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
         }
 
         // Epilog goes straight to the final histogram.
-        hist_unoptimized_st<T, UseMask, Bits, LoBit, Stride, Component0Offset,
-                            ComponentOffsets...>(
+        hist_unoptimized_st<T, UseMask, Bits, LoBit, SamplesPerPixel,
+                            Component0Offset, ComponentOffsets...>(
             row_epilog_data, row_epilog_mask, row_epilog_size, histogram);
     }
 
@@ -481,7 +488,7 @@ void histxy_mt(histxy_st_func<T> *histxy_func, T const *IHIST_RESTRICT data,
 } // namespace internal
 
 template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
-          unsigned LoBit = 0, std::size_t Stride = 1,
+          unsigned LoBit = 0, std::size_t SamplesPerPixel = 1,
           std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
 IHIST_NOINLINE void
 hist_unoptimized_mt(T const *IHIST_RESTRICT data,
@@ -490,14 +497,14 @@ hist_unoptimized_mt(T const *IHIST_RESTRICT data,
                     std::size_t grain_size = 1) {
     constexpr auto NCOMPONENTS = 1 + sizeof...(ComponentOffsets);
     internal::hist_mt<T, (1uLL << Bits) * NCOMPONENTS>(
-        hist_unoptimized_st<T, UseMask, Bits, LoBit, Stride, Component0Offset,
-                            ComponentOffsets...>,
-        data, mask, size, Stride, histogram, grain_size);
+        hist_unoptimized_st<T, UseMask, Bits, LoBit, SamplesPerPixel,
+                            Component0Offset, ComponentOffsets...>,
+        data, mask, size, SamplesPerPixel, histogram, grain_size);
 }
 
 template <tuning_parameters const &Tuning, typename T, bool UseMask = false,
           unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
-          std::size_t Stride = 1, std::size_t Component0Offset = 0,
+          std::size_t SamplesPerPixel = 1, std::size_t Component0Offset = 0,
           std::size_t... ComponentOffsets>
 IHIST_NOINLINE void hist_striped_mt(T const *IHIST_RESTRICT data,
                                     std::uint8_t const *IHIST_RESTRICT mask,
@@ -506,13 +513,13 @@ IHIST_NOINLINE void hist_striped_mt(T const *IHIST_RESTRICT data,
                                     std::size_t grain_size = 1) {
     constexpr auto NCOMPONENTS = 1 + sizeof...(ComponentOffsets);
     internal::hist_mt<T, (1uLL << Bits) * NCOMPONENTS>(
-        hist_striped_st<Tuning, T, UseMask, Bits, LoBit, Stride,
+        hist_striped_st<Tuning, T, UseMask, Bits, LoBit, SamplesPerPixel,
                         Component0Offset, ComponentOffsets...>,
-        data, mask, size, Stride, histogram, grain_size);
+        data, mask, size, SamplesPerPixel, histogram, grain_size);
 }
 
 template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
-          unsigned LoBit = 0, std::size_t Stride = 1,
+          unsigned LoBit = 0, std::size_t SamplesPerPixel = 1,
           std::size_t Component0Offset = 0, std::size_t... ComponentOffsets>
 IHIST_NOINLINE void histxy_unoptimized_mt(
     T const *IHIST_RESTRICT data, std::uint8_t const *IHIST_RESTRICT mask,
@@ -521,7 +528,7 @@ IHIST_NOINLINE void histxy_unoptimized_mt(
     std::uint32_t *IHIST_RESTRICT histogram, std::size_t grain_size = 1) {
     constexpr auto NCOMPONENTS = 1 + sizeof...(ComponentOffsets);
     internal::histxy_mt<T, (1uLL << Bits) * NCOMPONENTS>(
-        histxy_unoptimized_st<T, UseMask, Bits, LoBit, Stride,
+        histxy_unoptimized_st<T, UseMask, Bits, LoBit, SamplesPerPixel,
                               Component0Offset, ComponentOffsets...>,
         data, mask, width, height, roi_x, roi_y, roi_width, roi_height,
         histogram, grain_size);
@@ -529,7 +536,7 @@ IHIST_NOINLINE void histxy_unoptimized_mt(
 
 template <tuning_parameters const &Tuning, typename T, bool UseMask = false,
           unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
-          std::size_t Stride = 1, std::size_t Component0Offset = 0,
+          std::size_t SamplesPerPixel = 1, std::size_t Component0Offset = 0,
           std::size_t... ComponentOffsets>
 IHIST_NOINLINE void histxy_striped_mt(
     T const *IHIST_RESTRICT data, std::uint8_t const *IHIST_RESTRICT mask,
@@ -538,7 +545,7 @@ IHIST_NOINLINE void histxy_striped_mt(
     std::uint32_t *IHIST_RESTRICT histogram, std::size_t grain_size = 1) {
     constexpr auto NCOMPONENTS = 1 + sizeof...(ComponentOffsets);
     internal::histxy_mt<T, (1uLL << Bits) * NCOMPONENTS>(
-        histxy_striped_st<Tuning, T, UseMask, Bits, LoBit, Stride,
+        histxy_striped_st<Tuning, T, UseMask, Bits, LoBit, SamplesPerPixel,
                           Component0Offset, ComponentOffsets...>,
         data, mask, width, height, roi_x, roi_y, roi_width, roi_height,
         histogram, grain_size);
