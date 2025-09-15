@@ -74,17 +74,17 @@ constexpr std::size_t parallel_grain_size = 1uLL << 20;
 
 namespace {
 
-template <typename T, std::size_t Bits, std::size_t NComponents>
+template <typename T, std::size_t Bits, std::size_t NSamples>
 auto hist_buffer_of_higher_bits(std::size_t sample_bits,
                                 std::uint32_t const *histogram)
     -> std::vector<std::uint32_t> {
     static_assert(Bits <= 8 * sizeof(T));
     std::vector<std::uint32_t> hist;
-    hist.reserve(NComponents << Bits);
+    hist.reserve(NSamples << Bits);
     hist.assign(histogram,
                 std::next(histogram, std::size_t(1) << sample_bits));
-    hist.resize(NComponents << Bits);
-    for (std::size_t i = 1; i < NComponents; ++i) {
+    hist.resize(NSamples << Bits);
+    for (std::size_t i = 1; i < NSamples; ++i) {
         std::copy_n(std::next(histogram, i << sample_bits),
                     std::size_t(1) << sample_bits,
                     std::next(hist.begin(), i << Bits));
@@ -92,12 +92,12 @@ auto hist_buffer_of_higher_bits(std::size_t sample_bits,
     return hist;
 }
 
-template <typename T, std::size_t Bits, std::size_t NComponents>
+template <typename T, std::size_t Bits, std::size_t NSamples>
 void copy_hist_from_higher_bits(std::size_t sample_bits,
                                 std::uint32_t *histogram,
                                 std::vector<std::uint32_t> const &hist) {
     static_assert(Bits <= 8 * sizeof(T));
-    for (std::size_t i = 0; i < NComponents; ++i) {
+    for (std::size_t i = 0; i < NSamples; ++i) {
         std::copy_n(std::next(hist.begin(), i << Bits),
                     std::size_t(1) << sample_bits,
                     std::next(histogram, i << sample_bits));
