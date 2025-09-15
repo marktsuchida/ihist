@@ -31,32 +31,32 @@ struct hist_function_traits {
     static constexpr tuning_parameters tuning{Stripes, Unroll};
 
     template <bool UseMask, unsigned Bits, unsigned LoBit,
-              std::size_t SamplesPerPixel, std::size_t... ComponentOffsets>
+              std::size_t SamplesPerPixel, std::size_t... SampleIndices>
     static constexpr hist_func_type *hist_func =
         MT ? (Stripes == 0
                   ? hist_unoptimized_mt<T, UseMask, Bits, LoBit,
-                                        SamplesPerPixel, ComponentOffsets...>
+                                        SamplesPerPixel, SampleIndices...>
                   : hist_striped_mt<tuning, T, UseMask, Bits, LoBit,
-                                    SamplesPerPixel, ComponentOffsets...>)
+                                    SamplesPerPixel, SampleIndices...>)
            : (Stripes == 0
                   ? hist_unoptimized_st<T, UseMask, Bits, LoBit,
-                                        SamplesPerPixel, ComponentOffsets...>
+                                        SamplesPerPixel, SampleIndices...>
                   : hist_striped_st<tuning, T, UseMask, Bits, LoBit,
-                                    SamplesPerPixel, ComponentOffsets...>);
+                                    SamplesPerPixel, SampleIndices...>);
 
     template <bool UseMask, unsigned Bits, unsigned LoBit,
-              std::size_t SamplesPerPixel, std::size_t... ComponentOffsets>
+              std::size_t SamplesPerPixel, std::size_t... SampleIndices>
     static constexpr histxy_func_type *histxy_func =
         MT ? Stripes == 0
                  ? histxy_unoptimized_mt<T, UseMask, Bits, LoBit,
-                                         SamplesPerPixel, ComponentOffsets...>
+                                         SamplesPerPixel, SampleIndices...>
                  : histxy_striped_mt<tuning, T, UseMask, Bits, LoBit,
-                                     SamplesPerPixel, ComponentOffsets...>
+                                     SamplesPerPixel, SampleIndices...>
         : Stripes == 0
             ? histxy_unoptimized_st<T, UseMask, Bits, LoBit, SamplesPerPixel,
-                                    ComponentOffsets...>
+                                    SampleIndices...>
             : histxy_striped_st<tuning, T, UseMask, Bits, LoBit,
-                                SamplesPerPixel, ComponentOffsets...>;
+                                SamplesPerPixel, SampleIndices...>;
 };
 
 // For use with TEMPLATE_LIST_TEST_CASE().

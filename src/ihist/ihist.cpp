@@ -107,7 +107,7 @@ void copy_hist_from_higher_bits(std::size_t sample_bits,
 template <typename T, std::size_t Bits,
           ihist::tuning_parameters const &NomaskTuning,
           ihist::tuning_parameters const &MaskedTuning,
-          std::size_t SamplesPerPixel, std::size_t... ComponentOffsets>
+          std::size_t SamplesPerPixel, std::size_t... SampleIndices>
 void hist_2d_impl(std::size_t sample_bits, T const *IHIST_RESTRICT image,
                   std::uint8_t const *IHIST_RESTRICT mask, std::size_t width,
                   std::size_t height, std::size_t roi_x, std::size_t roi_y,
@@ -123,40 +123,39 @@ void hist_2d_impl(std::size_t sample_bits, T const *IHIST_RESTRICT image,
     if (sample_bits == Bits) {
         hist = histogram;
     } else {
-        buffer =
-            hist_buffer_of_higher_bits<T, Bits, sizeof...(ComponentOffsets)>(
-                sample_bits, histogram);
+        buffer = hist_buffer_of_higher_bits<T, Bits, sizeof...(SampleIndices)>(
+            sample_bits, histogram);
         hist = buffer.data();
     }
 
     if (maybe_parallel && roi_width * roi_height >= parallel_size_threshold) {
         if (mask != nullptr) {
             ihist::histxy_striped_mt<MaskedTuning, T, true, Bits, 0,
-                                     SamplesPerPixel, ComponentOffsets...>(
+                                     SamplesPerPixel, SampleIndices...>(
                 image, mask, width, height, roi_x, roi_y, roi_width,
                 roi_height, hist, parallel_grain_size);
         } else {
             ihist::histxy_striped_mt<NomaskTuning, T, false, Bits, 0,
-                                     SamplesPerPixel, ComponentOffsets...>(
+                                     SamplesPerPixel, SampleIndices...>(
                 image, mask, width, height, roi_x, roi_y, roi_width,
                 roi_height, hist, parallel_grain_size);
         }
     } else {
         if (mask != nullptr) {
             ihist::histxy_striped_st<MaskedTuning, T, true, Bits, 0,
-                                     SamplesPerPixel, ComponentOffsets...>(
+                                     SamplesPerPixel, SampleIndices...>(
                 image, mask, width, height, roi_x, roi_y, roi_width,
                 roi_height, hist);
         } else {
             ihist::histxy_striped_st<NomaskTuning, T, false, Bits, 0,
-                                     SamplesPerPixel, ComponentOffsets...>(
+                                     SamplesPerPixel, SampleIndices...>(
                 image, mask, width, height, roi_x, roi_y, roi_width,
                 roi_height, hist);
         }
     }
 
     if (sample_bits < Bits) {
-        copy_hist_from_higher_bits<T, Bits, sizeof...(ComponentOffsets)>(
+        copy_hist_from_higher_bits<T, Bits, sizeof...(SampleIndices)>(
             sample_bits, histogram, buffer);
     }
 }
