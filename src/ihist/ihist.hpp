@@ -417,7 +417,8 @@ using histxy_st_func = void(T const *IHIST_RESTRICT,
 template <typename T, std::size_t HistSize>
 void hist_mt(hist_st_func<T> *hist_func, T const *IHIST_RESTRICT data,
              std::uint8_t const *IHIST_RESTRICT mask, std::size_t size,
-             std::size_t stride, std::uint32_t *IHIST_RESTRICT histogram,
+             std::size_t samples_per_pixel,
+             std::uint32_t *IHIST_RESTRICT histogram,
              std::size_t grain_size = 1) {
     using hist_array = std::array<std::uint32_t, HistSize>;
     tbb::combinable<hist_array> local_hists([] { return hist_array{}; });
@@ -431,7 +432,7 @@ void hist_mt(hist_st_func<T> *hist_func, T const *IHIST_RESTRICT data,
         tbb::parallel_for(tbb::blocked_range<std::size_t>(0, size, grain_size),
                           [&](tbb::blocked_range<std::size_t> const &r) {
                               auto &h = local_hists.local();
-                              hist_func(data + r.begin() * stride,
+                              hist_func(data + r.begin() * samples_per_pixel,
                                         mask == nullptr ? nullptr
                                                         : mask + r.begin(),
                                         r.size(), h.data(), 0);
