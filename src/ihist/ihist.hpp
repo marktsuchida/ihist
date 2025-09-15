@@ -38,8 +38,7 @@ struct tuning_parameters {
     // latency hiding vs spatial locality).
     std::size_t n_stripes;
 
-    // Approximate samples processed per main loop iteration (divided by
-    // component count to determine pixels processed per iteration).
+    // Pixels processed per main loop iteration.
     std::size_t n_unroll;
 };
 

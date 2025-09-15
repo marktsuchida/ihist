@@ -122,7 +122,7 @@ void opencv_histogram(T const *data, u8 const *mask, std::size_t width,
     float const *hist_range[] = {hist_range_0};
 
     // OpenCV calcHist() does not perform multiple histograms in a single call;
-    // the recommended method is to call for each component. Also, the produced
+    // the recommended method is to call for each sample. Also, the produced
     // histogram is always float32 (for which OpenCV has good reason, but here
     // we convert back to u32 -- this overhead is probably small anyway).
     cv::Mat hist;
@@ -243,7 +243,7 @@ auto main(int argc, char **argv) -> int {
 
     const std::vector<std::string> pixel_types{"mono", "abc", "abcx"};
     const std::vector<std::size_t> samples_per_pixel_values{1, 3, 4};
-    const std::vector<std::size_t> component_counts{1, 3, 3};
+    const std::vector<std::size_t> sample_counts{1, 3, 3};
 
     for (int mask = 0; mask < 2; ++mask) {
         std::string const mask_param = "mask:" + std::to_string(mask);
@@ -251,7 +251,7 @@ auto main(int argc, char **argv) -> int {
         for (std::size_t i = 0; i < pixel_types.size(); ++i) {
             std::string const pixel_type = pixel_types[i];
             std::size_t const samples_per_pixel = samples_per_pixel_values[i];
-            std::size_t const n_samples = component_counts[i];
+            std::size_t const n_samples = sample_counts[i];
 
             register_benchmark("unopt/" + pixel_type + "/bits:8/" + mask_param,
                                [=](benchmark::State &state) {
