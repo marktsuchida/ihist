@@ -41,9 +41,32 @@ constexpr auto tuning_12bit_xabc_mask1 = tuning_12bit_abcx_mask1;
 constexpr auto tuning_16bit_xabc_mask0 = tuning_16bit_abcx_mask0;
 constexpr auto tuning_16bit_xabc_mask1 = tuning_16bit_abcx_mask1;
 
-// These values were manually picked, based on benchmarking. Too large and
-// medium-sized images get poorly parallelized. Too small and parallelization
-// overhead becomes significant.
+// The following parallelism tuning values were manually picked, based on
+// benchmarking. (Further work is needed to see if these values work well
+// across different machines.)
+//
+// Tune the grain size, then input size threshold.
+//
+// If the values are too small, efficiency (CPU time for a given input,
+// compared to single-threaded) will decrease. There are two sources of this
+// inefficiency: the per-thread stripe reduction (which scales with chunk
+// count) and the overhead of thread and task management. The grain size and
+// threshold are intended to avoid those two situations, respectively, although
+// they are not completely orthogonal to each other.
+//
+// If the values are too large, latency suffers for "medium" input sizes,
+// because we won't parallelize (or use as many cores as possible).
+//
+// Thus, the tuning requires balancing low latency for slightly larger inputs
+// and high efficiency for slightly smaller inputs. Because our main goal is
+// histogramming for live image stream visualization, we start caring less
+// about absolute latency for a given input size once we are well below 10 ms.
+//
+// (To get an initial estimate, it is useful to limit thread count to 2 and see
+// what grain size and input size are required to prevent excessive
+// inefficiency. After picking the values, check efficiency and latency for all
+// pixel formats, over input sizes spanning the threshold and grain size. Also
+// confirm stability with grain sizes 1/2x and 2x of the chosen value.)
 constexpr std::size_t parallel_size_threshold = 1uLL << 20;
 constexpr std::size_t parallel_grain_size = 1uLL << 20;
 
