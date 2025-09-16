@@ -83,15 +83,13 @@ TEMPLATE_LIST_TEST_CASE("empty-input", "", test_traits_list) {
             SECTION("mono") {
                 constexpr auto *histxy_func =
                     traits::template histxy_func<false, BITS, 0, 1, 0>;
-                histxy_func(nullptr, nullptr, 0, 0, 0, 0, 0, 0, hist.data(),
-                            1);
+                histxy_func(nullptr, nullptr, 0, 0, 42, hist.data(), 1);
                 CHECK(hist == expected);
             }
             SECTION("multi") {
                 constexpr auto *histxy_func =
                     traits::template histxy_func<false, BITS, 0, 4, 3, 0, 1>;
-                histxy_func(nullptr, nullptr, 0, 0, 0, 0, 0, 0, hist3.data(),
-                            1);
+                histxy_func(nullptr, nullptr, 0, 0, 42, hist3.data(), 1);
                 CHECK(hist3 == expected3);
             }
         }
@@ -101,15 +99,14 @@ TEMPLATE_LIST_TEST_CASE("empty-input", "", test_traits_list) {
                 constexpr auto *histxy_func =
                     traits::template histxy_func<false, BITS, 0, 1, 0>;
                 std::vector<T> data(6);
-                histxy_func(data.data(), nullptr, 3, 2, 1, 1, 0, 0,
-                            hist.data(), 1);
+                histxy_func(data.data() + 4, nullptr, 0, 0, 3, hist.data(), 1);
                 CHECK(hist == expected);
             }
             SECTION("multi") {
                 constexpr auto *histxy_func =
                     traits::template histxy_func<false, BITS, 0, 4, 3, 0, 1>;
                 std::vector<T> data(4 * 6);
-                histxy_func(data.data(), nullptr, 3, 2, 1, 1, 0, 0,
+                histxy_func(data.data() + 4 * 4, nullptr, 0, 0, 3,
                             hist3.data(), 1);
                 CHECK(hist3 == expected3);
             }
@@ -121,15 +118,13 @@ TEMPLATE_LIST_TEST_CASE("empty-input", "", test_traits_list) {
             SECTION("mono") {
                 constexpr auto *histxy_func =
                     traits::template histxy_func<true, BITS, 0, 1, 0>;
-                histxy_func(nullptr, nullptr, 0, 0, 0, 0, 0, 0, hist.data(),
-                            1);
+                histxy_func(nullptr, nullptr, 0, 0, 42, hist.data(), 1);
                 CHECK(hist == expected);
             }
             SECTION("multi") {
                 constexpr auto *histxy_func =
                     traits::template histxy_func<true, BITS, 0, 4, 3, 0, 1>;
-                histxy_func(nullptr, nullptr, 0, 0, 0, 0, 0, 0, hist3.data(),
-                            1);
+                histxy_func(nullptr, nullptr, 0, 0, 42, hist3.data(), 1);
                 CHECK(hist3 == expected3);
             }
         }
@@ -140,7 +135,7 @@ TEMPLATE_LIST_TEST_CASE("empty-input", "", test_traits_list) {
                     traits::template histxy_func<true, BITS, 0, 1, 0>;
                 std::vector<T> data(6);
                 std::vector<std::uint8_t> mask(6, 1);
-                histxy_func(data.data(), mask.data(), 3, 2, 1, 1, 0, 0,
+                histxy_func(data.data() + 4, mask.data() + 4, 0, 0, 3,
                             hist.data(), 1);
                 CHECK(hist == expected);
             }
@@ -149,8 +144,8 @@ TEMPLATE_LIST_TEST_CASE("empty-input", "", test_traits_list) {
                     traits::template histxy_func<true, BITS, 0, 4, 3, 0, 1>;
                 std::vector<T> data(4 * 6);
                 std::vector<std::uint8_t> mask(6, 1);
-                histxy_func(data.data(), mask.data(), 3, 2, 1, 1, 0, 0,
-                            hist3.data(), 1);
+                histxy_func(data.data() + 4 * 4, mask.data(), 0, 0, 3,
+                            hist3.data() + 4, 1);
                 CHECK(hist3 == expected3);
             }
         }
@@ -161,8 +156,7 @@ TEMPLATE_LIST_TEST_CASE("empty-input", "", test_traits_list) {
                     traits::template histxy_func<true, BITS, 0, 1, 0>;
                 std::vector<T> data(6);
                 std::vector<std::uint8_t> mask(6);
-                histxy_func(data.data(), mask.data(), 3, 2, 0, 0, 3, 2,
-                            hist.data(), 1);
+                histxy_func(data.data(), mask.data(), 2, 3, 3, hist.data(), 1);
                 CHECK(hist == expected);
             }
             SECTION("multi") {
@@ -170,8 +164,8 @@ TEMPLATE_LIST_TEST_CASE("empty-input", "", test_traits_list) {
                     traits::template histxy_func<true, BITS, 0, 4, 3, 0, 1>;
                 std::vector<T> data(4 * 6);
                 std::vector<std::uint8_t> mask(6);
-                histxy_func(data.data(), mask.data(), 3, 2, 0, 0, 3, 2,
-                            hist3.data(), 1);
+                histxy_func(data.data(), mask.data(), 2, 3, 3, hist3.data(),
+                            1);
                 CHECK(hist3 == expected3);
             }
         }

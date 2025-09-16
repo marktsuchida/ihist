@@ -109,9 +109,8 @@ template <typename T, std::size_t Bits,
           ihist::tuning_parameters const &MaskedTuning,
           std::size_t SamplesPerPixel, std::size_t... SampleIndices>
 void hist_2d_impl(std::size_t sample_bits, T const *IHIST_RESTRICT image,
-                  std::uint8_t const *IHIST_RESTRICT mask, std::size_t width,
-                  std::size_t height, std::size_t roi_x, std::size_t roi_y,
-                  std::size_t roi_width, std::size_t roi_height,
+                  std::uint8_t const *IHIST_RESTRICT mask, std::size_t height,
+                  std::size_t width, std::size_t stride,
                   std::uint32_t *IHIST_RESTRICT histogram,
                   bool maybe_parallel) {
     assert(sample_bits <= Bits);
@@ -128,29 +127,25 @@ void hist_2d_impl(std::size_t sample_bits, T const *IHIST_RESTRICT image,
         hist = buffer.data();
     }
 
-    if (maybe_parallel && roi_width * roi_height >= parallel_size_threshold) {
+    if (maybe_parallel && width * height >= parallel_size_threshold) {
         if (mask != nullptr) {
             ihist::histxy_striped_mt<MaskedTuning, T, true, Bits, 0,
                                      SamplesPerPixel, SampleIndices...>(
-                image, mask, width, height, roi_x, roi_y, roi_width,
-                roi_height, hist, parallel_grain_size);
+                image, mask, height, width, stride, hist, parallel_grain_size);
         } else {
             ihist::histxy_striped_mt<NomaskTuning, T, false, Bits, 0,
                                      SamplesPerPixel, SampleIndices...>(
-                image, mask, width, height, roi_x, roi_y, roi_width,
-                roi_height, hist, parallel_grain_size);
+                image, mask, height, width, stride, hist, parallel_grain_size);
         }
     } else {
         if (mask != nullptr) {
             ihist::histxy_striped_st<MaskedTuning, T, true, Bits, 0,
                                      SamplesPerPixel, SampleIndices...>(
-                image, mask, width, height, roi_x, roi_y, roi_width,
-                roi_height, hist);
+                image, mask, height, width, stride, hist);
         } else {
             ihist::histxy_striped_st<NomaskTuning, T, false, Bits, 0,
                                      SamplesPerPixel, SampleIndices...>(
-                image, mask, width, height, roi_x, roi_y, roi_width,
-                roi_height, hist);
+                image, mask, height, width, stride, hist);
         }
     }
 
@@ -164,125 +159,116 @@ void hist_2d_impl(std::size_t sample_bits, T const *IHIST_RESTRICT image,
 
 extern "C" IHIST_PUBLIC void
 ihist_hist8_mono_2d(size_t sample_bits, uint8_t const *IHIST_RESTRICT image,
-                    uint8_t const *IHIST_RESTRICT mask, size_t width,
-                    size_t height, size_t roi_x, size_t roi_y,
-                    size_t roi_width, size_t roi_height,
+                    uint8_t const *IHIST_RESTRICT mask, size_t height,
+                    size_t width, size_t stride,
                     uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel) {
     hist_2d_impl<std::uint8_t, 8, tuning_8bit_mono_mask0,
-                 tuning_8bit_mono_mask1, 1, 0>(
-        sample_bits, image, mask, width, height, roi_x, roi_y, roi_width,
-        roi_height, histogram, maybe_parallel);
+                 tuning_8bit_mono_mask1, 1, 0>(sample_bits, image, mask,
+                                               height, width, stride,
+                                               histogram, maybe_parallel);
 }
 
 extern "C" IHIST_PUBLIC void
 ihist_hist8_abc_2d(size_t sample_bits, uint8_t const *IHIST_RESTRICT image,
-                   uint8_t const *IHIST_RESTRICT mask, size_t width,
-                   size_t height, size_t roi_x, size_t roi_y, size_t roi_width,
-                   size_t roi_height, uint32_t *IHIST_RESTRICT histogram,
-                   bool maybe_parallel) {
+                   uint8_t const *IHIST_RESTRICT mask, size_t height,
+                   size_t width, size_t stride,
+                   uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel) {
     hist_2d_impl<std::uint8_t, 8, tuning_8bit_abc_mask0, tuning_8bit_abc_mask1,
-                 3, 0, 1, 2>(sample_bits, image, mask, width, height, roi_x,
-                             roi_y, roi_width, roi_height, histogram,
-                             maybe_parallel);
+                 3, 0, 1, 2>(sample_bits, image, mask, height, width, stride,
+                             histogram, maybe_parallel);
 }
 
 extern "C" IHIST_PUBLIC void
 ihist_hist8_abcx_2d(size_t sample_bits, uint8_t const *IHIST_RESTRICT image,
-                    uint8_t const *IHIST_RESTRICT mask, size_t width,
-                    size_t height, size_t roi_x, size_t roi_y,
-                    size_t roi_width, size_t roi_height,
+                    uint8_t const *IHIST_RESTRICT mask, size_t height,
+                    size_t width, size_t stride,
                     uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel) {
     hist_2d_impl<std::uint8_t, 8, tuning_8bit_abcx_mask0,
                  tuning_8bit_abcx_mask1, 4, 0, 1, 2>(
-        sample_bits, image, mask, width, height, roi_x, roi_y, roi_width,
-        roi_height, histogram, maybe_parallel);
+        sample_bits, image, mask, height, width, stride, histogram,
+        maybe_parallel);
 }
 
 extern "C" IHIST_PUBLIC void
 ihist_hist8_xabc_2d(size_t sample_bits, uint8_t const *IHIST_RESTRICT image,
-                    uint8_t const *IHIST_RESTRICT mask, size_t width,
-                    size_t height, size_t roi_x, size_t roi_y,
-                    size_t roi_width, size_t roi_height,
+                    uint8_t const *IHIST_RESTRICT mask, size_t height,
+                    size_t width, size_t stride,
                     uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel) {
     hist_2d_impl<std::uint8_t, 8, tuning_8bit_xabc_mask0,
                  tuning_8bit_xabc_mask1, 4, 1, 2, 3>(
-        sample_bits, image, mask, width, height, roi_x, roi_y, roi_width,
-        roi_height, histogram, maybe_parallel);
+        sample_bits, image, mask, height, width, stride, histogram,
+        maybe_parallel);
 }
 
 extern "C" IHIST_PUBLIC void
 ihist_hist16_mono_2d(size_t sample_bits, uint16_t const *IHIST_RESTRICT image,
-                     uint8_t const *IHIST_RESTRICT mask, size_t width,
-                     size_t height, size_t roi_x, size_t roi_y,
-                     size_t roi_width, size_t roi_height,
+                     uint8_t const *IHIST_RESTRICT mask, size_t height,
+                     size_t width, size_t stride,
                      uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel) {
     if (sample_bits <= 12) {
         hist_2d_impl<std::uint16_t, 12, tuning_12bit_mono_mask0,
-                     tuning_12bit_mono_mask1, 1, 0>(
-            sample_bits, image, mask, width, height, roi_x, roi_y, roi_width,
-            roi_height, histogram, maybe_parallel);
+                     tuning_12bit_mono_mask1, 1, 0>(sample_bits, image, mask,
+                                                    height, width, stride,
+                                                    histogram, maybe_parallel);
 
     } else {
         hist_2d_impl<std::uint16_t, 16, tuning_16bit_mono_mask0,
-                     tuning_16bit_mono_mask1, 1, 0>(
-            sample_bits, image, mask, width, height, roi_x, roi_y, roi_width,
-            roi_height, histogram, maybe_parallel);
+                     tuning_16bit_mono_mask1, 1, 0>(sample_bits, image, mask,
+                                                    height, width, stride,
+                                                    histogram, maybe_parallel);
     }
 }
 
 extern "C" IHIST_PUBLIC void
 ihist_hist16_abc_2d(size_t sample_bits, uint16_t const *IHIST_RESTRICT image,
-                    uint8_t const *IHIST_RESTRICT mask, size_t width,
-                    size_t height, size_t roi_x, size_t roi_y,
-                    size_t roi_width, size_t roi_height,
+                    uint8_t const *IHIST_RESTRICT mask, size_t height,
+                    size_t width, size_t stride,
                     uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel) {
     if (sample_bits <= 12) {
         hist_2d_impl<std::uint16_t, 12, tuning_12bit_abc_mask0,
                      tuning_12bit_abc_mask1, 3, 0, 1, 2>(
-            sample_bits, image, mask, width, height, roi_x, roi_y, roi_width,
-            roi_height, histogram, maybe_parallel);
+            sample_bits, image, mask, height, width, stride, histogram,
+            maybe_parallel);
     } else {
         hist_2d_impl<std::uint16_t, 16, tuning_16bit_abc_mask0,
                      tuning_16bit_abc_mask1, 3, 0, 1, 2>(
-            sample_bits, image, mask, width, height, roi_x, roi_y, roi_width,
-            roi_height, histogram, maybe_parallel);
+            sample_bits, image, mask, height, width, stride, histogram,
+            maybe_parallel);
     }
 }
 
 extern "C" IHIST_PUBLIC void
 ihist_hist16_abcx_2d(size_t sample_bits, uint16_t const *IHIST_RESTRICT image,
-                     uint8_t const *IHIST_RESTRICT mask, size_t width,
-                     size_t height, size_t roi_x, size_t roi_y,
-                     size_t roi_width, size_t roi_height,
+                     uint8_t const *IHIST_RESTRICT mask, size_t height,
+                     size_t width, size_t stride,
                      uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel) {
     if (sample_bits <= 12) {
         hist_2d_impl<std::uint16_t, 12, tuning_12bit_abcx_mask0,
                      tuning_12bit_abcx_mask1, 4, 0, 1, 2>(
-            sample_bits, image, mask, width, height, roi_x, roi_y, roi_width,
-            roi_height, histogram, maybe_parallel);
+            sample_bits, image, mask, height, width, stride, histogram,
+            maybe_parallel);
     } else {
         hist_2d_impl<std::uint16_t, 16, tuning_16bit_abcx_mask0,
                      tuning_16bit_abcx_mask1, 4, 0, 1, 2>(
-            sample_bits, image, mask, width, height, roi_x, roi_y, roi_width,
-            roi_height, histogram, maybe_parallel);
+            sample_bits, image, mask, height, width, stride, histogram,
+            maybe_parallel);
     }
 }
 
 extern "C" IHIST_PUBLIC void
 ihist_hist16_xabc_2d(size_t sample_bits, uint16_t const *IHIST_RESTRICT image,
-                     uint8_t const *IHIST_RESTRICT mask, size_t width,
-                     size_t height, size_t roi_x, size_t roi_y,
-                     size_t roi_width, size_t roi_height,
+                     uint8_t const *IHIST_RESTRICT mask, size_t height,
+                     size_t width, size_t stride,
                      uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel) {
     if (sample_bits <= 12) {
         hist_2d_impl<std::uint16_t, 12, tuning_12bit_xabc_mask0,
                      tuning_12bit_xabc_mask1, 4, 1, 2, 3>(
-            sample_bits, image, mask, width, height, roi_x, roi_y, roi_width,
-            roi_height, histogram, maybe_parallel);
+            sample_bits, image, mask, height, width, stride, histogram,
+            maybe_parallel);
     } else {
         hist_2d_impl<std::uint16_t, 16, tuning_16bit_xabc_mask0,
                      tuning_16bit_xabc_mask1, 4, 1, 2, 3>(
-            sample_bits, image, mask, width, height, roi_x, roi_y, roi_width,
-            roi_height, histogram, maybe_parallel);
+            sample_bits, image, mask, height, width, stride, histogram,
+            maybe_parallel);
     }
 }

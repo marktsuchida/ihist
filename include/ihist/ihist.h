@@ -43,51 +43,43 @@ extern "C" {
 
 IHIST_PUBLIC void
 ihist_hist8_mono_2d(size_t sample_bits, uint8_t const *IHIST_RESTRICT image,
-                    uint8_t const *IHIST_RESTRICT mask, size_t width,
-                    size_t height, size_t roi_x, size_t roi_y,
-                    size_t roi_width, size_t roi_height,
+                    uint8_t const *IHIST_RESTRICT mask, size_t height,
+                    size_t width, size_t stride,
                     uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel);
 IHIST_PUBLIC void
 ihist_hist8_abc_2d(size_t sample_bits, uint8_t const *IHIST_RESTRICT image,
-                   uint8_t const *IHIST_RESTRICT mask, size_t width,
-                   size_t height, size_t roi_x, size_t roi_y, size_t roi_width,
-                   size_t roi_height, uint32_t *IHIST_RESTRICT histogram,
-                   bool maybe_parallel);
+                   uint8_t const *IHIST_RESTRICT mask, size_t height,
+                   size_t width, size_t stride,
+                   uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel);
 IHIST_PUBLIC void
 ihist_hist8_abcx_2d(size_t sample_bits, uint8_t const *IHIST_RESTRICT image,
-                    uint8_t const *IHIST_RESTRICT mask, size_t width,
-                    size_t height, size_t roi_x, size_t roi_y,
-                    size_t roi_width, size_t roi_height,
+                    uint8_t const *IHIST_RESTRICT mask, size_t height,
+                    size_t width, size_t stride,
                     uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel);
 IHIST_PUBLIC void
 ihist_hist8_xabc_2d(size_t sample_bits, uint8_t const *IHIST_RESTRICT image,
-                    uint8_t const *IHIST_RESTRICT mask, size_t width,
-                    size_t height, size_t roi_x, size_t roi_y,
-                    size_t roi_width, size_t roi_height,
+                    uint8_t const *IHIST_RESTRICT mask, size_t height,
+                    size_t width, size_t stride,
                     uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel);
 IHIST_PUBLIC void
 ihist_hist16_mono_2d(size_t sample_bits, uint16_t const *IHIST_RESTRICT image,
-                     uint8_t const *IHIST_RESTRICT mask, size_t width,
-                     size_t height, size_t roi_x, size_t roi_y,
-                     size_t roi_width, size_t roi_height,
+                     uint8_t const *IHIST_RESTRICT mask, size_t height,
+                     size_t width, size_t stride,
                      uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel);
 IHIST_PUBLIC void
 ihist_hist16_abc_2d(size_t sample_bits, uint16_t const *IHIST_RESTRICT image,
-                    uint8_t const *IHIST_RESTRICT mask, size_t width,
-                    size_t height, size_t roi_x, size_t roi_y,
-                    size_t roi_width, size_t roi_height,
+                    uint8_t const *IHIST_RESTRICT mask, size_t height,
+                    size_t width, size_t stride,
                     uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel);
 IHIST_PUBLIC void
 ihist_hist16_abcx_2d(size_t sample_bits, uint16_t const *IHIST_RESTRICT image,
-                     uint8_t const *IHIST_RESTRICT mask, size_t width,
-                     size_t height, size_t roi_x, size_t roi_y,
-                     size_t roi_width, size_t roi_height,
+                     uint8_t const *IHIST_RESTRICT mask, size_t height,
+                     size_t width, size_t stride,
                      uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel);
 IHIST_PUBLIC void
 ihist_hist16_xabc_2d(size_t sample_bits, uint16_t const *IHIST_RESTRICT image,
-                     uint8_t const *IHIST_RESTRICT mask, size_t width,
-                     size_t height, size_t roi_x, size_t roi_y,
-                     size_t roi_width, size_t roi_height,
+                     uint8_t const *IHIST_RESTRICT mask, size_t height,
+                     size_t width, size_t stride,
                      uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel);
 
 #ifdef __cplusplus

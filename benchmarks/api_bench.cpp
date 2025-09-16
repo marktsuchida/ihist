@@ -32,8 +32,7 @@ using i64 = std::int64_t;
 
 template <typename T>
 using ihist_api_func = void(std::size_t, T const *, u8 const *, std::size_t,
-                            std::size_t, std::size_t, std::size_t, std::size_t,
-                            std::size_t, u32 *, bool);
+                            std::size_t, std::size_t, u32 *, bool);
 
 template <typename T>
 void bm_ihist_api(benchmark::State &state, ihist_api_func<T> *func,
@@ -48,8 +47,8 @@ void bm_ihist_api(benchmark::State &state, ihist_api_func<T> *func,
     auto const mask = generate_circle_mask(width, height);
     std::vector<u32> hist(n_samples * (1 << bits));
     for ([[maybe_unused]] auto _ : state) {
-        func(bits, data.data(), masked ? mask.data() : nullptr, width, height,
-             0, 0, width, height, hist.data(), mt);
+        func(bits, data.data(), masked ? mask.data() : nullptr, height, width,
+             width, hist.data(), mt);
         benchmark::DoNotOptimize(hist.data());
     }
     state.SetBytesProcessed(static_cast<i64>(state.iterations()) * size *
@@ -64,7 +63,6 @@ void bm_ihist_api(benchmark::State &state, ihist_api_func<T> *func,
 
 template <typename T>
 using ihist_internal_func = void(T const *, u8 const *, std::size_t,
-                                 std::size_t, std::size_t, std::size_t,
                                  std::size_t, std::size_t, u32 *, std::size_t);
 
 template <typename T>
@@ -80,8 +78,8 @@ void bm_ihist_internal(benchmark::State &state, ihist_internal_func<T> *func,
     auto const mask = generate_circle_mask(width, height);
     std::vector<u32> hist(n_samples * (1 << bits));
     for ([[maybe_unused]] auto _ : state) {
-        func(data.data(), masked ? mask.data() : nullptr, width, height, 0, 0,
-             width, height, hist.data(), 0);
+        func(data.data(), masked ? mask.data() : nullptr, height, width, width,
+             hist.data(), 0);
         benchmark::DoNotOptimize(hist.data());
     }
     state.SetBytesProcessed(static_cast<i64>(state.iterations()) * size *
@@ -97,8 +95,8 @@ void bm_ihist_internal(benchmark::State &state, ihist_internal_func<T> *func,
 #if IHIST_HAVE_OPENCV
 
 template <typename T>
-void opencv_histogram(T const *data, u8 const *mask, std::size_t width,
-                      std::size_t height, std::size_t bits,
+void opencv_histogram(T const *data, u8 const *mask, std::size_t height,
+                      std::size_t width, std::size_t bits,
                       std::size_t samples_per_pixel, std::size_t n_samples,
                       u32 *histogram) {
     auto const mat_type = [](int s) {
@@ -153,8 +151,8 @@ void bm_opencv(benchmark::State &state, std::size_t bits,
     auto const mask = generate_circle_mask(width, height);
     std::vector<u32> hist(n_samples * (1 << bits));
     for ([[maybe_unused]] auto _ : state) {
-        opencv_histogram(data.data(), masked ? mask.data() : nullptr, width,
-                         height, bits, samples_per_pixel, n_samples,
+        opencv_histogram(data.data(), masked ? mask.data() : nullptr, height,
+                         width, bits, samples_per_pixel, n_samples,
                          hist.data());
         benchmark::DoNotOptimize(hist.data());
     }

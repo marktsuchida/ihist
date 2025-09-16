@@ -106,8 +106,8 @@ TEMPLATE_LIST_TEST_CASE("all-values", "", test_traits_list) {
                 constexpr auto *histxy_func =
                     traits::template histxy_func<false, FULL_BITS, FULL_SHIFT,
                                                  1, 0>;
-                histxy_func(data.data(), nullptr, width, height, 0, 0, width,
-                            height, hist.data(), 1);
+                histxy_func(data.data(), nullptr, height, width, width,
+                            hist.data(), 1);
                 CHECK(hist == expected);
             }
             SECTION("halfbits") {
@@ -117,8 +117,8 @@ TEMPLATE_LIST_TEST_CASE("all-values", "", test_traits_list) {
                 constexpr auto *histxy_func =
                     traits::template histxy_func<false, HALF_BITS, HALF_SHIFT,
                                                  1, 0>;
-                histxy_func(data.data(), nullptr, width, height, 0, 0, width,
-                            height, hist.data(), 1);
+                histxy_func(data.data(), nullptr, height, width, width,
+                            hist.data(), 1);
                 CHECK(hist == expected);
             }
         }
@@ -129,8 +129,8 @@ TEMPLATE_LIST_TEST_CASE("all-values", "", test_traits_list) {
                 constexpr auto *histxy_func =
                     traits::template histxy_func<false, FULL_BITS, FULL_SHIFT,
                                                  4, 3, 0, 1>;
-                histxy_func(data4.data(), nullptr, width, height, 0, 0, width,
-                            height, hist3.data(), 1);
+                histxy_func(data4.data(), nullptr, height, width, width,
+                            hist3.data(), 1);
                 CHECK(hist3 == expected3);
             }
             SECTION("halfbits") {
@@ -140,8 +140,8 @@ TEMPLATE_LIST_TEST_CASE("all-values", "", test_traits_list) {
                 constexpr auto *histxy_func =
                     traits::template histxy_func<false, HALF_BITS, HALF_SHIFT,
                                                  4, 3, 0, 1>;
-                histxy_func(data4.data(), nullptr, width, height, 0, 0, width,
-                            height, hist3.data(), 1);
+                histxy_func(data4.data(), nullptr, height, width, width,
+                            hist3.data(), 1);
                 CHECK(hist3 == expected3);
             }
         }

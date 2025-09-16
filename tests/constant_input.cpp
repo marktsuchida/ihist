@@ -249,24 +249,25 @@ TEMPLATE_LIST_TEST_CASE("constant-input", "", test_traits_list) {
                     constexpr auto *histxy_func =
                         traits::template histxy_func<false, FULL_BITS,
                                                      FULL_SHIFT, 1, 0>;
-                    histxy_func(quad_data.data(), nullptr, width, height,
-                                quad_x, quad_y, quad_width, quad_height,
+                    histxy_func(quad_data.data() + quad_y * width + quad_x,
+                                nullptr, quad_height, quad_width, width,
                                 hist.data(), 1);
                 }
                 SECTION("mask") {
                     constexpr auto *histxy_func =
                         traits::template histxy_func<true, FULL_BITS,
                                                      FULL_SHIFT, 1, 0>;
-                    histxy_func(quad_data.data(), quad_mask.data(), width,
-                                height, 0, 0, width, height, hist.data(), 1);
+                    histxy_func(quad_data.data(), quad_mask.data(), height,
+                                width, width, hist.data(), 1);
                 }
                 SECTION("roi+mask") {
                     constexpr auto *histxy_func =
                         traits::template histxy_func<true, FULL_BITS,
                                                      FULL_SHIFT, 1, 0>;
-                    histxy_func(quad_data.data(), quad_mask.data(), width,
-                                height, quad_x, quad_y, quad_width,
-                                quad_height, hist.data(), 1);
+                    histxy_func(quad_data.data() + quad_y * width + quad_x,
+                                quad_mask.data() + quad_y * width + quad_x,
+                                quad_height, quad_width, width, hist.data(),
+                                1);
                 }
                 CHECK(hist == expected);
             }
@@ -281,24 +282,25 @@ TEMPLATE_LIST_TEST_CASE("constant-input", "", test_traits_list) {
                     constexpr auto *histxy_func =
                         traits::template histxy_func<false, HALF_BITS,
                                                      HALF_SHIFT, 1, 0>;
-                    histxy_func(quad_data.data(), nullptr, width, height,
-                                quad_x, quad_y, quad_width, quad_height,
+                    histxy_func(quad_data.data() + quad_y * width + quad_x,
+                                nullptr, quad_height, quad_width, width,
                                 hist.data(), 1);
                 }
                 SECTION("mask") {
                     constexpr auto *histxy_func =
                         traits::template histxy_func<true, HALF_BITS,
                                                      HALF_SHIFT, 1, 0>;
-                    histxy_func(quad_data.data(), quad_mask.data(), width,
-                                height, 0, 0, width, height, hist.data(), 1);
+                    histxy_func(quad_data.data(), quad_mask.data(), height,
+                                width, width, hist.data(), 1);
                 }
                 SECTION("roi+mask") {
                     constexpr auto *histxy_func =
                         traits::template histxy_func<true, HALF_BITS,
                                                      HALF_SHIFT, 1, 0>;
-                    histxy_func(quad_data.data(), quad_mask.data(), width,
-                                height, quad_x, quad_y, quad_width,
-                                quad_height, hist.data(), 1);
+                    histxy_func(quad_data.data() + quad_y * width + quad_x,
+                                quad_mask.data() + quad_y * width + quad_x,
+                                quad_height, quad_width, width, hist.data(),
+                                1);
                 }
                 CHECK(hist == expected);
             }
@@ -318,24 +320,26 @@ TEMPLATE_LIST_TEST_CASE("constant-input", "", test_traits_list) {
                     constexpr auto *histxy_func =
                         traits::template histxy_func<false, FULL_BITS,
                                                      FULL_SHIFT, 4, 3, 0, 1>;
-                    histxy_func(quad4_data.data(), nullptr, width, height,
-                                quad_x, quad_y, quad_width, quad_height,
+                    histxy_func(quad4_data.data() +
+                                    4 * (quad_y * width + quad_x),
+                                nullptr, quad_height, quad_width, width,
                                 hist3.data(), 1);
                 }
                 SECTION("mask") {
                     constexpr auto *histxy_func =
                         traits::template histxy_func<true, FULL_BITS,
                                                      FULL_SHIFT, 4, 3, 0, 1>;
-                    histxy_func(quad4_data.data(), quad_mask.data(), width,
-                                height, 0, 0, width, height, hist3.data(), 1);
+                    histxy_func(quad4_data.data(), quad_mask.data(), height,
+                                width, width, hist3.data(), 1);
                 }
                 SECTION("roi+mask") {
                     constexpr auto *histxy_func =
                         traits::template histxy_func<true, FULL_BITS,
                                                      FULL_SHIFT, 4, 3, 0, 1>;
-                    histxy_func(quad4_data.data(), quad_mask.data(), width,
-                                height, quad_x, quad_y, quad_width,
-                                quad_height, hist3.data(), 1);
+                    histxy_func(
+                        quad4_data.data() + 4 * (quad_y * width + quad_x),
+                        quad_mask.data() + quad_y * width + quad_x,
+                        quad_height, quad_width, width, hist3.data(), 1);
                 }
                 CHECK(hist3 == expected3);
             }
@@ -353,24 +357,26 @@ TEMPLATE_LIST_TEST_CASE("constant-input", "", test_traits_list) {
                     constexpr auto *histxy_func =
                         traits::template histxy_func<false, HALF_BITS,
                                                      HALF_SHIFT, 4, 3, 0, 1>;
-                    histxy_func(quad4_data.data(), nullptr, width, height,
-                                quad_x, quad_y, quad_width, quad_height,
+                    histxy_func(quad4_data.data() +
+                                    4 * (quad_y * width + quad_x),
+                                nullptr, quad_height, quad_width, width,
                                 hist3.data(), 1);
                 }
                 SECTION("mask") {
                     constexpr auto *histxy_func =
                         traits::template histxy_func<true, HALF_BITS,
                                                      HALF_SHIFT, 4, 3, 0, 1>;
-                    histxy_func(quad4_data.data(), quad_mask.data(), width,
-                                height, 0, 0, width, height, hist3.data(), 1);
+                    histxy_func(quad4_data.data(), quad_mask.data(), height,
+                                width, width, hist3.data(), 1);
                 }
                 SECTION("roi+mask") {
                     constexpr auto *histxy_func =
                         traits::template histxy_func<true, HALF_BITS,
                                                      HALF_SHIFT, 4, 3, 0, 1>;
-                    histxy_func(quad4_data.data(), quad_mask.data(), width,
-                                height, quad_x, quad_y, quad_width,
-                                quad_height, hist3.data(), 1);
+                    histxy_func(
+                        quad4_data.data() + 4 * (quad_y * width + quad_x),
+                        quad_mask.data() + quad_y * width + quad_x,
+                        quad_height, quad_width, width, hist3.data(), 1);
                 }
                 CHECK(hist3 == expected3);
             }

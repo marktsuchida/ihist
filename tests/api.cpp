@@ -49,20 +49,22 @@ constexpr std::size_t size = width * height;
         SECTION("nomask") {                                                   \
             ihist::histxy_unoptimized_st<u##format_bits, false, sample_bits,  \
                                          0, 1, 0>(                            \
-                data.data(), nullptr, width, height, roi_x, roi_y, roi_width, \
-                roi_height, ref.data());                                      \
+                data.data() + roi_y * width + roi_x, nullptr, roi_height,     \
+                roi_width, width, ref.data());                                \
             ihist_hist##format_bits##_mono_2d(                                \
-                sample_bits, data.data(), nullptr, width, height, roi_x,      \
-                roi_y, roi_width, roi_height, hist.data(), parallel);         \
+                sample_bits, data.data() + roi_y * width + roi_x, nullptr,    \
+                roi_height, roi_width, width, hist.data(), parallel);         \
         }                                                                     \
         SECTION("mask") {                                                     \
             ihist::histxy_unoptimized_st<u##format_bits, true, sample_bits,   \
                                          0, 1, 0>(                            \
-                data.data(), mask.data(), width, height, roi_x, roi_y,        \
-                roi_width, roi_height, ref.data());                           \
+                data.data() + roi_y * width + roi_x,                          \
+                mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
+                width, ref.data());                                           \
             ihist_hist##format_bits##_mono_2d(                                \
-                sample_bits, data.data(), mask.data(), width, height, roi_x,  \
-                roi_y, roi_width, roi_height, hist.data(), parallel);         \
+                sample_bits, data.data() + roi_y * width + roi_x,             \
+                mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
+                width, hist.data(), parallel);                                \
         }                                                                     \
         CHECK(hist == ref);                                                   \
     }
@@ -80,20 +82,23 @@ constexpr std::size_t size = width * height;
         SECTION("nomask") {                                                   \
             ihist::histxy_unoptimized_st<u##format_bits, false, sample_bits,  \
                                          0, 3, 0, 1, 2>(                      \
-                data.data(), nullptr, width, height, roi_x, roi_y, roi_width, \
-                roi_height, ref.data());                                      \
+                data.data() + 3 * (roi_y * width + roi_x), nullptr,           \
+                roi_height, roi_width, width, ref.data());                    \
             ihist_hist##format_bits##_abc_2d(                                 \
-                sample_bits, data.data(), nullptr, width, height, roi_x,      \
-                roi_y, roi_width, roi_height, hist.data(), parallel);         \
+                sample_bits, data.data() + 3 * (roi_y * width + roi_x),       \
+                nullptr, roi_height, roi_width, width, hist.data(),           \
+                parallel);                                                    \
         }                                                                     \
         SECTION("mask") {                                                     \
             ihist::histxy_unoptimized_st<u##format_bits, true, sample_bits,   \
                                          0, 3, 0, 1, 2>(                      \
-                data.data(), mask.data(), width, height, roi_x, roi_y,        \
-                roi_width, roi_height, ref.data());                           \
+                data.data() + 3 * (roi_y * width + roi_x),                    \
+                mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
+                width, ref.data());                                           \
             ihist_hist##format_bits##_abc_2d(                                 \
-                sample_bits, data.data(), mask.data(), width, height, roi_x,  \
-                roi_y, roi_width, roi_height, hist.data(), parallel);         \
+                sample_bits, data.data() + 3 * (roi_y * width + roi_x),       \
+                mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
+                width, hist.data(), parallel);                                \
         }                                                                     \
         CHECK(hist == ref);                                                   \
     }
@@ -111,20 +116,23 @@ constexpr std::size_t size = width * height;
         SECTION("nomask") {                                                   \
             ihist::histxy_unoptimized_st<u##format_bits, false, sample_bits,  \
                                          0, 4, 0, 1, 2>(                      \
-                data.data(), nullptr, width, height, roi_x, roi_y, roi_width, \
-                roi_height, ref.data());                                      \
+                data.data() + 4 * (roi_y * width + roi_x), nullptr,           \
+                roi_height, roi_width, width, ref.data());                    \
             ihist_hist##format_bits##_abcx_2d(                                \
-                sample_bits, data.data(), nullptr, width, height, roi_x,      \
-                roi_y, roi_width, roi_height, hist.data(), parallel);         \
+                sample_bits, data.data() + 4 * (roi_y * width + roi_x),       \
+                nullptr, roi_height, roi_width, width, hist.data(),           \
+                parallel);                                                    \
         }                                                                     \
         SECTION("mask") {                                                     \
             ihist::histxy_unoptimized_st<u##format_bits, true, sample_bits,   \
                                          0, 4, 0, 1, 2>(                      \
-                data.data(), mask.data(), width, height, roi_x, roi_y,        \
-                roi_width, roi_height, ref.data());                           \
+                data.data() + 4 * (roi_y * width + roi_x),                    \
+                mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
+                width, ref.data());                                           \
             ihist_hist##format_bits##_abcx_2d(                                \
-                sample_bits, data.data(), mask.data(), width, height, roi_x,  \
-                roi_y, roi_width, roi_height, hist.data(), parallel);         \
+                sample_bits, data.data() + 4 * (roi_y * width + roi_x),       \
+                mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
+                width, hist.data(), parallel);                                \
         }                                                                     \
         CHECK(hist == ref);                                                   \
     }
@@ -142,20 +150,23 @@ constexpr std::size_t size = width * height;
         SECTION("nomask") {                                                   \
             ihist::histxy_unoptimized_st<u##format_bits, false, sample_bits,  \
                                          0, 4, 1, 2, 3>(                      \
-                data.data(), nullptr, width, height, roi_x, roi_y, roi_width, \
-                roi_height, ref.data());                                      \
+                data.data() + 4 * (roi_y * width + roi_x), nullptr,           \
+                roi_height, roi_width, width, ref.data());                    \
             ihist_hist##format_bits##_xabc_2d(                                \
-                sample_bits, data.data(), nullptr, width, height, roi_x,      \
-                roi_y, roi_width, roi_height, hist.data(), parallel);         \
+                sample_bits, data.data() + 4 * (roi_y * width + roi_x),       \
+                nullptr, roi_height, roi_width, width, hist.data(),           \
+                parallel);                                                    \
         }                                                                     \
         SECTION("mask") {                                                     \
             ihist::histxy_unoptimized_st<u##format_bits, true, sample_bits,   \
                                          0, 4, 1, 2, 3>(                      \
-                data.data(), mask.data(), width, height, roi_x, roi_y,        \
-                roi_width, roi_height, ref.data());                           \
+                data.data() + 4 * (roi_y * width + roi_x),                    \
+                mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
+                width, ref.data());                                           \
             ihist_hist##format_bits##_xabc_2d(                                \
-                sample_bits, data.data(), mask.data(), width, height, roi_x,  \
-                roi_y, roi_width, roi_height, hist.data(), parallel);         \
+                sample_bits, data.data() + 4 * (roi_y * width + roi_x),       \
+                mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
+                width, hist.data(), parallel);                                \
         }                                                                     \
         CHECK(hist == ref);                                                   \
     }

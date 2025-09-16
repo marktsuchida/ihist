@@ -24,7 +24,6 @@ struct hist_function_traits {
                                 std::uint32_t *, std::size_t);
 
     using histxy_func_type = void(T const *, std::uint8_t const *, std::size_t,
-                                  std::size_t, std::size_t, std::size_t,
                                   std::size_t, std::size_t, std::uint32_t *,
                                   std::size_t);
 

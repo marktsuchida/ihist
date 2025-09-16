@@ -87,8 +87,7 @@ using hist_func = void(T const *, u8 const *, std::size_t, u32 *, std::size_t);
 
 template <typename T>
 using histxy_func = void(T const *, u8 const *, std::size_t, std::size_t,
-                         std::size_t, std::size_t, std::size_t, std::size_t,
-                         u32 *, std::size_t);
+                         std::size_t, u32 *, std::size_t);
 
 template <typename T>
 void bm_hist(benchmark::State &state, hist_func<T> *func, std::size_t bits,
@@ -135,8 +134,8 @@ void bm_histxy(benchmark::State &state, histxy_func<T> *func, std::size_t bits,
     std::vector<u32> hist(n_samples * (1 << bits));
     for ([[maybe_unused]] auto _ : state) {
         std::fill(hist.begin(), hist.end(), 0);
-        func(data.data(), mask.data(), width, height, 0, 0, width, height,
-             hist.data(), grain_size);
+        func(data.data(), mask.data(), height, width, width, hist.data(),
+             grain_size);
         benchmark::DoNotOptimize(hist);
     }
     state.SetBytesProcessed(static_cast<i64>(state.iterations()) * roi_size *

@@ -126,12 +126,10 @@ template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
           std::size_t Sample0Index = 0, std::size_t... SampleIndices>
 /* not noinline */ void histxy_unoptimized_st(
     T const *IHIST_RESTRICT data, std::uint8_t const *IHIST_RESTRICT mask,
-    std::size_t width, [[maybe_unused]] std::size_t height, std::size_t roi_x,
-    std::size_t roi_y, std::size_t roi_width, std::size_t roi_height,
+    std::size_t height, std::size_t width, std::size_t stride,
     std::uint32_t *IHIST_RESTRICT histogram, std::size_t = 0) {
     assert(width * height < std::numeric_limits<std::uint32_t>::max());
-    assert(roi_x + roi_width <= width);
-    assert(roi_y + roi_height <= height);
+    assert(width <= stride);
 
     static_assert(std::max({Sample0Index, SampleIndices...}) <
                   SamplesPerPixel);
@@ -146,14 +144,14 @@ template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
 #elif defined(__GNUC__)
 #pragma GCC unroll 0
 #endif
-    for (std::size_t y = roi_y; y < roi_y + roi_height; ++y) {
+    for (std::size_t y = 0; y < height; ++y) {
 #ifdef __clang__
 #pragma clang loop unroll(disable)
 #elif defined(__GNUC__)
 #pragma GCC unroll 0
 #endif
-        for (std::size_t x = roi_x; x < roi_x + roi_width; ++x) {
-            auto const j = x + y * width;
+        for (std::size_t x = 0; x < width; ++x) {
+            auto const j = y * stride + x;
             auto const i = j * SamplesPerPixel;
             if (!UseMask || mask[j]) {
                 for (std::size_t s = 0; s < NSAMPLES; ++s) {
@@ -301,13 +299,11 @@ template <tuning_parameters const &Tuning, typename T, bool UseMask = false,
           std::size_t... SampleIndices>
 IHIST_NOINLINE void
 histxy_striped_st(T const *IHIST_RESTRICT data,
-                  std::uint8_t const *IHIST_RESTRICT mask, std::size_t width,
-                  std::size_t height, std::size_t roi_x, std::size_t roi_y,
-                  std::size_t roi_width, std::size_t roi_height,
+                  std::uint8_t const *IHIST_RESTRICT mask, std::size_t height,
+                  std::size_t width, std::size_t stride,
                   std::uint32_t *IHIST_RESTRICT histogram, std::size_t = 0) {
     assert(width * height < std::numeric_limits<std::uint32_t>::max());
-    assert(roi_x + roi_width <= width);
-    assert(roi_y + roi_height <= height);
+    assert(width <= stride);
 
     static_assert(std::max({Sample0Index, SampleIndices...}) <
                   SamplesPerPixel);
@@ -320,13 +316,12 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
                                                           SampleIndices...};
 
     // Simplify to single row if full-width.
-    if (roi_width == width && height > 1) {
+    if (width == stride && height > 1) {
+        auto const size = height * width;
         return histxy_striped_st<Tuning, T, UseMask, Bits, LoBit,
                                  SamplesPerPixel, Sample0Index,
                                  SampleIndices...>(
-            data + roi_y * width * SamplesPerPixel,
-            UseMask ? mask + roi_y * width : nullptr, width * roi_height, 1, 0,
-            0, width * roi_height, 1, histogram);
+            data, UseMask ? mask : nullptr, 1, size, size, histogram);
     }
 
     // Use extra bin for overflows if applicable.
@@ -346,13 +341,12 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
 
     constexpr std::size_t BLOCKSIZE =
         std::max(std::size_t(1), Tuning.n_unroll);
-    std::size_t const n_blocks_per_row = roi_width / BLOCKSIZE;
-    std::size_t const row_epilog_size = roi_width % BLOCKSIZE;
+    std::size_t const n_blocks_per_row = width / BLOCKSIZE;
+    std::size_t const row_epilog_size = width % BLOCKSIZE;
 
-    for (std::size_t y = roi_y; y < roi_y + roi_height; ++y) {
-        T const *row_data = data + (y * width + roi_x) * SamplesPerPixel;
-        std::uint8_t const *row_mask =
-            UseMask ? mask + y * width + roi_x : nullptr;
+    for (std::size_t y = 0; y < height; ++y) {
+        T const *row_data = data + y * stride * SamplesPerPixel;
+        std::uint8_t const *row_mask = UseMask ? mask + y * stride : nullptr;
         T const *row_epilog_data =
             row_data + n_blocks_per_row * BLOCKSIZE * SamplesPerPixel;
         std::uint8_t const *row_epilog_mask =
@@ -412,9 +406,8 @@ using hist_st_func = void(T const *IHIST_RESTRICT,
 template <typename T>
 using histxy_st_func = void(T const *IHIST_RESTRICT,
                             std::uint8_t const *IHIST_RESTRICT, std::size_t,
-                            std::size_t, std::size_t, std::size_t, std::size_t,
-                            std::size_t, std::uint32_t *IHIST_RESTRICT,
-                            std::size_t);
+                            std::size_t, std::size_t,
+                            std::uint32_t *IHIST_RESTRICT, std::size_t);
 
 template <typename T, std::size_t HistSize>
 void hist_mt(hist_st_func<T> *hist_func, T const *IHIST_RESTRICT data,
@@ -446,18 +439,17 @@ void hist_mt(hist_st_func<T> *hist_func, T const *IHIST_RESTRICT data,
     });
 }
 
-template <typename T, std::size_t HistSize>
+template <typename T, std::size_t SamplesPerPixel, std::size_t HistSize>
 void histxy_mt(histxy_st_func<T> *histxy_func, T const *IHIST_RESTRICT data,
-               std::uint8_t const *IHIST_RESTRICT mask, std::size_t width,
-               std::size_t height, std::size_t roi_x, std::size_t roi_y,
-               std::size_t roi_width, std::size_t roi_height,
+               std::uint8_t const *IHIST_RESTRICT mask, std::size_t height,
+               std::size_t width, std::size_t stride,
                std::uint32_t *IHIST_RESTRICT histogram,
                std::size_t grain_size = 1) {
     using hist_array = std::array<std::uint32_t, HistSize>;
     tbb::combinable<hist_array> local_hists([] { return hist_array{}; });
 
-    auto const h_grain_size = std::max(
-        std::size_t(1), grain_size / std::max(std::size_t(1), roi_width));
+    auto const h_grain_size =
+        std::max(std::size_t(1), grain_size / std::max(std::size_t(1), width));
 
     // Histogramming scales very poorly with simultaneous multithreading
     // (Hyper-Threading), so only schedule 1 thread per physical core.
@@ -466,12 +458,12 @@ void histxy_mt(histxy_st_func<T> *histxy_func, T const *IHIST_RESTRICT data,
         n_phys_cores > 0 ? tbb::task_arena(n_phys_cores) : tbb::task_arena();
     arena.execute([&] {
         tbb::parallel_for(
-            tbb::blocked_range<std::size_t>(0, roi_height, h_grain_size),
+            tbb::blocked_range<std::size_t>(0, height, h_grain_size),
             [&](tbb::blocked_range<std::size_t> const &r) {
                 auto &h = local_hists.local();
-                histxy_func(data, mask, width, height, roi_x,
-                            roi_y + r.begin(), roi_width, r.size(), h.data(),
-                            0);
+                histxy_func(data + r.begin() * stride * SamplesPerPixel,
+                            mask ? mask + r.begin() * stride : nullptr,
+                            r.size(), width, stride, h.data(), 0);
             });
     });
 
@@ -518,32 +510,30 @@ template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
           std::size_t Sample0Index = 0, std::size_t... SampleIndices>
 IHIST_NOINLINE void histxy_unoptimized_mt(
     T const *IHIST_RESTRICT data, std::uint8_t const *IHIST_RESTRICT mask,
-    std::size_t width, std::size_t height, std::size_t roi_x,
-    std::size_t roi_y, std::size_t roi_width, std::size_t roi_height,
+    std::size_t height, std::size_t width, std::size_t stride,
     std::uint32_t *IHIST_RESTRICT histogram, std::size_t grain_size = 1) {
     constexpr auto NSAMPLES = 1 + sizeof...(SampleIndices);
-    internal::histxy_mt<T, (1uLL << Bits) * NSAMPLES>(
+    internal::histxy_mt<T, SamplesPerPixel, (1uLL << Bits) * NSAMPLES>(
         histxy_unoptimized_st<T, UseMask, Bits, LoBit, SamplesPerPixel,
                               Sample0Index, SampleIndices...>,
-        data, mask, width, height, roi_x, roi_y, roi_width, roi_height,
-        histogram, grain_size);
+        data, mask, height, width, stride, histogram, grain_size);
 }
 
 template <tuning_parameters const &Tuning, typename T, bool UseMask = false,
           unsigned Bits = 8 * sizeof(T), unsigned LoBit = 0,
           std::size_t SamplesPerPixel = 1, std::size_t Sample0Index = 0,
           std::size_t... SampleIndices>
-IHIST_NOINLINE void histxy_striped_mt(
-    T const *IHIST_RESTRICT data, std::uint8_t const *IHIST_RESTRICT mask,
-    std::size_t width, std::size_t height, std::size_t roi_x,
-    std::size_t roi_y, std::size_t roi_width, std::size_t roi_height,
-    std::uint32_t *IHIST_RESTRICT histogram, std::size_t grain_size = 1) {
+IHIST_NOINLINE void histxy_striped_mt(T const *IHIST_RESTRICT data,
+                                      std::uint8_t const *IHIST_RESTRICT mask,
+                                      std::size_t height, std::size_t width,
+                                      std::size_t stride,
+                                      std::uint32_t *IHIST_RESTRICT histogram,
+                                      std::size_t grain_size = 1) {
     constexpr auto NSAMPLES = 1 + sizeof...(SampleIndices);
-    internal::histxy_mt<T, (1uLL << Bits) * NSAMPLES>(
+    internal::histxy_mt<T, SamplesPerPixel, (1uLL << Bits) * NSAMPLES>(
         histxy_striped_st<Tuning, T, UseMask, Bits, LoBit, SamplesPerPixel,
                           Sample0Index, SampleIndices...>,
-        data, mask, width, height, roi_x, roi_y, roi_width, roi_height,
-        histogram, grain_size);
+        data, mask, height, width, stride, histogram, grain_size);
 }
 
 } // namespace ihist
