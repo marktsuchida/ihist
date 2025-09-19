@@ -16,7 +16,7 @@ foreach i : range(tmpl_shard_count)
         ],
         dependencies: [
             ihist_dep,
-        ]
+        ],
     )
 endforeach
 
@@ -37,12 +37,21 @@ bench_exe = executable(
 )
 benchmark('ihist', bench_exe)
 
+# We avoid linking to ihist_lib; see tests/meson.build for why. (The same
+# problem does not apply to ihist_bench (as far as I can tell) because ihist
+# template instantiations are confined to tmpl_lib.)
 apibench_exe = executable(
     'api_bench',
-    'api_bench.cpp',
-    include_directories: ihist_private_inc,
+    [
+        ihist_srcs,
+        'api_bench.cpp',
+    ],
+    include_directories: [
+        ihist_private_inc,
+        ihist_public_inc,
+    ],
     dependencies: [
-        ihist_dep,
+        onetbb_dep,
         benchmark_dep,
         opencv_dep,
     ],
