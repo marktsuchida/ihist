@@ -7,67 +7,9 @@ help:
 
 exe_suffix := if os_family() == "windows" { ".exe" } else { "" }
 
-#
-# oneTBB static library
-#
-
-# Note that oneTBB's CMake scripts will warn about building a static library.
-# However, the warning only applies if there is a chance that symbols from
-# multiple copies of oneTBB may be accessible within a program:
-# https://github.com/uxlfoundation/oneTBB/issues/646#issuecomment-966106176
-#
-# TODO -fvisibility=hidden is not enough to hide TBB API symbols. For the
-# Python extension maybe we can use a version script (Linux) or export list
-# (macOS) to hide all but the entry point. Failing that, patch TBB to avoid
-# __attribute__((visibility("default"))).
-
-tbb_version := '2022.2.0'
-tbb_tgz := 'oneapi-tbb-' + tbb_version + '.tar.gz'
-tbb_dir := 'oneTBB-' + tbb_version
-
-build-tbb BUILD_TYPE *FLAGS:
-    #!/usr/bin/env bash
-    set -euxo pipefail
-    CMAKE_CXX_FLAGS=''
-    case {{BUILD_TYPE}} in
-        "release") CMAKE_BUILD_TYPE=Release;;
-        "debugoptimized") CMAKE_BUILD_TYPE=RelWithDebInfo;;
-        "debug") CMAKE_BUILD_TYPE=Debug;;
-        "sanitize")
-            CMAKE_BUILD_TYPE=DEBUG
-            CMAKE_CXX_FLAGS='-fsanitize=address -fsanitize=undefined'
-            ;;
-        *) echo "Unknown build type: {{BUILD_TYPE}}" >&2; return 1;;
-    esac
-    mkdir -p dependencies
-    cd dependencies
-    if [ ! -f "{{tbb_tgz}}" ]; then
-        curl -Lo "{{tbb_tgz}}" \
-            https://github.com/uxlfoundation/oneTBB/archive/refs/tags/v{{tbb_version}}.tar.gz
-    fi
-    tar xf {{tbb_tgz}}
-    cd {{tbb_dir}}
-    mkdir -p build
-    cmake -G Ninja -S . -B build \
-      {{FLAGS}} \
-      -DCMAKE_INSTALL_PREFIX="$(pwd)/../oneTBB-{{BUILD_TYPE}}" \
-      -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
-      -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" \
-      -DBUILD_SHARED_LIBS=OFF \
-      -DTBB_TEST=OFF \
-      -DTBBMALLOC_BUILD=OFF \
-      -DTBBMALLOC_PROXY_BUILD=OFF
-    cmake --build build --target install
-
-clean-tbb:
-    rm -rf dependencies/oneTBB-*
-
 configure BUILD_TYPE *FLAGS:
     #!/usr/bin/env bash
     set -euxo pipefail
-    if [ ! -d dependencies/oneTBB-{{BUILD_TYPE}} ]; then
-        just build-tbb {{BUILD_TYPE}}
-    fi
     BUILD_TYPE={{BUILD_TYPE}}
     SANITIZE_FLAGS="-Db_sanitize=none -Db_lundef=true"
     if [ "$BUILD_TYPE" = "sanitize" ]; then
@@ -76,11 +18,9 @@ configure BUILD_TYPE *FLAGS:
     fi
     UNAME=$(uname -s)
     if [[ "$UNAME" == MINGW* || "$UNAME" == MSYS* ]]; then
-        # The .pc file doesn't work on Windows.
-        DEPS_PATH_OPT=--cmake-prefix-path="{{justfile_directory()}}/dependencies/oneTBB-{{BUILD_TYPE}}/lib/cmake;$USERPROFILE/scoop/apps/opencv/current"
+        DEPS_PATH_OPT=--cmake-prefix-path="$USERPROFILE/scoop/apps/opencv/current"
     else
-        # But CMake doesn't work on Linux, at least sometimes.
-        DEPS_PATH_OPT=--pkg-config-path='{{justfile_directory()}}/dependencies/oneTBB-{{BUILD_TYPE}}/lib/pkgconfig'
+        DEPS_PATH_OPT=
     fi
     meson setup --reconfigure builddir \
         --buildtype=$BUILD_TYPE $SANITIZE_FLAGS \
@@ -93,12 +33,6 @@ _configure_if_not_configured:
     set -euxo pipefail
     if [ ! -d builddir ]; then
         just configure release
-    else
-        BUILDTYPE=$(meson introspect --buildoptions builddir | jq -r \
-            '.[] | select(.name == "buildtype") | .value')
-        if [ ! -d dependencies/oneTBB-$BUILDTYPE ]; then
-            just configure $BUILDTYPE
-        fi
     fi
 
 build: _configure_if_not_configured
