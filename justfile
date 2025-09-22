@@ -2,6 +2,7 @@
 # Copyright 2025 Board of Regents of the University of Wisconsin System
 # SPDX-License-Identifier: MIT
 
+# Show usage
 help:
     @just --list
     @echo On Windows, Git Bash is required for these to work.
@@ -33,6 +34,7 @@ _download-windows-deps:
         unzip $TBB_ZIP
     fi
 
+# Configure for development build
 configure BUILD_TYPE *FLAGS:
     #!/usr/bin/env bash
     set -euxo pipefail
@@ -65,36 +67,45 @@ _configure_if_not_configured:
         just configure release
     fi
 
+# Run full build
 build: _configure_if_not_configured
     meson compile -C builddir
 
+# Remove build products
 clean:
     if [ -d builddir ]; then meson compile --clean -C builddir; fi
 
+# Wipe build directory and reconfigure using previous options
 wipe:
     if [ -d builddir ]; then meson setup --wipe builddir; fi
 
+# Run the unit tests
 test: _configure_if_not_configured
     meson test -C builddir
 
+# Run the 'ihist_test' program directly
 [positional-arguments]
 ihist_test *FLAGS: build
     builddir/tests/ihist_test "$@"
 
+# Run the 'ihist_bench' program directly
 [positional-arguments]
 ihist_bench *FLAGS: build
     builddir/benchmarks/ihist_bench "$@"
 
+# Run the 'api_bench' program directly
 [positional-arguments]
 api_bench *FLAGS: build
     builddir/benchmarks/api_bench "$@"
 
+# Run benchmarks (specifying a filter is recommended)
 [positional-arguments]
 benchmark *FLAGS: build test
     builddir/benchmarks/api_bench --benchmark_time_unit=ms \
         --benchmark_counters_tabular=true \
         "$@"
 
+# Keep a copy of the benchmark executable for later comparison
 benchmark-set-baseline: build test
     cp builddir/benchmarks/api_bench{{exe_suffix}} \
         builddir/benchmarks/api_bench_baseline{{exe_suffix}}
@@ -109,12 +120,14 @@ _benchmark-compare *ARGS:
     uv run --with=scipy "$GB_TOOLS/compare.py" "$@" \
         --benchmark_time_unit=ms --benchmark_counters_tabular=true
 
+# Compare benchmarks with baseline
 [positional-arguments]
 benchmark-compare *FLAGS: build test
     just _benchmark-compare benchmarks \
         builddir/benchmarks/api_bench_baseline{{exe_suffix}} \
         builddir/benchmarks/api_bench{{exe_suffix}} "$@"
 
+# Compare two different set of benchmarks in the current build
 [positional-arguments]
 benchmark-compare-filters FILTER1 FILTER2 *FLAGS: build test
     just _benchmark-compare filters \
