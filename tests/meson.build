@@ -12,22 +12,12 @@ test_srcs = files(
     'random_input.cpp',
 )
 
-# We do not use ihist_lib here, because we also directly call ihist internals.
-# If we link ihist as a library, oneTBB templates get instantiated in different
-# ways (different visibility?) and fail to merge at link time, causing
-# mysterious failures (macOS, unoptimized builds).
 test_exe = executable(
     'ihist_test',
-    [
-        ihist_srcs,
-        test_srcs,
-    ],
-    include_directories: [
-        ihist_private_inc,
-        ihist_public_inc,
-    ],
+    test_srcs,
+    include_directories: ihist_private_inc,
     dependencies: [
-        onetbb_dep,
+        ihist_dep,
         catch2_with_main_dep,
     ],
 )
