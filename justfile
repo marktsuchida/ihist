@@ -40,6 +40,9 @@ configure BUILD_TYPE *FLAGS:
     if [ "$BUILD_TYPE" = "sanitize" ]; then
         BUILD_TYPE=debug
         SANITIZE_FLAGS="-Db_sanitize=address,undefined -Db_lundef=false"
+    elif [ "$BUILD_TYPE" = "sanitizeoptimized" ]; then
+        BUILD_TYPE=debugoptimized
+        SANITIZE_FLAGS="-Db_sanitize=address,undefined -Db_lundef=false"
     fi
     UNAME=$(uname -s)
     if [[ "$UNAME" == MINGW* || "$UNAME" == MSYS* ]]; then
