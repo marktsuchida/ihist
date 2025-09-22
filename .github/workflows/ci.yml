@@ -60,6 +60,14 @@ jobs:
           uv tool install rust-just
           uv tool install meson
           uv tool install ninja
+      - name: Install dependencies - macOS
+        if: startsWith(matrix.runner, 'macos-')
+        run: |
+          brew install tbb opencv
+      - name: Install dependencies - Ubuntu
+        if: startsWith(matrix.runner, 'ubuntu-')
+        run: |
+          sudo apt-get install libtbb-dev libopencv-dev
       - uses: actions/checkout@v5
       - name: Build and test
         run: |
