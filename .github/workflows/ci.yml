@@ -54,6 +54,7 @@ jobs:
       CXX: ${{ matrix.cxx }}
       MACOSX_DEPLOYMENT_TARGET: 12.0
     steps:
+      - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
       - name: Install tools
         run: |
@@ -68,7 +69,12 @@ jobs:
         if: startsWith(matrix.runner, 'ubuntu-')
         run: |
           sudo apt-get install libtbb-dev libopencv-dev
-      - uses: actions/checkout@v5
+      - name: Install dependencies - Windows
+        if: startsWith(matrix.runner, 'windows-')
+        run: |
+          Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+          scoop install pkg-config opencv
+          Add-Content -Path $Env:GITHUB_PATH -Value "$HOME\scoop\shims"
       - name: Build and test
         shell: bash
         run: |
