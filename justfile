@@ -4,6 +4,7 @@
 
 help:
     @just --list
+    @echo On Windows, Git Bash is required for these to work.
 
 exe_suffix := if os() == "windows" { ".exe" } else { "" }
 

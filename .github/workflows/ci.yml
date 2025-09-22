@@ -70,6 +70,7 @@ jobs:
           sudo apt-get install libtbb-dev libopencv-dev
       - uses: actions/checkout@v5
       - name: Build and test
+        shell: bash
         run: |
           just build  # Make sure benchmarks build, too
           just test
