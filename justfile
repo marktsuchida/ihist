@@ -58,6 +58,7 @@ configure BUILD_TYPE *FLAGS:
         --buildtype=$BUILD_TYPE $SANITIZE_FLAGS \
         $DEPS_PATH_OPT \
         -Dcatch2:tests=false -Dgoogle-benchmark:tests=disabled \
+        -Dgoogle-benchmark:werror=false \
         {{FLAGS}}
 
 _configure_if_not_configured:
