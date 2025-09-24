@@ -133,3 +133,8 @@ benchmark-compare *FLAGS: build test
 benchmark-compare-filters FILTER1 FILTER2 *FLAGS: build test
     just _benchmark-compare filters \
         builddir/benchmarks/api_bench{{exe_suffix}} "$@"
+
+# Run a banchmarking or tuning script (in scripts/)
+[positional-arguments]
+run SCRIPT *FLAGS: build
+    uv run "$@"
