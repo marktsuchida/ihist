@@ -439,8 +439,7 @@ void hist_mt(hist_st_func<T> *hist_func, T const *IHIST_RESTRICT data,
     });
 
     local_hists.combine_each([&](hist_array const &h) {
-        std::transform(h.begin(), h.end(), histogram, histogram,
-                       std::plus<int>());
+        std::transform(h.begin(), h.end(), histogram, histogram, std::plus{});
     });
 }
 
@@ -474,8 +473,7 @@ void histxy_mt(histxy_st_func<T> *histxy_func, T const *IHIST_RESTRICT data,
     });
 
     local_hists.combine_each([&](hist_array const &h) {
-        std::transform(h.begin(), h.end(), histogram, histogram,
-                       std::plus<int>());
+        std::transform(h.begin(), h.end(), histogram, histogram, std::plus{});
     });
 }
 
