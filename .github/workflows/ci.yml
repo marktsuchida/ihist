@@ -22,13 +22,13 @@ jobs:
         runner:
           - ubuntu-24.04
           - windows-2025
-          - macos-13  # x86_64
+          - macos-15-intel
           - macos-15
         compiler:
           - platform
           - clang
         exclude:
-          - runner: macos-13
+          - runner: macos-15-intel
             compiler: clang  # Redundant with platform
           - runner: macos-15
             compiler: clang  # Redundant with platform
@@ -44,7 +44,7 @@ jobs:
             compiler: clang
             cxx: clang-cl
             opts: -Dgoogle-benchmark:werror=false
-          - runner: macos-13
+          - runner: macos-15-intel
             cxx: clang++
           - runner: macos-15
             cxx: clang++
