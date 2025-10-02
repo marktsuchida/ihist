@@ -68,6 +68,7 @@ jobs:
       - name: Install dependencies - Ubuntu
         if: startsWith(matrix.runner, 'ubuntu-')
         run: |
+          sudo apt-get update
           sudo apt-get install libtbb-dev libopencv-dev
       - name: Install dependencies - Windows
         if: startsWith(matrix.runner, 'windows-')
