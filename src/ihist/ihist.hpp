@@ -31,6 +31,14 @@
 #define IHIST_NOINLINE [[gnu::noinline]]
 #endif
 
+#ifdef __clang__
+#define IHIST_PRAGMA_DISABLE_LOOP_UNROLL _Pragma("clang loop unroll(disable)")
+#elif defined(__GNUC__)
+#define IHIST_PRAGMA_DISABLE_LOOP_UNROLL _Pragma("GCC unroll 0")
+#else
+#define IHIST_PRAGMA_DISABLE_LOOP_UNROLL
+#endif
+
 namespace ihist {
 
 struct tuning_parameters {
@@ -101,11 +109,7 @@ hist_unoptimized_st(T const *IHIST_RESTRICT data,
     constexpr std::array<std::size_t, NSAMPLES> s_indices{Sample0Index,
                                                           SampleIndices...};
 
-#ifdef __clang__
-#pragma clang loop unroll(disable)
-#elif defined(__GNUC__)
-#pragma GCC unroll 0
-#endif
+    IHIST_PRAGMA_DISABLE_LOOP_UNROLL
     for (std::size_t j = 0; j < size; ++j) {
         auto const i = j * SamplesPerPixel;
         if (!UseMask || mask[j]) {
@@ -139,17 +143,9 @@ template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
     constexpr std::array<std::size_t, NSAMPLES> s_indices{Sample0Index,
                                                           SampleIndices...};
 
-#ifdef __clang__
-#pragma clang loop unroll(disable)
-#elif defined(__GNUC__)
-#pragma GCC unroll 0
-#endif
+    IHIST_PRAGMA_DISABLE_LOOP_UNROLL
     for (std::size_t y = 0; y < height; ++y) {
-#ifdef __clang__
-#pragma clang loop unroll(disable)
-#elif defined(__GNUC__)
-#pragma GCC unroll 0
-#endif
+        IHIST_PRAGMA_DISABLE_LOOP_UNROLL
         for (std::size_t x = 0; x < width; ++x) {
             auto const j = y * stride + x;
             auto const i = j * SamplesPerPixel;
@@ -247,11 +243,7 @@ hist_striped_st(T const *IHIST_RESTRICT data,
     std::uint8_t const *epilog_mask =
         UseMask ? blocks_mask + n_blocks * BLOCKSIZE : nullptr;
 
-#ifdef __clang__
-#pragma clang loop unroll(disable)
-#elif defined(__GNUC__)
-#pragma GCC unroll 0
-#endif
+    IHIST_PRAGMA_DISABLE_LOOP_UNROLL
     for (std::size_t block = 0; block < n_blocks; ++block) {
         // We pre-compute all the bin indices for the block here, which
         // facilitates experimenting with potential optimizations, but the
@@ -351,11 +343,7 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
             row_data + n_blocks_per_row * BLOCKSIZE * SamplesPerPixel;
         std::uint8_t const *row_epilog_mask =
             UseMask ? row_mask + n_blocks_per_row * BLOCKSIZE : nullptr;
-#ifdef __clang__
-#pragma clang loop unroll(disable)
-#elif defined(__GNUC__)
-#pragma GCC unroll 0
-#endif
+        IHIST_PRAGMA_DISABLE_LOOP_UNROLL
         for (std::size_t block = 0; block < n_blocks_per_row; ++block) {
             std::array<std::size_t, BLOCKSIZE * SamplesPerPixel> bins;
             for (std::size_t n = 0; n < BLOCKSIZE * SamplesPerPixel; ++n) {
