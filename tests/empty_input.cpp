@@ -172,4 +172,67 @@ TEMPLATE_LIST_TEST_CASE("empty-input", "", test_traits_list) {
     }
 }
 
+TEMPLATE_LIST_TEST_CASE("dynamic-empty-input", "", dynamic_test_traits_list) {
+    using traits = TestType;
+    using T = typename traits::value_type;
+
+    constexpr std::size_t indices[] = {0, 1};
+
+    constexpr auto FULL_BITS = 8 * sizeof(T);
+    constexpr auto FULL_NBINS = 1 << FULL_BITS;
+    constexpr auto HALF_BITS = FULL_BITS / 2;
+    constexpr auto HALF_NBINS = 1 << HALF_BITS;
+    constexpr auto HALF_SHIFT = FULL_BITS / 4;
+
+    SECTION("fullbits") {
+        std::vector<std::uint32_t> hist(2 * FULL_NBINS);
+        std::vector<std::uint32_t> const expected(2 * FULL_NBINS);
+
+        SECTION("empty-data") {
+            traits::template histxy_dynamic<false, FULL_BITS, 0>(
+                nullptr, nullptr, 0, 0, 42, 2, 2, indices, hist.data());
+            CHECK(hist == expected);
+        }
+        SECTION("empty-roi") {
+            std::vector<T> data(2 * 6);
+            traits::template histxy_dynamic<false, FULL_BITS, 0>(
+                data.data() + 2 * 4, nullptr, 0, 0, 3, 2, 2, indices,
+                hist.data());
+            CHECK(hist == expected);
+        }
+        SECTION("empty-mask") {
+            std::vector<T> data(2 * 6);
+            std::vector<std::uint8_t> mask(6);
+            traits::template histxy_dynamic<true, FULL_BITS, 0>(
+                data.data(), mask.data(), 2, 3, 3, 2, 2, indices, hist.data());
+            CHECK(hist == expected);
+        }
+    }
+
+    SECTION("halfbits") {
+        std::vector<std::uint32_t> hist(2 * HALF_NBINS);
+        std::vector<std::uint32_t> const expected(2 * HALF_NBINS);
+
+        SECTION("empty-data") {
+            traits::template histxy_dynamic<false, HALF_BITS, HALF_SHIFT>(
+                nullptr, nullptr, 0, 0, 42, 2, 2, indices, hist.data());
+            CHECK(hist == expected);
+        }
+        SECTION("empty-roi") {
+            std::vector<T> data(2 * 6);
+            traits::template histxy_dynamic<false, HALF_BITS, HALF_SHIFT>(
+                data.data() + 2 * 4, nullptr, 0, 0, 3, 2, 2, indices,
+                hist.data());
+            CHECK(hist == expected);
+        }
+        SECTION("empty-mask") {
+            std::vector<T> data(2 * 6);
+            std::vector<std::uint8_t> mask(6);
+            traits::template histxy_dynamic<true, HALF_BITS, HALF_SHIFT>(
+                data.data(), mask.data(), 2, 3, 3, 2, 2, indices, hist.data());
+            CHECK(hist == expected);
+        }
+    }
+}
+
 } // namespace ihist

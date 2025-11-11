@@ -43,6 +43,7 @@ constexpr std::size_t size = width * height;
         constexpr std::size_t NBINS = 1 << sample_bits;                       \
         std::vector<u32> hist(NBINS);                                         \
         std::vector<u32> ref(NBINS);                                          \
+        constexpr std::size_t indices[] = {0};                                \
                                                                               \
         bool const parallel = GENERATE(false, true);                          \
                                                                               \
@@ -51,9 +52,10 @@ constexpr std::size_t size = width * height;
                                          0, 1, 0>(                            \
                 data.data() + roi_y * width + roi_x, nullptr, roi_height,     \
                 roi_width, width, ref.data());                                \
-            ihist_hist##format_bits##_mono_2d(                                \
+            ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + roi_y * width + roi_x, nullptr,    \
-                roi_height, roi_width, width, hist.data(), parallel);         \
+                roi_height, roi_width, width, 1, 1, indices, hist.data(),     \
+                parallel);                                                    \
         }                                                                     \
         SECTION("mask") {                                                     \
             ihist::histxy_unoptimized_st<u##format_bits, true, sample_bits,   \
@@ -61,10 +63,10 @@ constexpr std::size_t size = width * height;
                 data.data() + roi_y * width + roi_x,                          \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
                 width, ref.data());                                           \
-            ihist_hist##format_bits##_mono_2d(                                \
+            ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + roi_y * width + roi_x,             \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
-                width, hist.data(), parallel);                                \
+                width, 1, 1, indices, hist.data(), parallel);                 \
         }                                                                     \
         CHECK(hist == ref);                                                   \
     }
@@ -76,6 +78,7 @@ constexpr std::size_t size = width * height;
         constexpr std::size_t NBINS = 1 << sample_bits;                       \
         std::vector<u32> hist(3 * NBINS);                                     \
         std::vector<u32> ref(3 * NBINS);                                      \
+        constexpr std::size_t indices[] = {0, 1, 2};                          \
                                                                               \
         bool const parallel = GENERATE(false, true);                          \
                                                                               \
@@ -84,10 +87,10 @@ constexpr std::size_t size = width * height;
                                          0, 3, 0, 1, 2>(                      \
                 data.data() + 3 * (roi_y * width + roi_x), nullptr,           \
                 roi_height, roi_width, width, ref.data());                    \
-            ihist_hist##format_bits##_abc_2d(                                 \
+            ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + 3 * (roi_y * width + roi_x),       \
-                nullptr, roi_height, roi_width, width, hist.data(),           \
-                parallel);                                                    \
+                nullptr, roi_height, roi_width, width, 3, 3, indices,         \
+                hist.data(), parallel);                                       \
         }                                                                     \
         SECTION("mask") {                                                     \
             ihist::histxy_unoptimized_st<u##format_bits, true, sample_bits,   \
@@ -95,10 +98,10 @@ constexpr std::size_t size = width * height;
                 data.data() + 3 * (roi_y * width + roi_x),                    \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
                 width, ref.data());                                           \
-            ihist_hist##format_bits##_abc_2d(                                 \
+            ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + 3 * (roi_y * width + roi_x),       \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
-                width, hist.data(), parallel);                                \
+                width, 3, 3, indices, hist.data(), parallel);                 \
         }                                                                     \
         CHECK(hist == ref);                                                   \
     }
@@ -110,6 +113,7 @@ constexpr std::size_t size = width * height;
         constexpr std::size_t NBINS = 1 << sample_bits;                       \
         std::vector<u32> hist(3 * NBINS);                                     \
         std::vector<u32> ref(3 * NBINS);                                      \
+        constexpr std::size_t indices[] = {0, 1, 2};                          \
                                                                               \
         bool const parallel = GENERATE(false, true);                          \
                                                                               \
@@ -118,10 +122,10 @@ constexpr std::size_t size = width * height;
                                          0, 4, 0, 1, 2>(                      \
                 data.data() + 4 * (roi_y * width + roi_x), nullptr,           \
                 roi_height, roi_width, width, ref.data());                    \
-            ihist_hist##format_bits##_abcx_2d(                                \
+            ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + 4 * (roi_y * width + roi_x),       \
-                nullptr, roi_height, roi_width, width, hist.data(),           \
-                parallel);                                                    \
+                nullptr, roi_height, roi_width, width, 4, 3, indices,         \
+                hist.data(), parallel);                                       \
         }                                                                     \
         SECTION("mask") {                                                     \
             ihist::histxy_unoptimized_st<u##format_bits, true, sample_bits,   \
@@ -129,10 +133,10 @@ constexpr std::size_t size = width * height;
                 data.data() + 4 * (roi_y * width + roi_x),                    \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
                 width, ref.data());                                           \
-            ihist_hist##format_bits##_abcx_2d(                                \
+            ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + 4 * (roi_y * width + roi_x),       \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
-                width, hist.data(), parallel);                                \
+                width, 4, 3, indices, hist.data(), parallel);                 \
         }                                                                     \
         CHECK(hist == ref);                                                   \
     }
@@ -144,6 +148,7 @@ constexpr std::size_t size = width * height;
         constexpr std::size_t NBINS = 1 << sample_bits;                       \
         std::vector<u32> hist(3 * NBINS);                                     \
         std::vector<u32> ref(3 * NBINS);                                      \
+        constexpr std::size_t indices[] = {1, 2, 3};                          \
                                                                               \
         bool const parallel = GENERATE(false, true);                          \
                                                                               \
@@ -152,10 +157,10 @@ constexpr std::size_t size = width * height;
                                          0, 4, 1, 2, 3>(                      \
                 data.data() + 4 * (roi_y * width + roi_x), nullptr,           \
                 roi_height, roi_width, width, ref.data());                    \
-            ihist_hist##format_bits##_xabc_2d(                                \
+            ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + 4 * (roi_y * width + roi_x),       \
-                nullptr, roi_height, roi_width, width, hist.data(),           \
-                parallel);                                                    \
+                nullptr, roi_height, roi_width, width, 4, 3, indices,         \
+                hist.data(), parallel);                                       \
         }                                                                     \
         SECTION("mask") {                                                     \
             ihist::histxy_unoptimized_st<u##format_bits, true, sample_bits,   \
@@ -163,10 +168,45 @@ constexpr std::size_t size = width * height;
                 data.data() + 4 * (roi_y * width + roi_x),                    \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
                 width, ref.data());                                           \
-            ihist_hist##format_bits##_xabc_2d(                                \
+            ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + 4 * (roi_y * width + roi_x),       \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
-                width, hist.data(), parallel);                                \
+                width, 4, 3, indices, hist.data(), parallel);                 \
+        }                                                                     \
+        CHECK(hist == ref);                                                   \
+    }
+
+#define TEST_CASE_DUAL(format_bits, sample_bits)                              \
+    TEST_CASE("dual" #format_bits "-" #sample_bits) {                         \
+        auto const data = test_data<u##format_bits, sample_bits>(2 * size);   \
+        auto const mask = test_data<u8, 1>(size);                             \
+        constexpr std::size_t NBINS = 1 << sample_bits;                       \
+        std::vector<u32> hist(2 * NBINS);                                     \
+        std::vector<u32> ref(2 * NBINS);                                      \
+        constexpr std::size_t indices[] = {0, 1};                             \
+                                                                              \
+        bool const parallel = GENERATE(false, true);                          \
+                                                                              \
+        SECTION("nomask") {                                                   \
+            ihist::histxy_unoptimized_st<u##format_bits, false, sample_bits,  \
+                                         0, 2, 0, 1>(                         \
+                data.data() + 2 * (roi_y * width + roi_x), nullptr,           \
+                roi_height, roi_width, width, ref.data());                    \
+            ihist_hist##format_bits##_2d(                                     \
+                sample_bits, data.data() + 2 * (roi_y * width + roi_x),       \
+                nullptr, roi_height, roi_width, width, 2, 2, indices,         \
+                hist.data(), parallel);                                       \
+        }                                                                     \
+        SECTION("mask") {                                                     \
+            ihist::histxy_unoptimized_st<u##format_bits, true, sample_bits,   \
+                                         0, 2, 0, 1>(                         \
+                data.data() + 2 * (roi_y * width + roi_x),                    \
+                mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
+                width, ref.data());                                           \
+            ihist_hist##format_bits##_2d(                                     \
+                sample_bits, data.data() + 2 * (roi_y * width + roi_x),       \
+                mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
+                width, 2, 2, indices, hist.data(), parallel);                 \
         }                                                                     \
         CHECK(hist == ref);                                                   \
     }
@@ -195,3 +235,9 @@ TEST_CASE_XABC(16, 16)
 TEST_CASE_XABC(16, 15)
 TEST_CASE_XABC(16, 12)
 TEST_CASE_XABC(16, 11)
+TEST_CASE_DUAL(8, 8)
+TEST_CASE_DUAL(8, 5)
+TEST_CASE_DUAL(16, 16)
+TEST_CASE_DUAL(16, 15)
+TEST_CASE_DUAL(16, 12)
+TEST_CASE_DUAL(16, 11)

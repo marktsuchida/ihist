@@ -536,4 +536,92 @@ IHIST_NOINLINE void histxy_striped_mt(T const *IHIST_RESTRICT data,
         data, mask, height, width, stride, histogram, grain_size);
 }
 
+template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
+          unsigned LoBit = 0>
+/* not noinline */ void histxy_dynamic_st(
+    T const *IHIST_RESTRICT data, std::uint8_t const *IHIST_RESTRICT mask,
+    std::size_t height, std::size_t width, std::size_t stride,
+    std::size_t samples_per_pixel, std::size_t n_histogram_samples,
+    std::size_t const *IHIST_RESTRICT sample_indices,
+    std::uint32_t *IHIST_RESTRICT histogram) {
+    assert(width * height < std::numeric_limits<std::uint32_t>::max());
+    assert(width <= stride);
+    assert(n_histogram_samples > 0);
+    assert(sample_indices != nullptr);
+
+    constexpr std::size_t NBINS = 1uLL << Bits;
+
+    // Simplify to single row if full-width.
+    if (width == stride && height > 1) {
+        auto const size = height * width;
+        return histxy_dynamic_st<T, UseMask, Bits, LoBit>(
+            data, mask, 1, size, size, samples_per_pixel, n_histogram_samples,
+            sample_indices, histogram);
+    }
+
+    // We could implement striping for dynamic components, perhaps only for the
+    // cases of 2-4 components being histogrammed. But keep it simple for now
+    // because these are meant to be uncommon cases; if a very common case
+    // comes to light, we can add a static implementation for it.
+
+    for (std::size_t y = 0; y < height; ++y) {
+        for (std::size_t x = 0; x < width; ++x) {
+            auto const j = y * stride + x;
+            auto const i = j * samples_per_pixel;
+            if (!UseMask || mask[j]) {
+                for (std::size_t s = 0; s < n_histogram_samples; ++s) {
+                    auto const s_index = sample_indices[s];
+                    auto const bin =
+                        internal::bin_index<T, Bits, LoBit>(data[i + s_index]);
+                    if (bin != NBINS) {
+                        ++histogram[s * NBINS + bin];
+                    }
+                }
+            }
+        }
+    }
+}
+
+template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
+          unsigned LoBit = 0>
+IHIST_NOINLINE void histxy_dynamic_mt(
+    T const *IHIST_RESTRICT data, std::uint8_t const *IHIST_RESTRICT mask,
+    std::size_t height, std::size_t width, std::size_t stride,
+    std::size_t samples_per_pixel, std::size_t n_histogram_samples,
+    std::size_t const *IHIST_RESTRICT sample_indices,
+    std::uint32_t *IHIST_RESTRICT histogram, std::size_t grain_size = 1) {
+    constexpr std::size_t NBINS = 1uLL << Bits;
+    std::size_t const hist_size = n_histogram_samples * NBINS;
+
+    using hist_vec = std::vector<std::uint32_t>;
+    tbb::combinable<hist_vec> local_hists(
+        [hist_size] { return hist_vec(hist_size, 0); });
+
+    auto const h_grain_size =
+        std::max(std::size_t(1), grain_size / std::max(std::size_t(1), width));
+
+    // Histogramming scales very poorly with simultaneous multithreading
+    // (Hyper-Threading), so only schedule 1 thread per physical core.
+    int const n_phys_cores = internal::get_physical_core_count();
+    auto arena =
+        n_phys_cores > 0 ? tbb::task_arena(n_phys_cores) : tbb::task_arena();
+
+    arena.execute([&] {
+        tbb::parallel_for(
+            tbb::blocked_range<std::size_t>(0, height, h_grain_size),
+            [&](tbb::blocked_range<std::size_t> const &r) {
+                auto &h = local_hists.local();
+                histxy_dynamic_st<T, UseMask, Bits, LoBit>(
+                    data + r.begin() * stride * samples_per_pixel,
+                    mask ? mask + r.begin() * stride : nullptr, r.size(),
+                    width, stride, samples_per_pixel, n_histogram_samples,
+                    sample_indices, h.data());
+            });
+    });
+
+    local_hists.combine_each([&](hist_vec const &h) {
+        std::transform(h.begin(), h.end(), histogram, histogram, std::plus{});
+    });
+}
+
 } // namespace ihist

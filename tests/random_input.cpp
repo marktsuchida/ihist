@@ -325,4 +325,90 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
     }
 }
 
+TEMPLATE_LIST_TEST_CASE("dynamic-random-input", "", dynamic_test_traits_list) {
+    using traits = TestType;
+    using T = typename traits::value_type;
+
+    constexpr std::size_t indices[] = {0, 1};
+    constexpr std::size_t width = 65;
+    constexpr std::size_t height = 63;
+    constexpr std::size_t quad_x = 7;
+    constexpr std::size_t quad_y = 5;
+    constexpr std::size_t quad_width = 33;
+    constexpr std::size_t quad_height = 29;
+    constexpr std::size_t size = width * height;
+
+    constexpr auto FULL_BITS = 8 * sizeof(T);
+    constexpr auto FULL_NBINS = 1 << FULL_BITS;
+    constexpr auto HALF_BITS = FULL_BITS / 2;
+    constexpr auto HALF_NBINS = 1 << HALF_BITS;
+    constexpr auto HALF_SHIFT = FULL_BITS / 4;
+
+    auto const mask = test_data<std::uint8_t, 1>(size);
+    auto const data = test_data<T>(2 * size);
+
+    SECTION("fullbits") {
+        SECTION("nomask") {
+            std::vector<std::uint32_t> ref(2 * FULL_NBINS);
+            constexpr auto *refxy_func =
+                histxy_unoptimized_st<T, false, FULL_BITS, 0, 2, 0, 1>;
+            refxy_func(data.data() + 2 * (quad_y * width + quad_x), nullptr,
+                       quad_height, quad_width, width, ref.data(), 1);
+
+            std::vector<std::uint32_t> hist(2 * FULL_NBINS);
+            traits::template histxy_dynamic<false, FULL_BITS, 0>(
+                data.data() + 2 * (quad_y * width + quad_x), nullptr,
+                quad_height, quad_width, width, 2, 2, indices, hist.data());
+            CHECK(hist == ref);
+        }
+        SECTION("mask") {
+            std::vector<std::uint32_t> ref(2 * FULL_NBINS);
+            constexpr auto *refxy_func =
+                histxy_unoptimized_st<T, true, FULL_BITS, 0, 2, 0, 1>;
+            refxy_func(data.data() + 2 * (quad_y * width + quad_x),
+                       mask.data() + quad_y * width + quad_x, quad_height,
+                       quad_width, width, ref.data(), 1);
+
+            std::vector<std::uint32_t> hist(2 * FULL_NBINS);
+            traits::template histxy_dynamic<true, FULL_BITS, 0>(
+                data.data() + 2 * (quad_y * width + quad_x),
+                mask.data() + quad_y * width + quad_x, quad_height, quad_width,
+                width, 2, 2, indices, hist.data());
+            CHECK(hist == ref);
+        }
+    }
+
+    SECTION("halfbits") {
+        SECTION("nomask") {
+            std::vector<std::uint32_t> ref(2 * HALF_NBINS);
+            constexpr auto *refxy_func =
+                histxy_unoptimized_st<T, false, HALF_BITS, HALF_SHIFT, 2, 0,
+                                      1>;
+            refxy_func(data.data() + 2 * (quad_y * width + quad_x), nullptr,
+                       quad_height, quad_width, width, ref.data(), 1);
+
+            std::vector<std::uint32_t> hist(2 * HALF_NBINS);
+            traits::template histxy_dynamic<false, HALF_BITS, HALF_SHIFT>(
+                data.data() + 2 * (quad_y * width + quad_x), nullptr,
+                quad_height, quad_width, width, 2, 2, indices, hist.data());
+            CHECK(hist == ref);
+        }
+        SECTION("mask") {
+            std::vector<std::uint32_t> ref(2 * HALF_NBINS);
+            constexpr auto *refxy_func =
+                histxy_unoptimized_st<T, true, HALF_BITS, HALF_SHIFT, 2, 0, 1>;
+            refxy_func(data.data() + 2 * (quad_y * width + quad_x),
+                       mask.data() + quad_y * width + quad_x, quad_height,
+                       quad_width, width, ref.data(), 1);
+
+            std::vector<std::uint32_t> hist(2 * HALF_NBINS);
+            traits::template histxy_dynamic<true, HALF_BITS, HALF_SHIFT>(
+                data.data() + 2 * (quad_y * width + quad_x),
+                mask.data() + quad_y * width + quad_x, quad_height, quad_width,
+                width, 2, 2, indices, hist.data());
+            CHECK(hist == ref);
+        }
+    }
+}
+
 } // namespace ihist

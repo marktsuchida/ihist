@@ -32,12 +32,14 @@ using i64 = std::int64_t;
 
 template <typename T>
 using ihist_api_func = void(std::size_t, T const *, u8 const *, std::size_t,
-                            std::size_t, std::size_t, u32 *, bool);
+                            std::size_t, std::size_t, std::size_t, std::size_t,
+                            std::size_t const *, u32 *, bool);
 
 template <typename T>
 void bm_ihist_api(benchmark::State &state, ihist_api_func<T> *func,
                   std::size_t bits, std::size_t samples_per_pixel,
-                  std::size_t n_samples, bool masked, bool mt) {
+                  std::size_t n_samples, std::size_t const *sample_indices,
+                  bool masked, bool mt) {
     auto const width = state.range(0);
     auto const height = state.range(0);
     auto const size = width * height;
@@ -48,7 +50,8 @@ void bm_ihist_api(benchmark::State &state, ihist_api_func<T> *func,
     std::vector<u32> hist(n_samples * (1 << bits));
     for ([[maybe_unused]] auto _ : state) {
         func(bits, data.data(), masked ? mask.data() : nullptr, height, width,
-             width, hist.data(), mt);
+             width, samples_per_pixel, n_samples, sample_indices, hist.data(),
+             mt);
         benchmark::DoNotOptimize(hist.data());
     }
     state.SetBytesProcessed(static_cast<i64>(state.iterations()) * size *
@@ -169,16 +172,14 @@ void bm_opencv(benchmark::State &state, std::size_t bits,
 
 #endif // IHIST_HAVE_OPENCV
 
-std::vector const api_hist_8{
-    ihist_hist8_mono_2d,
-    ihist_hist8_abc_2d,
-    ihist_hist8_abcx_2d,
-};
+constexpr std::size_t indices_mono[] = {0};
+constexpr std::size_t indices_abc[] = {0, 1, 2};
+constexpr std::size_t indices_abcx[] = {0, 1, 2};
 
-std::vector const api_hist_16{
-    ihist_hist16_mono_2d,
-    ihist_hist16_abc_2d,
-    ihist_hist16_abcx_2d,
+std::vector const sample_indices{
+    indices_mono,
+    indices_abc,
+    indices_abcx,
 };
 
 std::vector const unoptimized_hist_8{
@@ -279,31 +280,31 @@ auto main(int argc, char **argv) -> int {
 
             for (bool mt : {false, true}) {
                 auto const *ihist_prefix = mt ? "ihist-mt/" : "ihist/";
-                register_benchmark(ihist_prefix + pixel_type + "/bits:8/" +
-                                       mask_param,
-                                   [=](benchmark::State &state) {
-                                       bm_ihist_api<u8>(state, api_hist_8[i],
-                                                        8, samples_per_pixel,
-                                                        n_samples, mask, mt);
-                                   })
+                register_benchmark(
+                    ihist_prefix + pixel_type + "/bits:8/" + mask_param,
+                    [=](benchmark::State &state) {
+                        bm_ihist_api<u8>(state, ihist_hist8_2d, 8,
+                                         samples_per_pixel, n_samples,
+                                         sample_indices[i], mask, mt);
+                    })
                     ->ArgsProduct({data_sizes, spread_pcts<8>});
 
-                register_benchmark(ihist_prefix + pixel_type + "/bits:12/" +
-                                       mask_param,
-                                   [=](benchmark::State &state) {
-                                       bm_ihist_api<u16>(state, api_hist_16[i],
-                                                         12, samples_per_pixel,
-                                                         n_samples, mask, mt);
-                                   })
+                register_benchmark(
+                    ihist_prefix + pixel_type + "/bits:12/" + mask_param,
+                    [=](benchmark::State &state) {
+                        bm_ihist_api<u16>(state, ihist_hist16_2d, 12,
+                                          samples_per_pixel, n_samples,
+                                          sample_indices[i], mask, mt);
+                    })
                     ->ArgsProduct({data_sizes, spread_pcts<12>});
 
-                register_benchmark(ihist_prefix + pixel_type + "/bits:16/" +
-                                       mask_param,
-                                   [=](benchmark::State &state) {
-                                       bm_ihist_api<u16>(state, api_hist_16[i],
-                                                         16, samples_per_pixel,
-                                                         n_samples, mask, mt);
-                                   })
+                register_benchmark(
+                    ihist_prefix + pixel_type + "/bits:16/" + mask_param,
+                    [=](benchmark::State &state) {
+                        bm_ihist_api<u16>(state, ihist_hist16_2d, 16,
+                                          samples_per_pixel, n_samples,
+                                          sample_indices[i], mask, mt);
+                    })
                     ->ArgsProduct({data_sizes, spread_pcts<8>});
 
 #if IHIST_HAVE_OPENCV

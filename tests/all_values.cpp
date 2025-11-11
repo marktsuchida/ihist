@@ -148,4 +148,51 @@ TEMPLATE_LIST_TEST_CASE("all-values", "", test_traits_list) {
     }
 }
 
+TEMPLATE_LIST_TEST_CASE("dynamic-all-values", "", dynamic_test_traits_list) {
+    using traits = TestType;
+    using T = typename traits::value_type;
+
+    constexpr std::size_t indices[] = {0, 1};
+
+    constexpr auto FULL_BITS = 8 * sizeof(T);
+    constexpr auto FULL_NBINS = 1 << FULL_BITS;
+    constexpr auto HALF_BITS = FULL_BITS / 2;
+    constexpr auto HALF_NBINS = 1 << HALF_BITS;
+    constexpr auto HALF_SHIFT = FULL_BITS / 4;
+
+    constexpr std::size_t width = 1 << HALF_BITS;
+    constexpr std::size_t height = 1 << HALF_BITS;
+    constexpr std::size_t size = width * height;
+
+    std::vector<T> const data = [&] {
+        std::vector<T> d(2 * size);
+        for (std::size_t i = 0; i < size; ++i) {
+            d[2 * i + 0] = static_cast<T>(i);
+            d[2 * i + 1] = static_cast<T>(i);
+        }
+        return d;
+    }();
+
+    SECTION("fullbits") {
+        std::vector<std::uint32_t> hist(2 * FULL_NBINS);
+        std::vector<std::uint32_t> const expected(2 * FULL_NBINS, 1);
+
+        traits::template histxy_dynamic<false, FULL_BITS, 0>(
+            data.data(), nullptr, height, width, width, 2, 2, indices,
+            hist.data());
+        CHECK(hist == expected);
+    }
+
+    SECTION("halfbits") {
+        std::vector<std::uint32_t> hist(2 * HALF_NBINS);
+        std::vector<std::uint32_t> const expected(2 * HALF_NBINS,
+                                                  1 << HALF_SHIFT);
+
+        traits::template histxy_dynamic<false, HALF_BITS, HALF_SHIFT>(
+            data.data(), nullptr, height, width, width, 2, 2, indices,
+            hist.data());
+        CHECK(hist == expected);
+    }
+}
+
 } // namespace ihist

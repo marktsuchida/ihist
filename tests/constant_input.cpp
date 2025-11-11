@@ -384,4 +384,124 @@ TEMPLATE_LIST_TEST_CASE("constant-input", "", test_traits_list) {
     }
 }
 
+TEMPLATE_LIST_TEST_CASE("dynamic-constant-input", "",
+                        dynamic_test_traits_list) {
+    using traits = TestType;
+    using T = typename traits::value_type;
+
+    constexpr std::size_t indices[] = {0, 1};
+
+    std::size_t const width = GENERATE(1, 3, 100);
+    std::size_t const height = GENERATE(1, 7);
+    auto const quad_x = GENERATE_COPY(
+        filter([=](auto x) { return x < width; },
+               values<std::size_t>({0, 1, width > 2 ? width - 1 : 9999})));
+    auto const quad_y = GENERATE_COPY(
+        filter([=](auto y) { return y < height; },
+               values<std::size_t>({0, 1, height > 2 ? height - 1 : 9999})));
+    auto const quad_width = GENERATE_COPY(
+        filter([=](auto w) { return w <= width - quad_x; },
+               values<std::size_t>(
+                   {1, width - quad_x > 2 ? width - quad_x - 1 : 9999})));
+    auto const quad_height = GENERATE_COPY(
+        filter([=](auto h) { return h <= height - quad_y; },
+               values<std::size_t>(
+                   {1, height - quad_y > 2 ? height - quad_y - 1 : 9999})));
+    CAPTURE(width, height, quad_x, quad_y, quad_width, quad_height);
+
+    std::size_t const size = width * height;
+    std::size_t const quad_size = quad_width * quad_height;
+
+    constexpr auto FULL_BITS = 8 * sizeof(T);
+    constexpr auto FULL_NBINS = 1 << FULL_BITS;
+    constexpr auto FULL_SHIFT = 0;
+    constexpr auto HALF_BITS = FULL_BITS / 2;
+    constexpr auto HALF_NBINS = 1 << HALF_BITS;
+    constexpr auto HALF_SHIFT = FULL_BITS / 4;
+
+    T const value_in_roi_0 = 1;
+    T const value_in_roi_1 = 2;
+    T const value_not_in_roi = 63;
+
+    std::vector<T> const quad_data = [&] {
+        std::vector<T> data(2 * size, value_not_in_roi);
+        for (std::size_t y = quad_y; y < quad_y + quad_height; ++y) {
+            for (std::size_t x = quad_x; x < quad_x + quad_width; ++x) {
+                data[2 * (y * width + x) + 0] = value_in_roi_0;
+                data[2 * (y * width + x) + 1] = value_in_roi_1;
+            }
+        }
+        return data;
+    }();
+    std::vector<std::uint8_t> const quad_mask = [&] {
+        std::vector<std::uint8_t> mask(size);
+        for (std::size_t y = quad_y; y < quad_y + quad_height; ++y) {
+            std::fill_n(mask.begin() + y * width + quad_x, quad_width, 1);
+        }
+        return mask;
+    }();
+
+    SECTION("fullbits") {
+        std::vector<std::uint32_t> hist(2 * FULL_NBINS);
+
+        auto const expected = [&] {
+            std::vector<std::uint32_t> exp(2 * FULL_NBINS);
+            exp[0 * FULL_NBINS + (value_in_roi_0 >> FULL_SHIFT)] = quad_size;
+            exp[1 * FULL_NBINS + (value_in_roi_1 >> FULL_SHIFT)] = quad_size;
+            return exp;
+        }();
+
+        SECTION("roi") {
+            traits::template histxy_dynamic<false, FULL_BITS, FULL_SHIFT>(
+                quad_data.data() + 2 * (quad_y * width + quad_x), nullptr,
+                quad_height, quad_width, width, 2, 2, indices, hist.data());
+            CHECK(hist == expected);
+        }
+        SECTION("mask") {
+            traits::template histxy_dynamic<true, FULL_BITS, FULL_SHIFT>(
+                quad_data.data(), quad_mask.data(), height, width, width, 2, 2,
+                indices, hist.data());
+            CHECK(hist == expected);
+        }
+        SECTION("roi+mask") {
+            traits::template histxy_dynamic<true, FULL_BITS, FULL_SHIFT>(
+                quad_data.data() + 2 * (quad_y * width + quad_x),
+                quad_mask.data() + quad_y * width + quad_x, quad_height,
+                quad_width, width, 2, 2, indices, hist.data());
+            CHECK(hist == expected);
+        }
+    }
+
+    SECTION("halfbits") {
+        std::vector<std::uint32_t> hist(2 * HALF_NBINS);
+
+        auto const expected = [&] {
+            std::vector<std::uint32_t> exp(2 * HALF_NBINS);
+            exp[0 * HALF_NBINS + (value_in_roi_0 >> HALF_SHIFT)] = quad_size;
+            exp[1 * HALF_NBINS + (value_in_roi_1 >> HALF_SHIFT)] = quad_size;
+            return exp;
+        }();
+
+        SECTION("roi") {
+            traits::template histxy_dynamic<false, HALF_BITS, HALF_SHIFT>(
+                quad_data.data() + 2 * (quad_y * width + quad_x), nullptr,
+                quad_height, quad_width, width, 2, 2, indices, hist.data());
+            CHECK(hist == expected);
+        }
+        SECTION("mask") {
+            traits::template histxy_dynamic<true, HALF_BITS, HALF_SHIFT>(
+                quad_data.data(), quad_mask.data(), height, width, width, 2, 2,
+                indices, hist.data());
+            CHECK(hist == expected);
+        }
+        SECTION("roi+mask") {
+            traits::template histxy_dynamic<true, HALF_BITS, HALF_SHIFT>(
+                quad_data.data() + 2 * (quad_y * width + quad_x),
+                quad_mask.data() + quad_y * width + quad_x, quad_height,
+                quad_width, width, 2, 2, indices, hist.data());
+            CHECK(hist == expected);
+        }
+    }
+}
+
 } // namespace ihist

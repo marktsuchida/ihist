@@ -81,4 +81,36 @@ using test_traits_list =
                hist_function_traits<std::uint16_t, 3, 3, false>,
                hist_function_traits<std::uint16_t, 3, 3, true>>;
 
+// Traits for dynamic histogram functions.
+template <typename T, bool MT> struct dynamic_function_traits {
+    using value_type = T;
+    static constexpr bool is_mt = MT;
+
+    template <bool UseMask, unsigned Bits, unsigned LoBit>
+    static void histxy_dynamic(T const *data, std::uint8_t const *mask,
+                               std::size_t height, std::size_t width,
+                               std::size_t stride,
+                               std::size_t samples_per_pixel,
+                               std::size_t n_histogram_samples,
+                               std::size_t const *sample_indices,
+                               std::uint32_t *histogram) {
+        if constexpr (MT) {
+            histxy_dynamic_mt<T, UseMask, Bits, LoBit>(
+                data, mask, height, width, stride, samples_per_pixel,
+                n_histogram_samples, sample_indices, histogram);
+        } else {
+            histxy_dynamic_st<T, UseMask, Bits, LoBit>(
+                data, mask, height, width, stride, samples_per_pixel,
+                n_histogram_samples, sample_indices, histogram);
+        }
+    }
+};
+
+// For use with TEMPLATE_LIST_TEST_CASE() for dynamic histogram tests.
+using dynamic_test_traits_list =
+    std::tuple<dynamic_function_traits<std::uint8_t, false>,
+               dynamic_function_traits<std::uint8_t, true>,
+               dynamic_function_traits<std::uint16_t, false>,
+               dynamic_function_traits<std::uint16_t, true>>;
+
 } // namespace ihist
