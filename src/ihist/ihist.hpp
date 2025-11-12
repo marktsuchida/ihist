@@ -404,8 +404,7 @@ using histxy_st_func = void(T const *IHIST_RESTRICT,
 template <typename T, std::size_t HistSize>
 void hist_mt(hist_st_func<T> *hist_func, T const *IHIST_RESTRICT data,
              std::uint8_t const *IHIST_RESTRICT mask, std::size_t size,
-             std::size_t samples_per_pixel,
-             std::uint32_t *IHIST_RESTRICT histogram,
+             std::size_t n_components, std::uint32_t *IHIST_RESTRICT histogram,
              std::size_t grain_size = 1) {
 #ifdef IHIST_USE_TBB
     using hist_array = std::array<std::uint32_t, HistSize>;
@@ -420,7 +419,7 @@ void hist_mt(hist_st_func<T> *hist_func, T const *IHIST_RESTRICT data,
         tbb::parallel_for(tbb::blocked_range<std::size_t>(0, size, grain_size),
                           [&](tbb::blocked_range<std::size_t> const &r) {
                               auto &h = local_hists.local();
-                              hist_func(data + r.begin() * samples_per_pixel,
+                              hist_func(data + r.begin() * n_components,
                                         mask == nullptr ? nullptr
                                                         : mask + r.begin(),
                                         r.size(), h.data(), 0);
@@ -432,7 +431,7 @@ void hist_mt(hist_st_func<T> *hist_func, T const *IHIST_RESTRICT data,
     });
 #else
     (void)grain_size;
-    (void)samples_per_pixel;
+    (void)n_components;
     hist_func(data, mask, size, histogram, 0);
 #endif
 }
@@ -568,12 +567,13 @@ IHIST_NOINLINE void histxy_striped_mt(T const *IHIST_RESTRICT data,
 
 template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
           unsigned LoBit = 0>
-/* not noinline */ void histxy_dynamic_st(
-    T const *IHIST_RESTRICT data, std::uint8_t const *IHIST_RESTRICT mask,
-    std::size_t height, std::size_t width, std::size_t stride,
-    std::size_t samples_per_pixel, std::size_t n_histogram_samples,
-    std::size_t const *IHIST_RESTRICT sample_indices,
-    std::uint32_t *IHIST_RESTRICT histogram) {
+/* not noinline */ void
+histxy_dynamic_st(T const *IHIST_RESTRICT data,
+                  std::uint8_t const *IHIST_RESTRICT mask, std::size_t height,
+                  std::size_t width, std::size_t stride,
+                  std::size_t n_components, std::size_t n_histogram_samples,
+                  std::size_t const *IHIST_RESTRICT sample_indices,
+                  std::uint32_t *IHIST_RESTRICT histogram) {
     assert(width * height < std::numeric_limits<std::uint32_t>::max());
     assert(width <= stride);
     assert(n_histogram_samples > 0);
@@ -585,7 +585,7 @@ template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
     if (width == stride && height > 1) {
         auto const size = height * width;
         return histxy_dynamic_st<T, UseMask, Bits, LoBit>(
-            data, mask, 1, size, size, samples_per_pixel, n_histogram_samples,
+            data, mask, 1, size, size, n_components, n_histogram_samples,
             sample_indices, histogram);
     }
 
@@ -597,7 +597,7 @@ template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
     for (std::size_t y = 0; y < height; ++y) {
         for (std::size_t x = 0; x < width; ++x) {
             auto const j = y * stride + x;
-            auto const i = j * samples_per_pixel;
+            auto const i = j * n_components;
             if (!UseMask || mask[j]) {
                 for (std::size_t s = 0; s < n_histogram_samples; ++s) {
                     auto const s_index = sample_indices[s];
@@ -617,7 +617,7 @@ template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
 IHIST_NOINLINE void histxy_dynamic_mt(
     T const *IHIST_RESTRICT data, std::uint8_t const *IHIST_RESTRICT mask,
     std::size_t height, std::size_t width, std::size_t stride,
-    std::size_t samples_per_pixel, std::size_t n_histogram_samples,
+    std::size_t n_components, std::size_t n_histogram_samples,
     std::size_t const *IHIST_RESTRICT sample_indices,
     std::uint32_t *IHIST_RESTRICT histogram, std::size_t grain_size = 1) {
 #ifdef IHIST_USE_TBB
@@ -643,9 +643,9 @@ IHIST_NOINLINE void histxy_dynamic_mt(
             [&](tbb::blocked_range<std::size_t> const &r) {
                 auto &h = local_hists.local();
                 histxy_dynamic_st<T, UseMask, Bits, LoBit>(
-                    data + r.begin() * stride * samples_per_pixel,
+                    data + r.begin() * stride * n_components,
                     mask ? mask + r.begin() * stride : nullptr, r.size(),
-                    width, stride, samples_per_pixel, n_histogram_samples,
+                    width, stride, n_components, n_histogram_samples,
                     sample_indices, h.data());
             });
     });
@@ -656,8 +656,8 @@ IHIST_NOINLINE void histxy_dynamic_mt(
 #else
     (void)grain_size;
     histxy_dynamic_st<T, UseMask, Bits, LoBit>(
-        data, mask, height, width, stride, samples_per_pixel,
-        n_histogram_samples, sample_indices, histogram);
+        data, mask, height, width, stride, n_components, n_histogram_samples,
+        sample_indices, histogram);
 #endif
 }
 

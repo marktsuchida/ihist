@@ -89,18 +89,17 @@ template <typename T, bool MT> struct dynamic_function_traits {
     template <bool UseMask, unsigned Bits, unsigned LoBit>
     static void histxy_dynamic(T const *data, std::uint8_t const *mask,
                                std::size_t height, std::size_t width,
-                               std::size_t stride,
-                               std::size_t samples_per_pixel,
+                               std::size_t stride, std::size_t n_components,
                                std::size_t n_histogram_samples,
                                std::size_t const *sample_indices,
                                std::uint32_t *histogram) {
         if constexpr (MT) {
             histxy_dynamic_mt<T, UseMask, Bits, LoBit>(
-                data, mask, height, width, stride, samples_per_pixel,
+                data, mask, height, width, stride, n_components,
                 n_histogram_samples, sample_indices, histogram);
         } else {
             histxy_dynamic_st<T, UseMask, Bits, LoBit>(
-                data, mask, height, width, stride, samples_per_pixel,
+                data, mask, height, width, stride, n_components,
                 n_histogram_samples, sample_indices, histogram);
         }
     }

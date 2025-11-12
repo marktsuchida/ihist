@@ -59,62 +59,60 @@ namespace ihist {
 template <std::size_t Stripes, std::size_t Unrolls>
 constexpr tuning_parameters tuning{Stripes, Unrolls};
 
-#define IHIST_TMPL_INST_1D(mt, T, mask, bits, stripes, unrolls,               \
-                           samples_per_pixel, ...)                            \
+#define IHIST_TMPL_INST_1D(mt, T, mask, bits, stripes, unrolls, n_components, \
+                           ...)                                               \
     template void hist_striped_##mt<tuning<stripes, unrolls>, T, mask, bits,  \
-                                    0, samples_per_pixel, __VA_ARGS__>(       \
+                                    0, n_components, __VA_ARGS__>(            \
         T const *IHIST_RESTRICT, std::uint8_t const *IHIST_RESTRICT,          \
         std::size_t, std::uint32_t *IHIST_RESTRICT, std::size_t);
 
-#define IHIST_TMPL_INST_2D(mt, T, mask, bits, stripes, unrolls,               \
-                           samples_per_pixel, ...)                            \
-    template void                                                             \
-    histxy_striped_##mt<tuning<stripes, unrolls>, T, mask, bits, 0,           \
-                        samples_per_pixel, __VA_ARGS__>(                      \
+#define IHIST_TMPL_INST_2D(mt, T, mask, bits, stripes, unrolls, n_components, \
+                           ...)                                               \
+    template void histxy_striped_##mt<tuning<stripes, unrolls>, T, mask,      \
+                                      bits, 0, n_components, __VA_ARGS__>(    \
         T const *IHIST_RESTRICT, std::uint8_t const *IHIST_RESTRICT,          \
         std::size_t, std::size_t, std::size_t, std::uint32_t *IHIST_RESTRICT, \
         std::size_t);
 
 #define IHIST_TMPL_INST_BOTHD(Extern, mt, T, mask, bits, stripes, unrolls,    \
-                              samples_per_pixel, ...)                         \
+                              n_components, ...)                              \
     Extern IHIST_TMPL_INST_1D(mt, T, mask, bits, stripes, unrolls,            \
-                              samples_per_pixel, __VA_ARGS__)                 \
+                              n_components, __VA_ARGS__)                      \
     Extern IHIST_TMPL_INST_2D(mt, T, mask, bits, stripes, unrolls,            \
-                              samples_per_pixel, __VA_ARGS__)
+                              n_components, __VA_ARGS__)
 
 #define IHIST_TMPL_INST_MT(Extern, T, mask, bits, stripes, unrolls,           \
-                           samples_per_pixel, ...)                            \
+                           n_components, ...)                                 \
     IHIST_TMPL_INST_BOTHD(Extern, st, T, mask, bits, stripes, unrolls,        \
-                          samples_per_pixel, __VA_ARGS__)                     \
+                          n_components, __VA_ARGS__)                          \
     IHIST_TMPL_INST_BOTHD(Extern, mt, T, mask, bits, stripes, unrolls,        \
-                          samples_per_pixel, __VA_ARGS__)
+                          n_components, __VA_ARGS__)
 
-#define IHIST_TMPL_INST_BITS(Extern, mask, stripes, unrolls,                  \
-                             samples_per_pixel, ...)                          \
-    IHIST_TMPL_INST_MT(Extern, std::uint8_t, mask, 8, stripes, unrolls,       \
-                       samples_per_pixel, __VA_ARGS__)                        \
-    IHIST_TMPL_INST_MT(Extern, std::uint16_t, mask, 10, stripes, unrolls,     \
-                       samples_per_pixel, __VA_ARGS__)                        \
-    IHIST_TMPL_INST_MT(Extern, std::uint16_t, mask, 12, stripes, unrolls,     \
-                       samples_per_pixel, __VA_ARGS__)                        \
-    IHIST_TMPL_INST_MT(Extern, std::uint16_t, mask, 14, stripes, unrolls,     \
-                       samples_per_pixel, __VA_ARGS__)                        \
-    IHIST_TMPL_INST_MT(Extern, std::uint16_t, mask, 16, stripes, unrolls,     \
-                       samples_per_pixel, __VA_ARGS__)
-
-#define IHIST_TMPL_INST_MASK(Extern, stripes, unrolls, samples_per_pixel,     \
+#define IHIST_TMPL_INST_BITS(Extern, mask, stripes, unrolls, n_components,    \
                              ...)                                             \
-    IHIST_TMPL_INST_BITS(Extern, false, stripes, unrolls, samples_per_pixel,  \
+    IHIST_TMPL_INST_MT(Extern, std::uint8_t, mask, 8, stripes, unrolls,       \
+                       n_components, __VA_ARGS__)                             \
+    IHIST_TMPL_INST_MT(Extern, std::uint16_t, mask, 10, stripes, unrolls,     \
+                       n_components, __VA_ARGS__)                             \
+    IHIST_TMPL_INST_MT(Extern, std::uint16_t, mask, 12, stripes, unrolls,     \
+                       n_components, __VA_ARGS__)                             \
+    IHIST_TMPL_INST_MT(Extern, std::uint16_t, mask, 14, stripes, unrolls,     \
+                       n_components, __VA_ARGS__)                             \
+    IHIST_TMPL_INST_MT(Extern, std::uint16_t, mask, 16, stripes, unrolls,     \
+                       n_components, __VA_ARGS__)
+
+#define IHIST_TMPL_INST_MASK(Extern, stripes, unrolls, n_components, ...)     \
+    IHIST_TMPL_INST_BITS(Extern, false, stripes, unrolls, n_components,       \
                          __VA_ARGS__)                                         \
-    IHIST_TMPL_INST_BITS(Extern, true, stripes, unrolls, samples_per_pixel,   \
+    IHIST_TMPL_INST_BITS(Extern, true, stripes, unrolls, n_components,        \
                          __VA_ARGS__)
 
-#define IHIST_TMPL_INST_STRIPES(Extern, unrolls, samples_per_pixel, ...)      \
-    IHIST_TMPL_INST_MASK(Extern, 1, unrolls, samples_per_pixel, __VA_ARGS__)  \
-    IHIST_TMPL_INST_MASK(Extern, 2, unrolls, samples_per_pixel, __VA_ARGS__)  \
-    IHIST_TMPL_INST_MASK(Extern, 4, unrolls, samples_per_pixel, __VA_ARGS__)  \
-    IHIST_TMPL_INST_MASK(Extern, 8, unrolls, samples_per_pixel, __VA_ARGS__)  \
-    IHIST_TMPL_INST_MASK(Extern, 16, unrolls, samples_per_pixel, __VA_ARGS__)
+#define IHIST_TMPL_INST_STRIPES(Extern, unrolls, n_components, ...)           \
+    IHIST_TMPL_INST_MASK(Extern, 1, unrolls, n_components, __VA_ARGS__)       \
+    IHIST_TMPL_INST_MASK(Extern, 2, unrolls, n_components, __VA_ARGS__)       \
+    IHIST_TMPL_INST_MASK(Extern, 4, unrolls, n_components, __VA_ARGS__)       \
+    IHIST_TMPL_INST_MASK(Extern, 8, unrolls, n_components, __VA_ARGS__)       \
+    IHIST_TMPL_INST_MASK(Extern, 16, unrolls, n_components, __VA_ARGS__)
 
 #define IHIST_TMPL_INST_ALL()                                                 \
     IHIST_TMPL_INST_STRIPES(IHIST_TMPL_EXTERN_0, 1, 1, 0)                     \

@@ -31,7 +31,7 @@ void ihist_hist8_2d(
     size_t height,
     size_t width,
     size_t stride,
-    size_t samples_per_pixel,
+    size_t n_components,
     size_t n_histogram_samples,
     size_t const *restrict sample_indices,
     uint32_t *restrict histogram,
@@ -44,7 +44,7 @@ void ihist_hist16_2d(
     size_t height,
     size_t width,
     size_t stride,
-    size_t samples_per_pixel,
+    size_t n_components,
     size_t n_histogram_samples,
     size_t const *restrict sample_indices,
     uint32_t *restrict histogram,
@@ -104,7 +104,7 @@ When `stride` equals `width`, the image is treated as contiguous. Use `stride` >
 `width` together with an offset `image` pointer to process a rectangular region
 of interest (ROI) within a larger image.
 
-**`samples_per_pixel`**
+**`n_components`**
 Number of interleaved samples per pixel. Examples:
 
 - 1 for grayscale
@@ -121,7 +121,7 @@ component in RGBA images.
 
 **`sample_indices`**
 Array of `n_histogram_samples` indices specifying which samples to histogram.
-Each index must be in the range [0, `samples_per_pixel`).
+Each index must be in the range [0, `n_components`).
 
 Examples:
 
