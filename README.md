@@ -32,7 +32,7 @@ void ihist_hist8_2d(
     size_t width,
     size_t stride,
     size_t n_components,
-    size_t n_histogram_samples,
+    size_t n_hist_components,
     size_t const *restrict sample_indices,
     uint32_t *restrict histogram,
     bool maybe_parallel);
@@ -45,7 +45,7 @@ void ihist_hist16_2d(
     size_t width,
     size_t stride,
     size_t n_components,
-    size_t n_histogram_samples,
+    size_t n_hist_components,
     size_t const *restrict sample_indices,
     uint32_t *restrict histogram,
     bool maybe_parallel);
@@ -113,14 +113,14 @@ Number of interleaved samples per pixel. Examples:
 
 Must be > 0.
 
-**`n_histogram_samples`**
+**`n_hist_components`**
 Number of samples to histogram. Must be > 0.
 
 This allows histogramming a subset of components, such as skipping the alpha
 component in RGBA images.
 
 **`sample_indices`**
-Array of `n_histogram_samples` indices specifying which samples to histogram.
+Array of `n_hist_components` indices specifying which samples to histogram.
 Each index must be in the range [0, `n_components`).
 
 Examples:
@@ -134,7 +134,7 @@ Examples:
 Must not be `NULL`.
 
 **`histogram`** *(output, accumulated)*
-Output buffer for histogram data. Must point to `n_histogram_samples *
+Output buffer for histogram data. Must point to `n_hist_components *
 2^sample_bits` `uint32_t` values.
 
 Histograms for each sample are stored consecutively:

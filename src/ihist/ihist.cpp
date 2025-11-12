@@ -75,15 +75,15 @@ constexpr std::size_t parallel_grain_size = 1uLL << 20;
 namespace {
 
 // Buffer conversion for different Bits: NSamples = 0 means use run-time
-// n_histogram_samples.
+// n_hist_components.
 
 template <typename T, std::size_t Bits, std::size_t NSamples = 0>
 auto hist_buffer_of_higher_bits(std::size_t sample_bits,
                                 std::uint32_t const *histogram,
-                                std::size_t n_histogram_samples = NSamples)
+                                std::size_t n_hist_components = NSamples)
     -> std::vector<std::uint32_t> {
     static_assert(Bits <= 8 * sizeof(T));
-    auto const n_samples = NSamples != 0 ? NSamples : n_histogram_samples;
+    auto const n_samples = NSamples != 0 ? NSamples : n_hist_components;
     std::vector<std::uint32_t> hist;
     hist.reserve(n_samples << Bits);
     hist.assign(histogram,
@@ -101,9 +101,9 @@ template <typename T, std::size_t Bits, std::size_t NSamples = 0>
 void copy_hist_from_higher_bits(std::size_t sample_bits,
                                 std::uint32_t *histogram,
                                 std::vector<std::uint32_t> const &hist,
-                                std::size_t n_histogram_samples = NSamples) {
+                                std::size_t n_hist_components = NSamples) {
     static_assert(Bits <= 8 * sizeof(T));
-    auto const n_samples = NSamples != 0 ? NSamples : n_histogram_samples;
+    auto const n_samples = NSamples != 0 ? NSamples : n_hist_components;
     for (std::size_t i = 0; i < n_samples; ++i) {
         std::copy_n(std::next(hist.begin(), i << Bits),
                     std::size_t(1) << sample_bits,
@@ -113,19 +113,19 @@ void copy_hist_from_higher_bits(std::size_t sample_bits,
 
 template <typename T, std::size_t Bits>
 auto hist_buffer_of_higher_bits_dynamic(std::size_t sample_bits,
-                                        std::size_t n_histogram_samples,
+                                        std::size_t n_hist_components,
                                         std::uint32_t const *histogram)
     -> std::vector<std::uint32_t> {
     return hist_buffer_of_higher_bits<T, Bits, 0>(sample_bits, histogram,
-                                                  n_histogram_samples);
+                                                  n_hist_components);
 }
 
 template <typename T, std::size_t Bits>
 void copy_hist_from_higher_bits_dynamic(
-    std::size_t sample_bits, std::size_t n_histogram_samples,
+    std::size_t sample_bits, std::size_t n_hist_components,
     std::uint32_t *histogram, std::vector<std::uint32_t> const &hist) {
     copy_hist_from_higher_bits<T, Bits, 0>(sample_bits, histogram, hist,
-                                           n_histogram_samples);
+                                           n_hist_components);
 }
 
 template <typename T, std::size_t Bits,
@@ -183,7 +183,7 @@ template <typename T, std::size_t Bits>
 void hist_2d_dynamic(std::size_t sample_bits, T const *IHIST_RESTRICT image,
                      std::uint8_t const *IHIST_RESTRICT mask,
                      std::size_t height, std::size_t width, std::size_t stride,
-                     std::size_t n_components, std::size_t n_histogram_samples,
+                     std::size_t n_components, std::size_t n_hist_components,
                      std::size_t const *IHIST_RESTRICT sample_indices,
                      std::uint32_t *IHIST_RESTRICT histogram,
                      bool maybe_parallel) {
@@ -191,7 +191,7 @@ void hist_2d_dynamic(std::size_t sample_bits, T const *IHIST_RESTRICT image,
     assert(image != nullptr);
     assert(histogram != nullptr);
     assert(sample_indices != nullptr);
-    assert(n_histogram_samples > 0);
+    assert(n_hist_components > 0);
 
     std::vector<std::uint32_t> buffer;
     std::uint32_t *hist{};
@@ -199,7 +199,7 @@ void hist_2d_dynamic(std::size_t sample_bits, T const *IHIST_RESTRICT image,
         hist = histogram;
     } else {
         buffer = hist_buffer_of_higher_bits_dynamic<T, Bits>(
-            sample_bits, n_histogram_samples, histogram);
+            sample_bits, n_hist_components, histogram);
         hist = buffer.data();
     }
 
@@ -207,39 +207,37 @@ void hist_2d_dynamic(std::size_t sample_bits, T const *IHIST_RESTRICT image,
         if (mask != nullptr) {
             ihist::histxy_dynamic_mt<T, true, Bits, 0>(
                 image, mask, height, width, stride, n_components,
-                n_histogram_samples, sample_indices, hist,
-                parallel_grain_size);
+                n_hist_components, sample_indices, hist, parallel_grain_size);
         } else {
             ihist::histxy_dynamic_mt<T, false, Bits, 0>(
                 image, mask, height, width, stride, n_components,
-                n_histogram_samples, sample_indices, hist,
-                parallel_grain_size);
+                n_hist_components, sample_indices, hist, parallel_grain_size);
         }
     } else {
         if (mask != nullptr) {
             ihist::histxy_dynamic_st<T, true, Bits, 0>(
                 image, mask, height, width, stride, n_components,
-                n_histogram_samples, sample_indices, hist);
+                n_hist_components, sample_indices, hist);
         } else {
             ihist::histxy_dynamic_st<T, false, Bits, 0>(
                 image, mask, height, width, stride, n_components,
-                n_histogram_samples, sample_indices, hist);
+                n_hist_components, sample_indices, hist);
         }
     }
 
     if (sample_bits < Bits) {
         copy_hist_from_higher_bits_dynamic<T, Bits>(
-            sample_bits, n_histogram_samples, histogram, buffer);
+            sample_bits, n_hist_components, histogram, buffer);
     }
 }
 
-bool indices_match(std::size_t n_histogram_samples,
+bool indices_match(std::size_t n_hist_components,
                    std::size_t const *sample_indices,
                    std::initializer_list<std::size_t> expected) {
-    if (n_histogram_samples != expected.size())
+    if (n_hist_components != expected.size())
         return false;
     auto it = expected.begin();
-    for (std::size_t i = 0; i < n_histogram_samples; ++i, ++it) {
+    for (std::size_t i = 0; i < n_hist_components; ++i, ++it) {
         if (sample_indices[i] != *it)
             return false;
     }
@@ -260,30 +258,30 @@ void dispatch_common_pixel_formats(
     std::size_t sample_bits, T const *IHIST_RESTRICT image,
     std::uint8_t const *IHIST_RESTRICT mask, std::size_t height,
     std::size_t width, std::size_t stride, std::size_t n_components,
-    std::size_t n_histogram_samples,
+    std::size_t n_hist_components,
     std::size_t const *IHIST_RESTRICT sample_indices,
     std::uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel) {
 
-    if (n_components == 1 && n_histogram_samples == 1 &&
+    if (n_components == 1 && n_hist_components == 1 &&
         sample_indices[0] == 0) {
         // Mono: optimized path
         hist_2d_impl<T, Bits, MonoMask0, MonoMask1, 1, 0>(
             sample_bits, image, mask, height, width, stride, histogram,
             maybe_parallel);
-    } else if (n_components == 3 && n_histogram_samples == 3 &&
-               indices_match(n_histogram_samples, sample_indices, {0, 1, 2})) {
+    } else if (n_components == 3 && n_hist_components == 3 &&
+               indices_match(n_hist_components, sample_indices, {0, 1, 2})) {
         // RGB: optimized path
         hist_2d_impl<T, Bits, AbcMask0, AbcMask1, 3, 0, 1, 2>(
             sample_bits, image, mask, height, width, stride, histogram,
             maybe_parallel);
-    } else if (n_components == 4 && n_histogram_samples == 3 &&
-               indices_match(n_histogram_samples, sample_indices, {0, 1, 2})) {
+    } else if (n_components == 4 && n_hist_components == 3 &&
+               indices_match(n_hist_components, sample_indices, {0, 1, 2})) {
         // RGBA (skip last): optimized path
         hist_2d_impl<T, Bits, AbcxMask0, AbcxMask1, 4, 0, 1, 2>(
             sample_bits, image, mask, height, width, stride, histogram,
             maybe_parallel);
-    } else if (n_components == 4 && n_histogram_samples == 3 &&
-               indices_match(n_histogram_samples, sample_indices, {1, 2, 3})) {
+    } else if (n_components == 4 && n_hist_components == 3 &&
+               indices_match(n_hist_components, sample_indices, {1, 2, 3})) {
         // ARGB (skip first): optimized path
         hist_2d_impl<T, Bits, XabcMask0, XabcMask1, 4, 1, 2, 3>(
             sample_bits, image, mask, height, width, stride, histogram,
@@ -291,7 +289,7 @@ void dispatch_common_pixel_formats(
     } else {
         // General case: dynamic implementation
         hist_2d_dynamic<T, Bits>(sample_bits, image, mask, height, width,
-                                 stride, n_components, n_histogram_samples,
+                                 stride, n_components, n_hist_components,
                                  sample_indices, histogram, maybe_parallel);
     }
 }
@@ -301,7 +299,7 @@ void dispatch_common_pixel_formats(
 extern "C" IHIST_PUBLIC void
 ihist_hist8_2d(size_t sample_bits, uint8_t const *IHIST_RESTRICT image,
                uint8_t const *IHIST_RESTRICT mask, size_t height, size_t width,
-               size_t stride, size_t n_components, size_t n_histogram_samples,
+               size_t stride, size_t n_components, size_t n_hist_components,
                size_t const *IHIST_RESTRICT sample_indices,
                uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel) {
 
@@ -310,7 +308,7 @@ ihist_hist8_2d(size_t sample_bits, uint8_t const *IHIST_RESTRICT image,
         tuning_8bit_abc_mask0, tuning_8bit_abc_mask1, tuning_8bit_abcx_mask0,
         tuning_8bit_abcx_mask1, tuning_8bit_xabc_mask0,
         tuning_8bit_xabc_mask1>(sample_bits, image, mask, height, width,
-                                stride, n_components, n_histogram_samples,
+                                stride, n_components, n_hist_components,
                                 sample_indices, histogram, maybe_parallel);
 }
 
@@ -318,7 +316,7 @@ extern "C" IHIST_PUBLIC void
 ihist_hist16_2d(size_t sample_bits, uint16_t const *IHIST_RESTRICT image,
                 uint8_t const *IHIST_RESTRICT mask, size_t height,
                 size_t width, size_t stride, size_t n_components,
-                size_t n_histogram_samples,
+                size_t n_hist_components,
                 size_t const *IHIST_RESTRICT sample_indices,
                 uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel) {
 
@@ -331,7 +329,7 @@ ihist_hist16_2d(size_t sample_bits, uint16_t const *IHIST_RESTRICT image,
             tuning_12bit_abcx_mask1, tuning_12bit_xabc_mask0,
             tuning_12bit_xabc_mask1>(
             sample_bits, image, mask, height, width, stride, n_components,
-            n_histogram_samples, sample_indices, histogram, maybe_parallel);
+            n_hist_components, sample_indices, histogram, maybe_parallel);
     } else {
         dispatch_common_pixel_formats<
             std::uint16_t, 16, tuning_16bit_mono_mask0,
@@ -340,6 +338,6 @@ ihist_hist16_2d(size_t sample_bits, uint16_t const *IHIST_RESTRICT image,
             tuning_16bit_abcx_mask1, tuning_16bit_xabc_mask0,
             tuning_16bit_xabc_mask1>(
             sample_bits, image, mask, height, width, stride, n_components,
-            n_histogram_samples, sample_indices, histogram, maybe_parallel);
+            n_hist_components, sample_indices, histogram, maybe_parallel);
     }
 }
