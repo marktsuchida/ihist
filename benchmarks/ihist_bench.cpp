@@ -70,7 +70,7 @@ auto pixel_type_name(pixel_type t) -> std::string {
     throw;
 }
 
-// Return n_components, n_samples
+// Return n_components, n_hist_components
 constexpr auto pixel_type_attrs(pixel_type t)
     -> std::pair<std::size_t, std::size_t> {
     switch (t) {
@@ -94,7 +94,7 @@ using histxy_func = void(T const *, u8 const *, std::size_t, std::size_t,
 template <typename T>
 void bm_hist(benchmark::State &state, hist_func<T> *func, std::size_t bits,
              pixel_type ptype) {
-    auto const [n_components, n_samples] = pixel_type_attrs(ptype);
+    auto const [n_components, n_hist_components] = pixel_type_attrs(ptype);
     auto const width = state.range(0);
     auto const height = state.range(0);
     auto const size = width * height;
@@ -102,7 +102,7 @@ void bm_hist(benchmark::State &state, hist_func<T> *func, std::size_t bits,
     auto const grain_size = static_cast<std::size_t>(state.range(2));
     auto const data = generate_data<T>(bits, size * n_components, spread_frac);
     auto const mask = generate_circle_mask(width, height);
-    std::vector<u32> hist(n_samples * (1 << bits));
+    std::vector<u32> hist(n_hist_components * (1 << bits));
     for ([[maybe_unused]] auto _ : state) {
         std::fill(hist.begin(), hist.end(), 0);
         func(data.data(), mask.data(), size, hist.data(), grain_size);
@@ -111,7 +111,7 @@ void bm_hist(benchmark::State &state, hist_func<T> *func, std::size_t bits,
     state.SetBytesProcessed(static_cast<i64>(state.iterations()) * size *
                             n_components * sizeof(T));
     state.counters["samples_per_second"] = benchmark::Counter(
-        static_cast<i64>(state.iterations()) * size * n_samples,
+        static_cast<i64>(state.iterations()) * size * n_hist_components,
         benchmark::Counter::kIsRate);
     state.counters["pixels_per_second"] =
         benchmark::Counter(static_cast<i64>(state.iterations()) * size,
@@ -121,7 +121,7 @@ void bm_hist(benchmark::State &state, hist_func<T> *func, std::size_t bits,
 template <typename T>
 void bm_histxy(benchmark::State &state, histxy_func<T> *func, std::size_t bits,
                pixel_type ptype) {
-    auto const [n_components, n_samples] = pixel_type_attrs(ptype);
+    auto const [n_components, n_hist_components] = pixel_type_attrs(ptype);
     auto const width = state.range(0);
     auto const height = state.range(0);
     auto const size = width * height;
@@ -131,7 +131,7 @@ void bm_histxy(benchmark::State &state, histxy_func<T> *func, std::size_t bits,
     auto const roi_size = width * height;
     auto const data = generate_data<T>(bits, size * n_components, spread_frac);
     auto const mask = generate_circle_mask(width, height);
-    std::vector<u32> hist(n_samples * (1 << bits));
+    std::vector<u32> hist(n_hist_components * (1 << bits));
     for ([[maybe_unused]] auto _ : state) {
         std::fill(hist.begin(), hist.end(), 0);
         func(data.data(), mask.data(), height, width, width, hist.data(),
@@ -141,7 +141,7 @@ void bm_histxy(benchmark::State &state, histxy_func<T> *func, std::size_t bits,
     state.SetBytesProcessed(static_cast<i64>(state.iterations()) * roi_size *
                             n_components * sizeof(T));
     state.counters["samples_per_second"] = benchmark::Counter(
-        static_cast<i64>(state.iterations()) * roi_size * n_samples,
+        static_cast<i64>(state.iterations()) * roi_size * n_hist_components,
         benchmark::Counter::kIsRate);
     state.counters["pixels_per_second"] =
         benchmark::Counter(static_cast<i64>(state.iterations()) * roi_size,

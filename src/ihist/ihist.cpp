@@ -74,22 +74,23 @@ constexpr std::size_t parallel_grain_size = 1uLL << 20;
 
 namespace {
 
-// Buffer conversion for different Bits: NSamples = 0 means use run-time
+// Buffer conversion for different Bits: NHistComponents = 0 means use run-time
 // n_hist_components.
 
-template <typename T, std::size_t Bits, std::size_t NSamples = 0>
-auto hist_buffer_of_higher_bits(std::size_t sample_bits,
-                                std::uint32_t const *histogram,
-                                std::size_t n_hist_components = NSamples)
+template <typename T, std::size_t Bits, std::size_t NHistComponents = 0>
+auto hist_buffer_of_higher_bits(
+    std::size_t sample_bits, std::uint32_t const *histogram,
+    std::size_t n_hist_components = NHistComponents)
     -> std::vector<std::uint32_t> {
     static_assert(Bits <= 8 * sizeof(T));
-    auto const n_samples = NSamples != 0 ? NSamples : n_hist_components;
+    auto const samples_per_pixel =
+        NHistComponents != 0 ? NHistComponents : n_hist_components;
     std::vector<std::uint32_t> hist;
-    hist.reserve(n_samples << Bits);
+    hist.reserve(samples_per_pixel << Bits);
     hist.assign(histogram,
                 std::next(histogram, std::size_t(1) << sample_bits));
-    hist.resize(n_samples << Bits);
-    for (std::size_t i = 1; i < n_samples; ++i) {
+    hist.resize(samples_per_pixel << Bits);
+    for (std::size_t i = 1; i < samples_per_pixel; ++i) {
         std::copy_n(std::next(histogram, i << sample_bits),
                     std::size_t(1) << sample_bits,
                     std::next(hist.begin(), i << Bits));
@@ -97,14 +98,15 @@ auto hist_buffer_of_higher_bits(std::size_t sample_bits,
     return hist;
 }
 
-template <typename T, std::size_t Bits, std::size_t NSamples = 0>
-void copy_hist_from_higher_bits(std::size_t sample_bits,
-                                std::uint32_t *histogram,
-                                std::vector<std::uint32_t> const &hist,
-                                std::size_t n_hist_components = NSamples) {
+template <typename T, std::size_t Bits, std::size_t NHistComponents = 0>
+void copy_hist_from_higher_bits(
+    std::size_t sample_bits, std::uint32_t *histogram,
+    std::vector<std::uint32_t> const &hist,
+    std::size_t n_hist_components = NHistComponents) {
     static_assert(Bits <= 8 * sizeof(T));
-    auto const n_samples = NSamples != 0 ? NSamples : n_hist_components;
-    for (std::size_t i = 0; i < n_samples; ++i) {
+    auto const samples_per_pixel =
+        NHistComponents != 0 ? NHistComponents : n_hist_components;
+    for (std::size_t i = 0; i < samples_per_pixel; ++i) {
         std::copy_n(std::next(hist.begin(), i << Bits),
                     std::size_t(1) << sample_bits,
                     std::next(histogram, i << sample_bits));

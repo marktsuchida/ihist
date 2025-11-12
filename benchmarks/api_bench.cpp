@@ -38,25 +38,25 @@ using ihist_api_func = void(std::size_t, T const *, u8 const *, std::size_t,
 template <typename T>
 void bm_ihist_api(benchmark::State &state, ihist_api_func<T> *func,
                   std::size_t bits, std::size_t n_components,
-                  std::size_t n_samples, std::size_t const *component_indices,
-                  bool masked, bool mt) {
+                  std::size_t n_hist_components,
+                  std::size_t const *component_indices, bool masked, bool mt) {
     auto const width = state.range(0);
     auto const height = state.range(0);
     auto const size = width * height;
     auto const spread_frac = static_cast<float>(state.range(1)) / 100.0f;
     auto const data = generate_data<T>(bits, size * n_components, spread_frac);
     auto const mask = generate_circle_mask(width, height);
-    std::vector<u32> hist(n_samples * (1 << bits));
+    std::vector<u32> hist(n_hist_components * (1 << bits));
     for ([[maybe_unused]] auto _ : state) {
         func(bits, data.data(), masked ? mask.data() : nullptr, height, width,
-             width, n_components, n_samples, component_indices, hist.data(),
-             mt);
+             width, n_components, n_hist_components, component_indices,
+             hist.data(), mt);
         benchmark::DoNotOptimize(hist.data());
     }
     state.SetBytesProcessed(static_cast<i64>(state.iterations()) * size *
                             n_components * sizeof(T));
     state.counters["samples_per_second"] = benchmark::Counter(
-        static_cast<i64>(state.iterations()) * size * n_samples,
+        static_cast<i64>(state.iterations()) * size * n_hist_components,
         benchmark::Counter::kIsRate);
     state.counters["pixels_per_second"] =
         benchmark::Counter(static_cast<i64>(state.iterations()) * size,
@@ -70,14 +70,14 @@ using ihist_internal_func = void(T const *, u8 const *, std::size_t,
 template <typename T>
 void bm_ihist_internal(benchmark::State &state, ihist_internal_func<T> *func,
                        std::size_t bits, std::size_t n_components,
-                       std::size_t n_samples, bool masked) {
+                       std::size_t n_hist_components, bool masked) {
     auto const width = state.range(0);
     auto const height = state.range(0);
     auto const size = width * height;
     auto const spread_frac = static_cast<float>(state.range(1)) / 100.0f;
     auto const data = generate_data<T>(bits, size * n_components, spread_frac);
     auto const mask = generate_circle_mask(width, height);
-    std::vector<u32> hist(n_samples * (1 << bits));
+    std::vector<u32> hist(n_hist_components * (1 << bits));
     for ([[maybe_unused]] auto _ : state) {
         func(data.data(), masked ? mask.data() : nullptr, height, width, width,
              hist.data(), 0);
@@ -86,7 +86,7 @@ void bm_ihist_internal(benchmark::State &state, ihist_internal_func<T> *func,
     state.SetBytesProcessed(static_cast<i64>(state.iterations()) * size *
                             n_components * sizeof(T));
     state.counters["samples_per_second"] = benchmark::Counter(
-        static_cast<i64>(state.iterations()) * size * n_samples,
+        static_cast<i64>(state.iterations()) * size * n_hist_components,
         benchmark::Counter::kIsRate);
     state.counters["pixels_per_second"] =
         benchmark::Counter(static_cast<i64>(state.iterations()) * size,
@@ -98,7 +98,7 @@ void bm_ihist_internal(benchmark::State &state, ihist_internal_func<T> *func,
 template <typename T>
 void opencv_histogram(T const *data, u8 const *mask, std::size_t height,
                       std::size_t width, std::size_t bits,
-                      std::size_t n_components, std::size_t n_samples,
+                      std::size_t n_components, std::size_t n_hist_components,
                       u32 *histogram) {
     auto const mat_type = [](int s) {
         if constexpr (std::is_same_v<T, u8>) {
@@ -125,7 +125,7 @@ void opencv_histogram(T const *data, u8 const *mask, std::size_t height,
     // histogram is always float32 (for which OpenCV has good reason, but here
     // we convert back to u32 -- this overhead is probably small anyway).
     cv::Mat hist;
-    for (std::size_t s = 0; s < n_samples; ++s) {
+    for (std::size_t s = 0; s < n_hist_components; ++s) {
         int const channels[] = {int(s)};
         cv::calcHist(&data_mat, 1, channels, mask_mat, hist, 1, hist_size,
                      hist_range);
@@ -137,8 +137,8 @@ void opencv_histogram(T const *data, u8 const *mask, std::size_t height,
 
 template <typename T>
 void bm_opencv(benchmark::State &state, std::size_t bits,
-               std::size_t n_components, std::size_t n_samples, bool masked,
-               bool mt) {
+               std::size_t n_components, std::size_t n_hist_components,
+               bool masked, bool mt) {
     auto const save_nthreads = cv::getNumThreads();
     if (not mt) {
         cv::setNumThreads(1);
@@ -149,16 +149,17 @@ void bm_opencv(benchmark::State &state, std::size_t bits,
     auto const spread_frac = static_cast<float>(state.range(1)) / 100.0f;
     auto const data = generate_data<T>(bits, size * n_components, spread_frac);
     auto const mask = generate_circle_mask(width, height);
-    std::vector<u32> hist(n_samples * (1 << bits));
+    std::vector<u32> hist(n_hist_components * (1 << bits));
     for ([[maybe_unused]] auto _ : state) {
         opencv_histogram(data.data(), masked ? mask.data() : nullptr, height,
-                         width, bits, n_components, n_samples, hist.data());
+                         width, bits, n_components, n_hist_components,
+                         hist.data());
         benchmark::DoNotOptimize(hist.data());
     }
     state.SetBytesProcessed(static_cast<i64>(state.iterations()) * size *
                             n_components * sizeof(T));
     state.counters["samples_per_second"] = benchmark::Counter(
-        static_cast<i64>(state.iterations()) * size * n_samples,
+        static_cast<i64>(state.iterations()) * size * n_hist_components,
         benchmark::Counter::kIsRate);
     state.counters["pixels_per_second"] =
         benchmark::Counter(static_cast<i64>(state.iterations()) * size,
@@ -237,22 +238,22 @@ auto main(int argc, char **argv) -> int {
     };
 
     const std::vector<std::string> pixel_types{"mono", "abc", "abcx"};
-    const std::vector<std::size_t> samples_per_pixel_values{1, 3, 4};
-    const std::vector<std::size_t> sample_counts{1, 3, 3};
+    const std::vector<std::size_t> n_components_values{1, 3, 4};
+    const std::vector<std::size_t> n_hist_components_values{1, 3, 3};
 
     for (int mask = 0; mask < 2; ++mask) {
         std::string const mask_param = "mask:" + std::to_string(mask);
 
         for (std::size_t i = 0; i < pixel_types.size(); ++i) {
             std::string const pixel_type = pixel_types[i];
-            std::size_t const n_components = samples_per_pixel_values[i];
-            std::size_t const n_samples = sample_counts[i];
+            std::size_t const n_components = n_components_values[i];
+            std::size_t const n_hist_components = n_hist_components_values[i];
 
             register_benchmark("unopt/" + pixel_type + "/bits:8/" + mask_param,
                                [=](benchmark::State &state) {
                                    bm_ihist_internal<u8>(
                                        state, unoptimized_hist_8[mask][i], 8,
-                                       n_components, n_samples, mask);
+                                       n_components, n_hist_components, mask);
                                })
                 ->ArgsProduct({data_sizes, spread_pcts<8>});
 
@@ -260,7 +261,8 @@ auto main(int argc, char **argv) -> int {
                 "unopt/" + pixel_type + "/bits:12/" + mask_param,
                 [=](benchmark::State &state) {
                     bm_ihist_internal<u16>(state, unoptimized_hist_12[mask][i],
-                                           12, n_components, n_samples, mask);
+                                           12, n_components, n_hist_components,
+                                           mask);
                 })
                 ->ArgsProduct({data_sizes, spread_pcts<12>});
 
@@ -268,7 +270,8 @@ auto main(int argc, char **argv) -> int {
                 "unopt/" + pixel_type + "/bits:16/" + mask_param,
                 [=](benchmark::State &state) {
                     bm_ihist_internal<u16>(state, unoptimized_hist_16[mask][i],
-                                           16, n_components, n_samples, mask);
+                                           16, n_components, n_hist_components,
+                                           mask);
                 })
                 ->ArgsProduct({data_sizes, spread_pcts<16>});
 
@@ -278,7 +281,7 @@ auto main(int argc, char **argv) -> int {
                     ihist_prefix + pixel_type + "/bits:8/" + mask_param,
                     [=](benchmark::State &state) {
                         bm_ihist_api<u8>(state, ihist_hist8_2d, 8,
-                                         n_components, n_samples,
+                                         n_components, n_hist_components,
                                          component_indices[i], mask, mt);
                     })
                     ->ArgsProduct({data_sizes, spread_pcts<8>});
@@ -287,7 +290,7 @@ auto main(int argc, char **argv) -> int {
                     ihist_prefix + pixel_type + "/bits:12/" + mask_param,
                     [=](benchmark::State &state) {
                         bm_ihist_api<u16>(state, ihist_hist16_2d, 12,
-                                          n_components, n_samples,
+                                          n_components, n_hist_components,
                                           component_indices[i], mask, mt);
                     })
                     ->ArgsProduct({data_sizes, spread_pcts<12>});
@@ -296,35 +299,35 @@ auto main(int argc, char **argv) -> int {
                     ihist_prefix + pixel_type + "/bits:16/" + mask_param,
                     [=](benchmark::State &state) {
                         bm_ihist_api<u16>(state, ihist_hist16_2d, 16,
-                                          n_components, n_samples,
+                                          n_components, n_hist_components,
                                           component_indices[i], mask, mt);
                     })
                     ->ArgsProduct({data_sizes, spread_pcts<8>});
 
 #if IHIST_HAVE_OPENCV
                 auto const *opencv_prefix = mt ? "opencv-mt/" : "opencv/";
-                register_benchmark(opencv_prefix + pixel_type + "/bits:8/" +
-                                       mask_param,
-                                   [=](benchmark::State &state) {
-                                       bm_opencv<u8>(state, 8, n_components,
-                                                     n_samples, mask, mt);
-                                   })
+                register_benchmark(
+                    opencv_prefix + pixel_type + "/bits:8/" + mask_param,
+                    [=](benchmark::State &state) {
+                        bm_opencv<u8>(state, 8, n_components,
+                                      n_hist_components, mask, mt);
+                    })
                     ->ArgsProduct({data_sizes, spread_pcts<8>});
 
-                register_benchmark(opencv_prefix + pixel_type + "/bits:12/" +
-                                       mask_param,
-                                   [=](benchmark::State &state) {
-                                       bm_opencv<u16>(state, 12, n_components,
-                                                      n_samples, mask, mt);
-                                   })
+                register_benchmark(
+                    opencv_prefix + pixel_type + "/bits:12/" + mask_param,
+                    [=](benchmark::State &state) {
+                        bm_opencv<u16>(state, 12, n_components,
+                                       n_hist_components, mask, mt);
+                    })
                     ->ArgsProduct({data_sizes, spread_pcts<12>});
 
-                register_benchmark(opencv_prefix + pixel_type + "/bits:16/" +
-                                       mask_param,
-                                   [=](benchmark::State &state) {
-                                       bm_opencv<u16>(state, 16, n_components,
-                                                      n_samples, mask, mt);
-                                   })
+                register_benchmark(
+                    opencv_prefix + pixel_type + "/bits:16/" + mask_param,
+                    [=](benchmark::State &state) {
+                        bm_opencv<u16>(state, 16, n_components,
+                                       n_hist_components, mask, mt);
+                    })
                     ->ArgsProduct({data_sizes, spread_pcts<16>});
 #endif
             }
