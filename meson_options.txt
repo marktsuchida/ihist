@@ -1,0 +1,6 @@
+# This file is part of ihist
+# Copyright 2025 Board of Regents of the University of Wisconsin System
+# SPDX-License-Identifier: MIT
+
+option('tbb', type: 'feature', value: 'enabled',
+       description: 'Enable multi-threading support via oneTBB')

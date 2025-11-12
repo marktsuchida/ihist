@@ -32,8 +32,18 @@ endif
 onetbb_dep = dependency(
     'tbb',
     allow_fallback: false,
-    required: true,
+    required: get_option('tbb'),
     include_type: 'system',
+)
+
+tbb_cpp_args = []
+if onetbb_dep.found()
+    tbb_cpp_args += '-DIHIST_USE_TBB=1'
+endif
+
+onetbb_dep = declare_dependency(
+    dependencies: onetbb_dep,
+    compile_args: tbb_cpp_args,
 )
 
 catch2_with_main_dep = dependency(
@@ -72,9 +82,10 @@ opencv_dep = declare_dependency(
     compile_args: opencv_cpp_args,
 )
 
-dependencies = [
-    onetbb_dep,
-]
+dependencies = []
+if onetbb_dep.found()
+    dependencies += onetbb_dep
+endif
 
 subdir('include')
 subdir('src')
@@ -114,8 +125,13 @@ subdir('benchmarks')
 meson.override_dependency('ihist', ihist_dep)
 
 pkg_mod = import('pkgconfig')
+pkg_requires = []
+if onetbb_dep.found()
+    pkg_requires = ['tbb']
+endif
 pkg_mod.generate(
     ihist_lib,
     description: 'Fast image histograms',
     subdirs: 'ihist',
+    requires: pkg_requires,
 )

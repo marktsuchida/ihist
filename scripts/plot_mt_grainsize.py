@@ -27,6 +27,25 @@ _script_dir = Path(__file__).parent.absolute()
 _benchmark_dir = _script_dir / "../builddir/benchmarks"
 
 
+def check_tbb_enabled() -> None:
+    """Check if TBB is enabled by looking for mt benchmarks."""
+    try:
+        result = subprocess.run(
+            [f"{_benchmark_dir}/ihist_bench", "--benchmark_list_tests"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        if "/mt:1/" not in result.stdout:
+            raise RuntimeError(
+                "TBB is not enabled in this build. "
+                "This script requires multi-threaded benchmarks. "
+                "Reconfigure with -Dtbb=enabled and rebuild."
+            )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to run benchmark executable: {e}") from e
+
+
 def run_benchmark(
     pixel_type: str,
     bits: int,
@@ -246,6 +265,8 @@ def main() -> None:
     parser.add_argument("--plot", action="store_true", dest="plot")
     parser.add_argument("--rerun", action="store_true")
     args = parser.parse_args()
+
+    check_tbb_enabled()
 
     pixel_formats = (
         all_pixel_formats() if args.all else [(args.pixel_type, args.bits)]

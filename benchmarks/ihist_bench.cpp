@@ -10,7 +10,9 @@
 #include "tmpl_instantiations.hpp"
 
 #include <benchmark/benchmark.h>
+#ifdef IHIST_USE_TBB
 #include <tbb/global_control.h>
+#endif
 
 #include <algorithm>
 #include <array>
@@ -389,6 +391,7 @@ auto main(int argc, char **argv) -> int {
     using namespace ihist::bench;
 
     // Limit threading (for testing and tuning purposes).
+#ifdef IHIST_USE_TBB
     auto const max_threads_str = get_env_var("IHIST_BENCH_MAX_THREADS");
     int const max_threads =
         max_threads_str.empty()
@@ -397,6 +400,9 @@ auto main(int argc, char **argv) -> int {
             : std::stoi(max_threads_str);
     auto const ctrl = tbb::global_control(
         tbb::global_control::parameter::max_allowed_parallelism, max_threads);
+#else
+    (void)get_env_var; // Suppress unused function warning
+#endif
 
     auto register_benchmark = [](std::string const &name, auto lambda) {
         return benchmark::RegisterBenchmark(name.c_str(), lambda)
@@ -410,7 +416,11 @@ auto main(int argc, char **argv) -> int {
     std::vector<pixel_type> const pixel_types{
         pixel_type::mono, pixel_type::abc, pixel_type::abcx};
     constexpr std::array<bool, 2> masking{false, true};
+#ifdef IHIST_USE_TBB
     constexpr std::array<bool, 2> st_mt{false, true};
+#else
+    constexpr std::array<bool, 1> st_mt{false};
+#endif
     std::vector<std::size_t> const stripes{1, 2, 4, 8, 16};
     std::vector<std::size_t> const unrolls{1, 2, 4, 8, 16};
     for (auto ptype : pixel_types) {

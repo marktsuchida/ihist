@@ -8,16 +8,20 @@
 
 #include "phys_core_count.hpp"
 
+#ifdef IHIST_USE_TBB
 #include <tbb/blocked_range.h>
 #include <tbb/combinable.h>
 #include <tbb/parallel_for.h>
+#endif
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
+#include <vector>
 
 #ifdef _MSC_VER
 #define IHIST_RESTRICT __restrict
@@ -403,6 +407,7 @@ void hist_mt(hist_st_func<T> *hist_func, T const *IHIST_RESTRICT data,
              std::size_t samples_per_pixel,
              std::uint32_t *IHIST_RESTRICT histogram,
              std::size_t grain_size = 1) {
+#ifdef IHIST_USE_TBB
     using hist_array = std::array<std::uint32_t, HistSize>;
     tbb::combinable<hist_array> local_hists([] { return hist_array{}; });
 
@@ -425,6 +430,11 @@ void hist_mt(hist_st_func<T> *hist_func, T const *IHIST_RESTRICT data,
     local_hists.combine_each([&](hist_array const &h) {
         std::transform(h.begin(), h.end(), histogram, histogram, std::plus{});
     });
+#else
+    (void)grain_size;
+    (void)samples_per_pixel;
+    hist_func(data, mask, size, histogram, 0);
+#endif
 }
 
 template <typename T, std::size_t SamplesPerPixel, std::size_t HistSize>
@@ -433,6 +443,7 @@ void histxy_mt(histxy_st_func<T> *histxy_func, T const *IHIST_RESTRICT data,
                std::size_t width, std::size_t stride,
                std::uint32_t *IHIST_RESTRICT histogram,
                std::size_t grain_size = 1) {
+#ifdef IHIST_USE_TBB
     using hist_array = std::array<std::uint32_t, HistSize>;
     tbb::combinable<hist_array> local_hists([] { return hist_array{}; });
 
@@ -458,6 +469,10 @@ void histxy_mt(histxy_st_func<T> *histxy_func, T const *IHIST_RESTRICT data,
     local_hists.combine_each([&](hist_array const &h) {
         std::transform(h.begin(), h.end(), histogram, histogram, std::plus{});
     });
+#else
+    (void)grain_size;
+    histxy_func(data, mask, height, width, stride, histogram, 0);
+#endif
 }
 
 } // namespace internal
@@ -470,11 +485,17 @@ hist_unoptimized_mt(T const *IHIST_RESTRICT data,
                     std::uint8_t const *IHIST_RESTRICT mask, std::size_t size,
                     std::uint32_t *IHIST_RESTRICT histogram,
                     std::size_t grain_size = 1) {
+#ifdef IHIST_USE_TBB
     constexpr auto NSAMPLES = 1 + sizeof...(SampleIndices);
     internal::hist_mt<T, (1uLL << Bits) * NSAMPLES>(
         hist_unoptimized_st<T, UseMask, Bits, LoBit, SamplesPerPixel,
                             Sample0Index, SampleIndices...>,
         data, mask, size, SamplesPerPixel, histogram, grain_size);
+#else
+    (void)grain_size;
+    hist_unoptimized_st<T, UseMask, Bits, LoBit, SamplesPerPixel, Sample0Index,
+                        SampleIndices...>(data, mask, size, histogram, 0);
+#endif
 }
 
 template <tuning_parameters const &Tuning, typename T, bool UseMask = false,
@@ -486,11 +507,18 @@ IHIST_NOINLINE void hist_striped_mt(T const *IHIST_RESTRICT data,
                                     std::size_t size,
                                     std::uint32_t *IHIST_RESTRICT histogram,
                                     std::size_t grain_size = 1) {
+#ifdef IHIST_USE_TBB
     constexpr auto NSAMPLES = 1 + sizeof...(SampleIndices);
     internal::hist_mt<T, (1uLL << Bits) * NSAMPLES>(
         hist_striped_st<Tuning, T, UseMask, Bits, LoBit, SamplesPerPixel,
                         Sample0Index, SampleIndices...>,
         data, mask, size, SamplesPerPixel, histogram, grain_size);
+#else
+    (void)grain_size;
+    hist_striped_st<Tuning, T, UseMask, Bits, LoBit, SamplesPerPixel,
+                    Sample0Index, SampleIndices...>(data, mask, size,
+                                                    histogram, 0);
+#endif
 }
 
 template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
@@ -500,11 +528,18 @@ IHIST_NOINLINE void histxy_unoptimized_mt(
     T const *IHIST_RESTRICT data, std::uint8_t const *IHIST_RESTRICT mask,
     std::size_t height, std::size_t width, std::size_t stride,
     std::uint32_t *IHIST_RESTRICT histogram, std::size_t grain_size = 1) {
+#ifdef IHIST_USE_TBB
     constexpr auto NSAMPLES = 1 + sizeof...(SampleIndices);
     internal::histxy_mt<T, SamplesPerPixel, (1uLL << Bits) * NSAMPLES>(
         histxy_unoptimized_st<T, UseMask, Bits, LoBit, SamplesPerPixel,
                               Sample0Index, SampleIndices...>,
         data, mask, height, width, stride, histogram, grain_size);
+#else
+    (void)grain_size;
+    histxy_unoptimized_st<T, UseMask, Bits, LoBit, SamplesPerPixel,
+                          Sample0Index, SampleIndices...>(
+        data, mask, height, width, stride, histogram, 0);
+#endif
 }
 
 template <tuning_parameters const &Tuning, typename T, bool UseMask = false,
@@ -517,11 +552,18 @@ IHIST_NOINLINE void histxy_striped_mt(T const *IHIST_RESTRICT data,
                                       std::size_t stride,
                                       std::uint32_t *IHIST_RESTRICT histogram,
                                       std::size_t grain_size = 1) {
+#ifdef IHIST_USE_TBB
     constexpr auto NSAMPLES = 1 + sizeof...(SampleIndices);
     internal::histxy_mt<T, SamplesPerPixel, (1uLL << Bits) * NSAMPLES>(
         histxy_striped_st<Tuning, T, UseMask, Bits, LoBit, SamplesPerPixel,
                           Sample0Index, SampleIndices...>,
         data, mask, height, width, stride, histogram, grain_size);
+#else
+    (void)grain_size;
+    histxy_striped_st<Tuning, T, UseMask, Bits, LoBit, SamplesPerPixel,
+                      Sample0Index, SampleIndices...>(
+        data, mask, height, width, stride, histogram, 0);
+#endif
 }
 
 template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
@@ -578,6 +620,7 @@ IHIST_NOINLINE void histxy_dynamic_mt(
     std::size_t samples_per_pixel, std::size_t n_histogram_samples,
     std::size_t const *IHIST_RESTRICT sample_indices,
     std::uint32_t *IHIST_RESTRICT histogram, std::size_t grain_size = 1) {
+#ifdef IHIST_USE_TBB
     constexpr std::size_t NBINS = 1uLL << Bits;
     std::size_t const hist_size = n_histogram_samples * NBINS;
 
@@ -610,6 +653,12 @@ IHIST_NOINLINE void histxy_dynamic_mt(
     local_hists.combine_each([&](hist_vec const &h) {
         std::transform(h.begin(), h.end(), histogram, histogram, std::plus{});
     });
+#else
+    (void)grain_size;
+    histxy_dynamic_st<T, UseMask, Bits, LoBit>(
+        data, mask, height, width, stride, samples_per_pixel,
+        n_histogram_samples, sample_indices, histogram);
+#endif
 }
 
 } // namespace ihist

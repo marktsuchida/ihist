@@ -81,3 +81,21 @@ jobs:
         run: |
           just build  # Make sure benchmarks build, too
           just test
+
+  test-no-tbb:
+    name: cpp-test-no-tbb-ubuntu
+    runs-on: ubuntu-24.04
+    env:
+      CXX: clang++
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - name: Install tools
+        run: |
+          uv tool install meson
+          uv tool install ninja
+      - name: Build and test without TBB
+        run: |
+          meson setup builddir -Dtbb=disabled
+          meson compile -C builddir
+          meson test -C builddir

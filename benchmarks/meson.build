@@ -25,16 +25,20 @@ tmpl_lib = static_library(
     link_whole: tmpl_libs,
 )
 
+bench_deps = [
+    ihist_dep,
+    benchmark_dep,
+]
+if onetbb_dep.found()
+    bench_deps += onetbb_dep
+endif
+
 bench_exe = executable(
     'ihist_bench',
     'ihist_bench.cpp',
     include_directories: ihist_private_inc,
     link_with: tmpl_lib,
-    dependencies: [
-        ihist_dep,
-        onetbb_dep,
-        benchmark_dep,
-    ],
+    dependencies: bench_deps,
 )
 benchmark('ihist', bench_exe)
 
