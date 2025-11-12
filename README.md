@@ -33,7 +33,7 @@ void ihist_hist8_2d(
     size_t stride,
     size_t n_components,
     size_t n_hist_components,
-    size_t const *restrict sample_indices,
+    size_t const *restrict component_indices,
     uint32_t *restrict histogram,
     bool maybe_parallel);
 
@@ -46,17 +46,17 @@ void ihist_hist16_2d(
     size_t stride,
     size_t n_components,
     size_t n_hist_components,
-    size_t const *restrict sample_indices,
+    size_t const *restrict component_indices,
     uint32_t *restrict histogram,
     bool maybe_parallel);
 ```
 
 ### Overview
 
-These functions compute histograms for one or more samples (components) from
-image data. They support:
+These functions compute histograms for one or more components (stored as
+interleaved multi-sample pixels) from image data. They support:
 
-- Multi-channel images (e.g., grayscale, RGB, RGBA)
+- Multi-component images (e.g., grayscale, RGB, RGBA)
 - Selective histogramming of specific components
 - Optional per-pixel masking
 - Region of interest (ROI) processing via stride and pointer offset
@@ -105,7 +105,7 @@ When `stride` equals `width`, the image is treated as contiguous. Use `stride` >
 of interest (ROI) within a larger image.
 
 **`n_components`**
-Number of interleaved samples per pixel. Examples:
+Number of interleaved  per pixel. Examples:
 
 - 1 for grayscale
 - 3 for RGB
@@ -114,13 +114,13 @@ Number of interleaved samples per pixel. Examples:
 Must be > 0.
 
 **`n_hist_components`**
-Number of samples to histogram. Must be > 0.
+Number of components to histogram. Must be > 0.
 
 This allows histogramming a subset of components, such as skipping the alpha
 component in RGBA images.
 
-**`sample_indices`**
-Array of `n_hist_components` indices specifying which samples to histogram.
+**`component_indices`**
+Array of `n_hist_components` indices specifying which components to histogram.
 Each index must be in the range [0, `n_components`).
 
 Examples:
@@ -137,11 +137,12 @@ Must not be `NULL`.
 Output buffer for histogram data. Must point to `n_hist_components *
 2^sample_bits` `uint32_t` values.
 
-Histograms for each sample are stored consecutively:
+Histograms for each component are stored consecutively:
 
-- Bins for `sample_indices[0]`: `histogram[0]` to `histogram[2^sample_bits - 1]`
-- Bins for `sample_indices[1]`: `histogram[2^sample_bits]` to `histogram[2 *
-  2^sample_bits - 1]`
+- Bins for `component_indices[0]`: `histogram[0]` to
+  `histogram[2^sample_bits - 1]`
+- Bins for `component_indices[1]`: `histogram[2^sample_bits]` to
+  `histogram[2 * 2^sample_bits - 1]`
 - ...
 
 **Important:** The histogram is **accumulated** into this buffer. Existing

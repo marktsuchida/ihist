@@ -38,7 +38,7 @@ using ihist_api_func = void(std::size_t, T const *, u8 const *, std::size_t,
 template <typename T>
 void bm_ihist_api(benchmark::State &state, ihist_api_func<T> *func,
                   std::size_t bits, std::size_t n_components,
-                  std::size_t n_samples, std::size_t const *sample_indices,
+                  std::size_t n_samples, std::size_t const *component_indices,
                   bool masked, bool mt) {
     auto const width = state.range(0);
     auto const height = state.range(0);
@@ -49,7 +49,8 @@ void bm_ihist_api(benchmark::State &state, ihist_api_func<T> *func,
     std::vector<u32> hist(n_samples * (1 << bits));
     for ([[maybe_unused]] auto _ : state) {
         func(bits, data.data(), masked ? mask.data() : nullptr, height, width,
-             width, n_components, n_samples, sample_indices, hist.data(), mt);
+             width, n_components, n_samples, component_indices, hist.data(),
+             mt);
         benchmark::DoNotOptimize(hist.data());
     }
     state.SetBytesProcessed(static_cast<i64>(state.iterations()) * size *
@@ -120,7 +121,7 @@ void opencv_histogram(T const *data, u8 const *mask, std::size_t height,
     float const *hist_range[] = {hist_range_0};
 
     // OpenCV calcHist() does not perform multiple histograms in a single call;
-    // the recommended method is to call for each sample. Also, the produced
+    // the recommended method is to call for each channel. Also, the produced
     // histogram is always float32 (for which OpenCV has good reason, but here
     // we convert back to u32 -- this overhead is probably small anyway).
     cv::Mat hist;
@@ -171,7 +172,7 @@ constexpr std::size_t indices_mono[] = {0};
 constexpr std::size_t indices_abc[] = {0, 1, 2};
 constexpr std::size_t indices_abcx[] = {0, 1, 2};
 
-std::vector const sample_indices{
+std::vector const component_indices{
     indices_mono,
     indices_abc,
     indices_abcx,
@@ -278,7 +279,7 @@ auto main(int argc, char **argv) -> int {
                     [=](benchmark::State &state) {
                         bm_ihist_api<u8>(state, ihist_hist8_2d, 8,
                                          n_components, n_samples,
-                                         sample_indices[i], mask, mt);
+                                         component_indices[i], mask, mt);
                     })
                     ->ArgsProduct({data_sizes, spread_pcts<8>});
 
@@ -287,7 +288,7 @@ auto main(int argc, char **argv) -> int {
                     [=](benchmark::State &state) {
                         bm_ihist_api<u16>(state, ihist_hist16_2d, 12,
                                           n_components, n_samples,
-                                          sample_indices[i], mask, mt);
+                                          component_indices[i], mask, mt);
                     })
                     ->ArgsProduct({data_sizes, spread_pcts<12>});
 
@@ -296,7 +297,7 @@ auto main(int argc, char **argv) -> int {
                     [=](benchmark::State &state) {
                         bm_ihist_api<u16>(state, ihist_hist16_2d, 16,
                                           n_components, n_samples,
-                                          sample_indices[i], mask, mt);
+                                          component_indices[i], mask, mt);
                     })
                     ->ArgsProduct({data_sizes, spread_pcts<8>});
 
