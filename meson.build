@@ -116,6 +116,6 @@ meson.override_dependency('ihist', ihist_dep)
 pkg_mod = import('pkgconfig')
 pkg_mod.generate(
     ihist_lib,
-    description: 'Meson sample project.',
+    description: 'Fast image histograms',
     subdirs: 'ihist',
 )
