@@ -4,3 +4,6 @@
 
 option('tbb', type: 'feature', value: 'enabled',
        description: 'Enable multi-threading support via oneTBB')
+
+option('python-bindings', type: 'feature', value: 'disabled',
+       description: 'Build Python bindings')

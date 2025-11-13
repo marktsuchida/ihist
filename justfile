@@ -138,3 +138,27 @@ benchmark-compare-filters FILTER1 FILTER2 *FLAGS: build test
 [positional-arguments]
 run SCRIPT *FLAGS: build
     uv run "$@"
+
+# Note: We prefer (for now) pip over uv for Python bindings build because uv
+# can sometimes fail to invalidate its cache when used with meson-python.
+
+# Build and install Python bindings (editable install)
+py-install:
+    pip --require-virtualenv install meson-python numpy
+    pip --require-virtualenv install -e . --no-build-isolation
+
+# Run Python tests
+py-test: py-install
+    pip --require-virtualenv install pytest
+    pytest
+
+# Clean Python build artifacts
+py-clean:
+    rm -rf build/ dist/ *.egg-info
+    find python -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
+# Build Python wheel
+py-build:
+    # TODO Build a static TBB and link to it (possibly also for test build).
+    pip --require-virtualenv install build
+    python -m build

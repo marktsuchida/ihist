@@ -121,6 +121,10 @@ ihist_dep = declare_dependency(
 subdir('tests')
 subdir('benchmarks')
 
+if get_option('python-bindings').enabled()
+    subdir('python')
+endif
+
 # Make this library usable as a Meson subproject.
 meson.override_dependency('ihist', ihist_dep)
 

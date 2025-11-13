@@ -8,7 +8,97 @@ SPDX-License-Identifier: MIT
 
 Fast histogram computation for image data.
 
-Currently experimental and API may change.
+Currently experimental and API may still change.
+
+## Python API
+
+### Quick Start
+
+```python
+import numpy as np
+import ihist
+
+# Grayscale image
+image = np.random.randint(0, 256, (100, 100), dtype=np.uint8)
+hist = ihist.histogram(image)  # Shape: (256,)
+
+# RGB image
+rgb = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+hist = ihist.histogram(rgb)  # Shape: (3, 256)
+
+# With masking
+mask = np.ones((100, 100), dtype=np.uint8)
+hist = ihist.histogram(image, mask=mask)
+```
+
+### Function
+
+The Python API provides a single function for computing histograms:
+
+```python
+import ihist
+
+histogram = ihist.histogram(image, bits=None, mask=None,
+                            components=None, out=None,
+                            accumulate=False, parallel=True)
+```
+
+### Parameters
+
+**`image`** : *array_like*
+Input image data. Must be uint8 or uint16, and 1D, 2D, or 3D.
+
+- 1D arrays `(W,)` are interpreted as `(1, W, 1)`
+- 2D arrays `(H, W)` are interpreted as `(H, W, 1)`
+- 3D arrays `(H, W, C)` use C as number of components
+
+Must be C-contiguous. Total pixel count must not exceed `2^32-1`.
+
+**`bits`** : *int, optional*
+Number of significant bits per sample. If not specified, defaults to full depth
+(8 for uint8, 16 for uint16). Valid range: `[1, 8]` for uint8, `[1, 16]` for
+uint16.
+
+**`mask`** : *array_like, optional*
+Per-pixel mask. Must be uint8, 2D, shape `(H, W)`. Only pixels with non-zero
+mask values are included. If not specified, all pixels are included.
+
+**`components`** : *sequence of int, optional*
+Indices of components to histogram. If not specified, all components are
+histogrammed. Each index must be in range `[0, n_components)`.
+
+Examples:
+
+- `[0]` - histogram only the first component (e.g., red in RGB)
+- `[0, 1, 2]` - histogram first three components (e.g., RGB in RGBA, skipping
+  alpha)
+
+**`out`** : *array_like, optional*
+Pre-allocated output buffer. Must be uint32, and either:
+
+- 1D with shape `(n_hist_components * 2^bits,)`, or
+- 2D with shape `(n_hist_components, 2^bits)`
+
+If not specified, a new array is allocated and returned.
+
+**`accumulate`** : *bool, optional*
+If `False` (default), the output buffer is zeroed before computing the
+histogram. If `True`, histogram values are accumulated into the existing buffer
+values.
+
+**`parallel`** : *bool, optional*
+If `True` (default), allows automatic multi-threaded execution for large images.
+If `False`, guarantees single-threaded execution.
+
+### Returns
+
+**histogram** : *ndarray*
+Histogram(s) as uint32 array.
+
+- If a single component is histogrammed, returns 1D array of shape `(2^bits,)`
+- If multiple components are histogrammed, returns 2D array of shape
+  `(n_hist_components, 2^bits)`
+- If `out` was provided, returns the same array after filling
 
 ## C API
 

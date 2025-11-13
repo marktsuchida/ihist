@@ -7,3 +7,7 @@
 
 # Sometimes left behind by Meson
 .wraplock
+
+__pycache__/
+/build/
+/dist/

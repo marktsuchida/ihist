@@ -13,5 +13,7 @@ packagecache/
 # Our wraps
 !catch2.wrap
 !google-benchmark.wrap
+!nanobind.wrap
+!robin-map.wrap
 
 !/.gitignore
