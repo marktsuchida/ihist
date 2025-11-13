@@ -170,17 +170,26 @@ nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
 
     void const *image_ptr = image.data();
 
-    if (is_8bit) {
-        ihist_hist8_2d(sample_bits,
-                       static_cast<std::uint8_t const *>(image_ptr), mask_ptr,
-                       height, width, width, n_components, n_hist_components,
-                       component_indices.data(), hist_ptr, parallel);
-    } else {
-        ihist_hist16_2d(
-            sample_bits, static_cast<std::uint16_t const *>(image_ptr),
-            mask_ptr, height, width, width, n_components, n_hist_components,
-            component_indices.data(), hist_ptr, parallel);
+    // We could keep the GIL acquired when data size is small (say, less than
+    // 500 elements; should benchmark), but always release for now.
+    {
+        nb::gil_scoped_release gil_released;
+
+        if (is_8bit) {
+            ihist_hist8_2d(sample_bits,
+                           static_cast<std::uint8_t const *>(image_ptr),
+                           mask_ptr, height, width, width, n_components,
+                           n_hist_components, component_indices.data(),
+                           hist_ptr, parallel);
+        } else {
+            ihist_hist16_2d(sample_bits,
+                            static_cast<std::uint16_t const *>(image_ptr),
+                            mask_ptr, height, width, width, n_components,
+                            n_hist_components, component_indices.data(),
+                            hist_ptr, parallel);
+        }
     }
+
     return out_array;
 }
 
