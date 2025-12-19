@@ -5,5 +5,11 @@
 option('tbb', type: 'feature', value: 'enabled',
        description: 'Enable multi-threading support via oneTBB')
 
+option('tests', type: 'feature', value: 'auto',
+       description: 'Build C++ tests')
+
+option('benchmarks', type: 'feature', value: 'auto',
+       description: 'Build C++ benchmarks')
+
 option('python-bindings', type: 'feature', value: 'disabled',
        description: 'Build Python bindings')

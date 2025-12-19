@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 [build-system]
-requires = ["meson-python"]
+requires = ["meson-python", "numpy"]
 build-backend = "mesonpy"
 
 [project]
@@ -32,7 +32,12 @@ test = ["pytest>=7.0"]
 dev = ["pytest>=7.0"]
 
 [tool.meson-python.args]
-setup = ["-Dpython-bindings=enabled", "-Dgoogle-benchmark:werror=false"]
+setup = [
+    "-Dpython-bindings=enabled",
+    "-Dbenchmarks=disabled",
+    "-Dtests=disabled",
+    "-Ddefault_library=static",
+]
 install = ["--tags=python-runtime"]
 
 [tool.pytest.ini_options]
@@ -47,3 +52,18 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]
 ignore = [
     "E501", # Line too long
 ]
+
+[tool.cibuildwheel]
+# Statically link TBB for PyPI package.
+# Set TBB_PREFIX and PKG_CONFIG_PATH before running cibuildwheel.
+# (Also set CXX=clang-cl on Windows.)
+# For CI, these are set in .github/workflows/ci.yml.
+before-build = "bash ./scripts/build_static_tbb.sh"
+skip = "*-musllinux* *-win32 *-manylinux_i686"
+test-extras = "test"
+test-command = "pytest {project}/python/tests"
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
+# Only test native arch (CI runs on ARM)
+test-skip = "*-macosx_x86_64"

@@ -9,7 +9,7 @@ help:
 
 exe_suffix := if os() == "windows" { ".exe" } else { "" }
 
-onetbb_version := '2022.2.0'
+onetbb_version := '2022.3.0'
 
 # On Windows, put DLLs on path so that tests and benchmarks can run.
 export PATH := if os() == "windows" {
@@ -159,6 +159,5 @@ py-clean:
 
 # Build Python wheel
 py-build:
-    # TODO Build a static TBB and link to it (possibly also for test build).
     pip --require-virtualenv install build
     python -m build

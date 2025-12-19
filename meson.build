@@ -27,8 +27,7 @@ endif
 
 # We do not build oneTBB as a wrap/subproject, because when using as a C++
 # library, oneTBB should be dynamically linked (if other parts of the
-# application also use it). For quickly building for development, use the
-# justfile.
+# application also use it). See justfile for quickly obtaining.
 onetbb_dep = dependency(
     'tbb',
     allow_fallback: false,
@@ -46,41 +45,45 @@ onetbb_dep = declare_dependency(
     compile_args: tbb_cpp_args,
 )
 
-catch2_with_main_dep = dependency(
-    'catch2-with-main',
-    allow_fallback: true,
-    include_type: 'system',
-    static: true,
-)
-
-benchmark_dep = dependency(
-    'benchmark',
-    allow_fallback: true,
-    include_type: 'system',
-    static: true,
-)
-
-# E.g., Homebrew has opencv4 (pkg-config), Scoop has OpenCV (cmake).
-opencv_dep = dependency('opencv4', required: false)
-if not opencv_dep.found()
-    opencv_dep = dependency('OpenCV', required: false)
+if not get_option('tests').disabled()
+    catch2_with_main_dep = dependency(
+        'catch2-with-main',
+        allow_fallback: true,
+        include_type: 'system',
+        static: true,
+    )
 endif
 
-opencv_cpp_args = []
-if opencv_dep.found()
-    opencv_cpp_args += '-DIHIST_HAVE_OPENCV=1'
-    if cxx.get_id() == 'clang'
-        opencv_cpp_args += '-Wno-c11-extensions'
-    endif
-    if cxx.get_id() in ['clang-cl', 'msvc']
-        opencv_cpp_args += '-D_CRT_SECURE_NO_WARNINGS'
-    endif
-endif
+if not get_option('benchmarks').disabled()
+    benchmark_dep = dependency(
+        'benchmark',
+        allow_fallback: true,
+        include_type: 'system',
+        static: true,
+    )
 
-opencv_dep = declare_dependency(
-    dependencies: opencv_dep,
-    compile_args: opencv_cpp_args,
-)
+    # E.g., Homebrew has opencv4 (pkg-config), Scoop has OpenCV (cmake).
+    opencv_dep = dependency('opencv4', required: false)
+    if not opencv_dep.found()
+        opencv_dep = dependency('OpenCV', required: false)
+    endif
+
+    opencv_cpp_args = []
+    if opencv_dep.found()
+        opencv_cpp_args += '-DIHIST_HAVE_OPENCV=1'
+        if cxx.get_id() == 'clang'
+            opencv_cpp_args += '-Wno-c11-extensions'
+        endif
+        if cxx.get_id() in ['clang-cl', 'msvc']
+            opencv_cpp_args += '-D_CRT_SECURE_NO_WARNINGS'
+        endif
+    endif
+
+    opencv_dep = declare_dependency(
+        dependencies: opencv_dep,
+        compile_args: opencv_cpp_args,
+    )
+endif
 
 dependencies = []
 if onetbb_dep.found()
@@ -118,8 +121,12 @@ ihist_dep = declare_dependency(
     link_with: ihist_lib,
 )
 
-subdir('tests')
-subdir('benchmarks')
+if not get_option('tests').disabled()
+    subdir('tests')
+endif
+if not get_option('benchmarks').disabled()
+    subdir('benchmarks')
+endif
 
 if get_option('python-bindings').enabled()
     subdir('python')

@@ -99,3 +99,36 @@ jobs:
           meson setup builddir -Dtbb=disabled
           meson compile -C builddir
           meson test -C builddir
+
+  wheels:
+    name: wheels-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install pkg-config (Windows)
+        if: startsWith(matrix.os, 'windows-')
+        uses: MinoruSekine/setup-scoop@v4.0.2
+        with:
+          apps: pkg-config
+      - uses: pypa/cibuildwheel@v3.3.0
+        env:
+          CIBW_ENVIRONMENT_LINUX: >-
+            TBB_PREFIX=/tmp/tbb
+            PKG_CONFIG_PATH=/tmp/tbb/lib/pkgconfig
+          CIBW_ENVIRONMENT_MACOS: >-
+            MACOSX_DEPLOYMENT_TARGET=11.0
+            PKG_CONFIG=/opt/homebrew/bin/pkg-config
+            TBB_PREFIX=/tmp/tbb
+            PKG_CONFIG_PATH=/tmp/tbb/lib/pkgconfig
+          CIBW_ENVIRONMENT_WINDOWS: >-
+            CXX=clang-cl
+            TBB_PREFIX="$RUNNER_TEMP/tbb"
+            PKG_CONFIG_PATH="$RUNNER_TEMP/tbb/lib/pkgconfig"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
