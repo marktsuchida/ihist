@@ -11,7 +11,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
@@ -56,8 +56,8 @@ jobs:
       CXX: ${{ matrix.cxx }}
       MACOSX_DEPLOYMENT_TARGET: 12.0
     steps:
-      - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
       - name: Install tools
         run: |
           uv tool install rust-just
@@ -90,8 +90,8 @@ jobs:
     env:
       CXX: clang++
     steps:
-      - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
       - name: Install tools
         run: |
           uv tool install meson
@@ -122,7 +122,7 @@ jobs:
             deployment_target: "10.15"
             name: macos-15-x86_64
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install pkg-config (Windows)
         if: startsWith(matrix.os, 'windows-')
         uses: MinoruSekine/setup-scoop@v4.0.2
