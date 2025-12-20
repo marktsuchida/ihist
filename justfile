@@ -161,3 +161,17 @@ py-clean:
 py-build:
     pip --require-virtualenv install build
     python -m build
+
+# Run cibuildwheel locally for native architecture
+cibuildwheel:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    # Use same default as scripts/build_static_tbb.sh
+    export TBB_PREFIX="$PWD/dependencies/oneTBB-Release"
+    export PKG_CONFIG_PATH="$TBB_PREFIX/lib/pkgconfig"
+    UNAME=$(uname -s)
+    if [[ "$UNAME" == MINGW* || "$UNAME" == MSYS* ]]; then
+        export CXX=clang-cl
+    fi
+    pip --require-virtualenv install cibuildwheel
+    CIBW_ARCHS=native cibuildwheel
