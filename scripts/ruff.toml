@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 line-length = 79
+target-version = "py310"
 
 [lint]
 select = ["E", "F", "UP", "B", "SIM", "I"]
