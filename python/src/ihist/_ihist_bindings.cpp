@@ -164,7 +164,7 @@ nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
         hist_ptr = out_arr.data();
     }
 
-    if (!accumulate) {
+    if (out_obj.is_none() || !accumulate) {
         std::fill(hist_ptr, std::next(hist_ptr, hist_size), 0);
     }
 
