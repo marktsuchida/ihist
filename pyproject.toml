@@ -62,8 +62,3 @@ before-build = "bash ./scripts/build_static_tbb.sh"
 skip = "*-musllinux* *-win32 *-manylinux_i686"
 test-extras = "test"
 test-command = "pytest {project}/python/tests"
-
-[tool.cibuildwheel.macos]
-archs = ["x86_64", "arm64"]
-# Only test native arch (CI runs on ARM)
-test-skip = "*-macosx_x86_64"

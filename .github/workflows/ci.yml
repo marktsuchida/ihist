@@ -101,12 +101,24 @@ jobs:
           meson test -C builddir
 
   wheels:
-    name: wheels-${{ matrix.os }}
+    name: wheels-${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-2025, macos-15]
+        include:
+          - os: ubuntu-24.04
+            name: ubuntu-24.04
+          - os: windows-2025
+            name: windows-2025
+          - os: macos-15
+            arch: arm64
+            deployment_target: "11.0"
+            name: macos-15-arm64
+          - os: macos-15
+            arch: x86_64
+            deployment_target: "10.15"
+            name: macos-15-x86_64
     steps:
       - uses: actions/checkout@v5
       - name: Install pkg-config (Windows)
@@ -120,7 +132,7 @@ jobs:
             TBB_PREFIX=/tmp/tbb
             PKG_CONFIG_PATH=/tmp/tbb/lib/pkgconfig
           CIBW_ENVIRONMENT_MACOS: >-
-            MACOSX_DEPLOYMENT_TARGET=11.0
+            MACOSX_DEPLOYMENT_TARGET=${{ matrix.deployment_target }}
             PKG_CONFIG=/opt/homebrew/bin/pkg-config
             TBB_PREFIX=/tmp/tbb
             PKG_CONFIG_PATH=/tmp/tbb/lib/pkgconfig
@@ -128,7 +140,9 @@ jobs:
             CXX=clang-cl
             TBB_PREFIX="$RUNNER_TEMP/tbb"
             PKG_CONFIG_PATH="$RUNNER_TEMP/tbb/lib/pkgconfig"
+          CIBW_ARCHS_MACOS: ${{ matrix.arch }}
+          CIBW_TEST_SKIP: "*-macosx_x86_64"
       - uses: actions/upload-artifact@v6
         with:
-          name: wheels-${{ matrix.os }}
+          name: wheels-${{ matrix.name }}
           path: wheelhouse/*.whl
