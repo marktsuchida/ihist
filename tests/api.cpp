@@ -51,22 +51,22 @@ constexpr std::size_t size = width * height;
             ihist::histxy_unoptimized_st<u##format_bits, false, sample_bits,  \
                                          0, 1, 0>(                            \
                 data.data() + roi_y * width + roi_x, nullptr, roi_height,     \
-                roi_width, width, ref.data());                                \
+                roi_width, width, width, ref.data());                         \
             ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + roi_y * width + roi_x, nullptr,    \
-                roi_height, roi_width, width, 1, 1, indices, hist.data(),     \
-                parallel);                                                    \
+                roi_height, roi_width, width, width, 1, 1, indices,           \
+                hist.data(), parallel);                                       \
         }                                                                     \
         SECTION("mask") {                                                     \
             ihist::histxy_unoptimized_st<u##format_bits, true, sample_bits,   \
                                          0, 1, 0>(                            \
                 data.data() + roi_y * width + roi_x,                          \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
-                width, ref.data());                                           \
+                width, width, ref.data());                                    \
             ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + roi_y * width + roi_x,             \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
-                width, 1, 1, indices, hist.data(), parallel);                 \
+                width, width, 1, 1, indices, hist.data(), parallel);          \
         }                                                                     \
         CHECK(hist == ref);                                                   \
     }
@@ -86,10 +86,10 @@ constexpr std::size_t size = width * height;
             ihist::histxy_unoptimized_st<u##format_bits, false, sample_bits,  \
                                          0, 3, 0, 1, 2>(                      \
                 data.data() + 3 * (roi_y * width + roi_x), nullptr,           \
-                roi_height, roi_width, width, ref.data());                    \
+                roi_height, roi_width, width, width, ref.data());             \
             ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + 3 * (roi_y * width + roi_x),       \
-                nullptr, roi_height, roi_width, width, 3, 3, indices,         \
+                nullptr, roi_height, roi_width, width, width, 3, 3, indices,  \
                 hist.data(), parallel);                                       \
         }                                                                     \
         SECTION("mask") {                                                     \
@@ -97,11 +97,11 @@ constexpr std::size_t size = width * height;
                                          0, 3, 0, 1, 2>(                      \
                 data.data() + 3 * (roi_y * width + roi_x),                    \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
-                width, ref.data());                                           \
+                width, width, ref.data());                                    \
             ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + 3 * (roi_y * width + roi_x),       \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
-                width, 3, 3, indices, hist.data(), parallel);                 \
+                width, width, 3, 3, indices, hist.data(), parallel);          \
         }                                                                     \
         CHECK(hist == ref);                                                   \
     }
@@ -121,10 +121,10 @@ constexpr std::size_t size = width * height;
             ihist::histxy_unoptimized_st<u##format_bits, false, sample_bits,  \
                                          0, 4, 0, 1, 2>(                      \
                 data.data() + 4 * (roi_y * width + roi_x), nullptr,           \
-                roi_height, roi_width, width, ref.data());                    \
+                roi_height, roi_width, width, width, ref.data());             \
             ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + 4 * (roi_y * width + roi_x),       \
-                nullptr, roi_height, roi_width, width, 4, 3, indices,         \
+                nullptr, roi_height, roi_width, width, width, 4, 3, indices,  \
                 hist.data(), parallel);                                       \
         }                                                                     \
         SECTION("mask") {                                                     \
@@ -132,11 +132,11 @@ constexpr std::size_t size = width * height;
                                          0, 4, 0, 1, 2>(                      \
                 data.data() + 4 * (roi_y * width + roi_x),                    \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
-                width, ref.data());                                           \
+                width, width, ref.data());                                    \
             ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + 4 * (roi_y * width + roi_x),       \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
-                width, 4, 3, indices, hist.data(), parallel);                 \
+                width, width, 4, 3, indices, hist.data(), parallel);          \
         }                                                                     \
         CHECK(hist == ref);                                                   \
     }
@@ -156,10 +156,10 @@ constexpr std::size_t size = width * height;
             ihist::histxy_unoptimized_st<u##format_bits, false, sample_bits,  \
                                          0, 4, 1, 2, 3>(                      \
                 data.data() + 4 * (roi_y * width + roi_x), nullptr,           \
-                roi_height, roi_width, width, ref.data());                    \
+                roi_height, roi_width, width, width, ref.data());             \
             ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + 4 * (roi_y * width + roi_x),       \
-                nullptr, roi_height, roi_width, width, 4, 3, indices,         \
+                nullptr, roi_height, roi_width, width, width, 4, 3, indices,  \
                 hist.data(), parallel);                                       \
         }                                                                     \
         SECTION("mask") {                                                     \
@@ -167,11 +167,11 @@ constexpr std::size_t size = width * height;
                                          0, 4, 1, 2, 3>(                      \
                 data.data() + 4 * (roi_y * width + roi_x),                    \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
-                width, ref.data());                                           \
+                width, width, ref.data());                                    \
             ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + 4 * (roi_y * width + roi_x),       \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
-                width, 4, 3, indices, hist.data(), parallel);                 \
+                width, width, 4, 3, indices, hist.data(), parallel);          \
         }                                                                     \
         CHECK(hist == ref);                                                   \
     }
@@ -191,10 +191,10 @@ constexpr std::size_t size = width * height;
             ihist::histxy_unoptimized_st<u##format_bits, false, sample_bits,  \
                                          0, 2, 0, 1>(                         \
                 data.data() + 2 * (roi_y * width + roi_x), nullptr,           \
-                roi_height, roi_width, width, ref.data());                    \
+                roi_height, roi_width, width, width, ref.data());             \
             ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + 2 * (roi_y * width + roi_x),       \
-                nullptr, roi_height, roi_width, width, 2, 2, indices,         \
+                nullptr, roi_height, roi_width, width, width, 2, 2, indices,  \
                 hist.data(), parallel);                                       \
         }                                                                     \
         SECTION("mask") {                                                     \
@@ -202,11 +202,11 @@ constexpr std::size_t size = width * height;
                                          0, 2, 0, 1>(                         \
                 data.data() + 2 * (roi_y * width + roi_x),                    \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
-                width, ref.data());                                           \
+                width, width, ref.data());                                    \
             ihist_hist##format_bits##_2d(                                     \
                 sample_bits, data.data() + 2 * (roi_y * width + roi_x),       \
                 mask.data() + roi_y * width + roi_x, roi_height, roi_width,   \
-                width, 2, 2, indices, hist.data(), parallel);                 \
+                width, width, 2, 2, indices, hist.data(), parallel);          \
         }                                                                     \
         CHECK(hist == ref);                                                   \
     }

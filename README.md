@@ -121,7 +121,8 @@ void ihist_hist8_2d(
     uint8_t const *restrict mask,
     size_t height,
     size_t width,
-    size_t stride,
+    size_t image_stride,
+    size_t mask_stride,
     size_t n_components,
     size_t n_hist_components,
     size_t const *restrict component_indices,
@@ -134,7 +135,8 @@ void ihist_hist16_2d(
     uint8_t const *restrict mask,
     size_t height,
     size_t width,
-    size_t stride,
+    size_t image_stride,
+    size_t mask_stride,
     size_t n_components,
     size_t n_hist_components,
     size_t const *restrict component_indices,
@@ -177,8 +179,8 @@ May be `NULL` if `height` or `width` is 0.
 
 **`mask`** *(optional)*
 Per-pixel mask for selective histogramming. If non-`NULL`, must point to
-`height * stride` `uint8_t` values. Only pixels where the corresponding mask
-value is non-zero are included in the histogram.
+`height * mask_stride` `uint8_t` values. Only pixels where the corresponding
+mask value is non-zero are included in the histogram.
 
 Pass `NULL` to histogram all pixels.
 
@@ -188,12 +190,20 @@ Image height in pixels. May be 0 for empty input.
 **`width`**
 Image width in pixels. May be 0 for empty input.
 
-**`stride`**
-Row stride in pixels (not bytes). Must be ≥ `width`.
+**`image_stride`**
+Row stride for the image in pixels (not bytes). Must be ≥ `width`.
 
-When `stride` equals `width`, the image is treated as contiguous. Use `stride` >
-`width` together with an offset `image` pointer to process a rectangular region
-of interest (ROI) within a larger image.
+When `image_stride` equals `width`, the image is treated as contiguous. Use
+`image_stride` > `width` together with an offset `image` pointer to process a
+rectangular region of interest (ROI) within a larger image.
+
+**`mask_stride`**
+Row stride for the mask in pixels (not bytes). Must be ≥ `width`.
+
+When `mask_stride` equals `width`, the mask is treated as contiguous. This
+parameter allows the mask to have a different stride from the image, which is
+useful, for example, if you have a mask that covers only a rectanglular ROI of
+the image.
 
 **`n_components`**
 Number of interleaved  per pixel. Examples:

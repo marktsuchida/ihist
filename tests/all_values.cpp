@@ -106,7 +106,7 @@ TEMPLATE_LIST_TEST_CASE("all-values", "", test_traits_list) {
                 constexpr auto *histxy_func =
                     traits::template histxy_func<false, FULL_BITS, FULL_SHIFT,
                                                  1, 0>;
-                histxy_func(data.data(), nullptr, height, width, width,
+                histxy_func(data.data(), nullptr, height, width, width, width,
                             hist.data(), 1);
                 CHECK(hist == expected);
             }
@@ -117,7 +117,7 @@ TEMPLATE_LIST_TEST_CASE("all-values", "", test_traits_list) {
                 constexpr auto *histxy_func =
                     traits::template histxy_func<false, HALF_BITS, HALF_SHIFT,
                                                  1, 0>;
-                histxy_func(data.data(), nullptr, height, width, width,
+                histxy_func(data.data(), nullptr, height, width, width, width,
                             hist.data(), 1);
                 CHECK(hist == expected);
             }
@@ -129,7 +129,7 @@ TEMPLATE_LIST_TEST_CASE("all-values", "", test_traits_list) {
                 constexpr auto *histxy_func =
                     traits::template histxy_func<false, FULL_BITS, FULL_SHIFT,
                                                  4, 3, 0, 1>;
-                histxy_func(data4.data(), nullptr, height, width, width,
+                histxy_func(data4.data(), nullptr, height, width, width, width,
                             hist3.data(), 1);
                 CHECK(hist3 == expected3);
             }
@@ -140,7 +140,7 @@ TEMPLATE_LIST_TEST_CASE("all-values", "", test_traits_list) {
                 constexpr auto *histxy_func =
                     traits::template histxy_func<false, HALF_BITS, HALF_SHIFT,
                                                  4, 3, 0, 1>;
-                histxy_func(data4.data(), nullptr, height, width, width,
+                histxy_func(data4.data(), nullptr, height, width, width, width,
                             hist3.data(), 1);
                 CHECK(hist3 == expected3);
             }
@@ -178,7 +178,7 @@ TEMPLATE_LIST_TEST_CASE("dynamic-all-values", "", dynamic_test_traits_list) {
         std::vector<std::uint32_t> const expected(2 * FULL_NBINS, 1);
 
         traits::template histxy_dynamic<false, FULL_BITS, 0>(
-            data.data(), nullptr, height, width, width, 2, 2, indices,
+            data.data(), nullptr, height, width, width, width, 2, 2, indices,
             hist.data());
         CHECK(hist == expected);
     }
@@ -189,7 +189,7 @@ TEMPLATE_LIST_TEST_CASE("dynamic-all-values", "", dynamic_test_traits_list) {
                                                   1 << HALF_SHIFT);
 
         traits::template histxy_dynamic<false, HALF_BITS, HALF_SHIFT>(
-            data.data(), nullptr, height, width, width, 2, 2, indices,
+            data.data(), nullptr, height, width, width, width, 2, 2, indices,
             hist.data());
         CHECK(hist == expected);
     }

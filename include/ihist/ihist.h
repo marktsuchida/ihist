@@ -44,15 +44,16 @@ extern "C" {
 IHIST_PUBLIC void
 ihist_hist8_2d(size_t sample_bits, uint8_t const *IHIST_RESTRICT image,
                uint8_t const *IHIST_RESTRICT mask, size_t height, size_t width,
-               size_t stride, size_t n_components, size_t n_hist_components,
+               size_t image_stride, size_t mask_stride, size_t n_components,
+               size_t n_hist_components,
                size_t const *IHIST_RESTRICT component_indices,
                uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel);
 
 IHIST_PUBLIC void
 ihist_hist16_2d(size_t sample_bits, uint16_t const *IHIST_RESTRICT image,
                 uint8_t const *IHIST_RESTRICT mask, size_t height,
-                size_t width, size_t stride, size_t n_components,
-                size_t n_hist_components,
+                size_t width, size_t image_stride, size_t mask_stride,
+                size_t n_components, size_t n_hist_components,
                 size_t const *IHIST_RESTRICT component_indices,
                 uint32_t *IHIST_RESTRICT histogram, bool maybe_parallel);
 

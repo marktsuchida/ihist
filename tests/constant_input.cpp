@@ -250,7 +250,7 @@ TEMPLATE_LIST_TEST_CASE("constant-input", "", test_traits_list) {
                         traits::template histxy_func<false, FULL_BITS,
                                                      FULL_SHIFT, 1, 0>;
                     histxy_func(quad_data.data() + quad_y * width + quad_x,
-                                nullptr, quad_height, quad_width, width,
+                                nullptr, quad_height, quad_width, width, width,
                                 hist.data(), 1);
                 }
                 SECTION("mask") {
@@ -258,7 +258,7 @@ TEMPLATE_LIST_TEST_CASE("constant-input", "", test_traits_list) {
                         traits::template histxy_func<true, FULL_BITS,
                                                      FULL_SHIFT, 1, 0>;
                     histxy_func(quad_data.data(), quad_mask.data(), height,
-                                width, width, hist.data(), 1);
+                                width, width, width, hist.data(), 1);
                 }
                 SECTION("roi+mask") {
                     constexpr auto *histxy_func =
@@ -266,8 +266,8 @@ TEMPLATE_LIST_TEST_CASE("constant-input", "", test_traits_list) {
                                                      FULL_SHIFT, 1, 0>;
                     histxy_func(quad_data.data() + quad_y * width + quad_x,
                                 quad_mask.data() + quad_y * width + quad_x,
-                                quad_height, quad_width, width, hist.data(),
-                                1);
+                                quad_height, quad_width, width, width,
+                                hist.data(), 1);
                 }
                 CHECK(hist == expected);
             }
@@ -283,7 +283,7 @@ TEMPLATE_LIST_TEST_CASE("constant-input", "", test_traits_list) {
                         traits::template histxy_func<false, HALF_BITS,
                                                      HALF_SHIFT, 1, 0>;
                     histxy_func(quad_data.data() + quad_y * width + quad_x,
-                                nullptr, quad_height, quad_width, width,
+                                nullptr, quad_height, quad_width, width, width,
                                 hist.data(), 1);
                 }
                 SECTION("mask") {
@@ -291,7 +291,7 @@ TEMPLATE_LIST_TEST_CASE("constant-input", "", test_traits_list) {
                         traits::template histxy_func<true, HALF_BITS,
                                                      HALF_SHIFT, 1, 0>;
                     histxy_func(quad_data.data(), quad_mask.data(), height,
-                                width, width, hist.data(), 1);
+                                width, width, width, hist.data(), 1);
                 }
                 SECTION("roi+mask") {
                     constexpr auto *histxy_func =
@@ -299,8 +299,8 @@ TEMPLATE_LIST_TEST_CASE("constant-input", "", test_traits_list) {
                                                      HALF_SHIFT, 1, 0>;
                     histxy_func(quad_data.data() + quad_y * width + quad_x,
                                 quad_mask.data() + quad_y * width + quad_x,
-                                quad_height, quad_width, width, hist.data(),
-                                1);
+                                quad_height, quad_width, width, width,
+                                hist.data(), 1);
                 }
                 CHECK(hist == expected);
             }
@@ -322,7 +322,7 @@ TEMPLATE_LIST_TEST_CASE("constant-input", "", test_traits_list) {
                                                      FULL_SHIFT, 4, 3, 0, 1>;
                     histxy_func(quad4_data.data() +
                                     4 * (quad_y * width + quad_x),
-                                nullptr, quad_height, quad_width, width,
+                                nullptr, quad_height, quad_width, width, width,
                                 hist3.data(), 1);
                 }
                 SECTION("mask") {
@@ -330,16 +330,17 @@ TEMPLATE_LIST_TEST_CASE("constant-input", "", test_traits_list) {
                         traits::template histxy_func<true, FULL_BITS,
                                                      FULL_SHIFT, 4, 3, 0, 1>;
                     histxy_func(quad4_data.data(), quad_mask.data(), height,
-                                width, width, hist3.data(), 1);
+                                width, width, width, hist3.data(), 1);
                 }
                 SECTION("roi+mask") {
                     constexpr auto *histxy_func =
                         traits::template histxy_func<true, FULL_BITS,
                                                      FULL_SHIFT, 4, 3, 0, 1>;
-                    histxy_func(
-                        quad4_data.data() + 4 * (quad_y * width + quad_x),
-                        quad_mask.data() + quad_y * width + quad_x,
-                        quad_height, quad_width, width, hist3.data(), 1);
+                    histxy_func(quad4_data.data() +
+                                    4 * (quad_y * width + quad_x),
+                                quad_mask.data() + quad_y * width + quad_x,
+                                quad_height, quad_width, width, width,
+                                hist3.data(), 1);
                 }
                 CHECK(hist3 == expected3);
             }
@@ -359,7 +360,7 @@ TEMPLATE_LIST_TEST_CASE("constant-input", "", test_traits_list) {
                                                      HALF_SHIFT, 4, 3, 0, 1>;
                     histxy_func(quad4_data.data() +
                                     4 * (quad_y * width + quad_x),
-                                nullptr, quad_height, quad_width, width,
+                                nullptr, quad_height, quad_width, width, width,
                                 hist3.data(), 1);
                 }
                 SECTION("mask") {
@@ -367,16 +368,17 @@ TEMPLATE_LIST_TEST_CASE("constant-input", "", test_traits_list) {
                         traits::template histxy_func<true, HALF_BITS,
                                                      HALF_SHIFT, 4, 3, 0, 1>;
                     histxy_func(quad4_data.data(), quad_mask.data(), height,
-                                width, width, hist3.data(), 1);
+                                width, width, width, hist3.data(), 1);
                 }
                 SECTION("roi+mask") {
                     constexpr auto *histxy_func =
                         traits::template histxy_func<true, HALF_BITS,
                                                      HALF_SHIFT, 4, 3, 0, 1>;
-                    histxy_func(
-                        quad4_data.data() + 4 * (quad_y * width + quad_x),
-                        quad_mask.data() + quad_y * width + quad_x,
-                        quad_height, quad_width, width, hist3.data(), 1);
+                    histxy_func(quad4_data.data() +
+                                    4 * (quad_y * width + quad_x),
+                                quad_mask.data() + quad_y * width + quad_x,
+                                quad_height, quad_width, width, width,
+                                hist3.data(), 1);
                 }
                 CHECK(hist3 == expected3);
             }
@@ -454,20 +456,21 @@ TEMPLATE_LIST_TEST_CASE("dynamic-constant-input", "",
         SECTION("roi") {
             traits::template histxy_dynamic<false, FULL_BITS, FULL_SHIFT>(
                 quad_data.data() + 2 * (quad_y * width + quad_x), nullptr,
-                quad_height, quad_width, width, 2, 2, indices, hist.data());
+                quad_height, quad_width, width, width, 2, 2, indices,
+                hist.data());
             CHECK(hist == expected);
         }
         SECTION("mask") {
             traits::template histxy_dynamic<true, FULL_BITS, FULL_SHIFT>(
-                quad_data.data(), quad_mask.data(), height, width, width, 2, 2,
-                indices, hist.data());
+                quad_data.data(), quad_mask.data(), height, width, width,
+                width, 2, 2, indices, hist.data());
             CHECK(hist == expected);
         }
         SECTION("roi+mask") {
             traits::template histxy_dynamic<true, FULL_BITS, FULL_SHIFT>(
                 quad_data.data() + 2 * (quad_y * width + quad_x),
                 quad_mask.data() + quad_y * width + quad_x, quad_height,
-                quad_width, width, 2, 2, indices, hist.data());
+                quad_width, width, width, 2, 2, indices, hist.data());
             CHECK(hist == expected);
         }
     }
@@ -485,20 +488,21 @@ TEMPLATE_LIST_TEST_CASE("dynamic-constant-input", "",
         SECTION("roi") {
             traits::template histxy_dynamic<false, HALF_BITS, HALF_SHIFT>(
                 quad_data.data() + 2 * (quad_y * width + quad_x), nullptr,
-                quad_height, quad_width, width, 2, 2, indices, hist.data());
+                quad_height, quad_width, width, width, 2, 2, indices,
+                hist.data());
             CHECK(hist == expected);
         }
         SECTION("mask") {
             traits::template histxy_dynamic<true, HALF_BITS, HALF_SHIFT>(
-                quad_data.data(), quad_mask.data(), height, width, width, 2, 2,
-                indices, hist.data());
+                quad_data.data(), quad_mask.data(), height, width, width,
+                width, 2, 2, indices, hist.data());
             CHECK(hist == expected);
         }
         SECTION("roi+mask") {
             traits::template histxy_dynamic<true, HALF_BITS, HALF_SHIFT>(
                 quad_data.data() + 2 * (quad_y * width + quad_x),
                 quad_mask.data() + quad_y * width + quad_x, quad_height,
-                quad_width, width, 2, 2, indices, hist.data());
+                quad_width, width, width, 2, 2, indices, hist.data());
             CHECK(hist == expected);
         }
     }

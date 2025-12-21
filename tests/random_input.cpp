@@ -79,15 +79,16 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
                     std::vector<std::uint32_t> ref(FULL_NBINS);
                     constexpr auto *refxy_func = histxy_unoptimized_st<T>;
                     refxy_func(data.data() + quad_y * width + quad_x, nullptr,
-                               quad_height, quad_width, width, ref.data(), 1);
+                               quad_height, quad_width, width, width,
+                               ref.data(), 1);
 
                     std::vector<std::uint32_t> hist(FULL_NBINS);
                     constexpr auto *histxy_func =
                         traits::template histxy_func<false, FULL_BITS,
                                                      FULL_SHIFT, 1, 0>;
                     histxy_func(data.data() + quad_y * width + quad_x, nullptr,
-                                quad_height, quad_width, width, hist.data(),
-                                1);
+                                quad_height, quad_width, width, width,
+                                hist.data(), 1);
                     CHECK(hist == ref);
                 }
                 SECTION("mask") {
@@ -96,7 +97,8 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
                         histxy_unoptimized_st<T, true>;
                     refxy_func(data.data() + quad_y * width + quad_x,
                                mask.data() + quad_y * width + quad_x,
-                               quad_height, quad_width, width, ref.data(), 1);
+                               quad_height, quad_width, width, width,
+                               ref.data(), 1);
 
                     std::vector<std::uint32_t> hist(FULL_NBINS);
                     constexpr auto *histxy_func =
@@ -104,8 +106,8 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
                                                      FULL_SHIFT, 1, 0>;
                     histxy_func(data.data() + quad_y * width + quad_x,
                                 mask.data() + quad_y * width + quad_x,
-                                quad_height, quad_width, width, hist.data(),
-                                1);
+                                quad_height, quad_width, width, width,
+                                hist.data(), 1);
                     CHECK(hist == ref);
                 }
             }
@@ -145,15 +147,16 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
                     constexpr auto *refxy_func =
                         histxy_unoptimized_st<T, false, HALF_BITS, HALF_SHIFT>;
                     refxy_func(data.data() + quad_y * width + quad_x, nullptr,
-                               quad_height, quad_width, width, ref.data(), 1);
+                               quad_height, quad_width, width, width,
+                               ref.data(), 1);
 
                     std::vector<std::uint32_t> hist(HALF_NBINS);
                     constexpr auto *histxy_func =
                         traits::template histxy_func<false, HALF_BITS,
                                                      HALF_SHIFT, 1, 0>;
                     histxy_func(data.data() + quad_y * width + quad_x, nullptr,
-                                quad_height, quad_width, width, hist.data(),
-                                1);
+                                quad_height, quad_width, width, width,
+                                hist.data(), 1);
                     CHECK(hist == ref);
                 }
                 SECTION("mask") {
@@ -162,7 +165,8 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
                         histxy_unoptimized_st<T, true, HALF_BITS, HALF_SHIFT>;
                     refxy_func(data.data() + quad_y * width + quad_x,
                                mask.data() + quad_y * width + quad_x,
-                               quad_height, quad_width, width, ref.data(), 1);
+                               quad_height, quad_width, width, width,
+                               ref.data(), 1);
 
                     std::vector<std::uint32_t> hist(HALF_NBINS);
                     constexpr auto *histxy_func =
@@ -170,8 +174,8 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
                                                      HALF_SHIFT, 1, 0>;
                     histxy_func(data.data() + quad_y * width + quad_x,
                                 mask.data() + quad_y * width + quad_x,
-                                quad_height, quad_width, width, hist.data(),
-                                1);
+                                quad_height, quad_width, width, width,
+                                hist.data(), 1);
                     CHECK(hist == ref);
                 }
             }
@@ -218,7 +222,7 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
                         histxy_unoptimized_st<T, false, FULL_BITS, FULL_SHIFT,
                                               4, 3, 0, 1>;
                     refxy_func(data.data() + 4 * (quad_y * width + quad_x),
-                               nullptr, quad_height, quad_width, width,
+                               nullptr, quad_height, quad_width, width, width,
                                ref.data(), 1);
 
                     std::vector<std::uint32_t> hist(3 * FULL_NBINS);
@@ -226,7 +230,7 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
                         traits::template histxy_func<false, FULL_BITS,
                                                      FULL_SHIFT, 4, 3, 0, 1>;
                     histxy_func(data.data() + 4 * (quad_y * width + quad_x),
-                                nullptr, quad_height, quad_width, width,
+                                nullptr, quad_height, quad_width, width, width,
                                 hist.data(), 1);
                     CHECK(hist == ref);
                 }
@@ -237,7 +241,8 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
                                               4, 3, 0, 1>;
                     refxy_func(data.data() + 4 * (quad_y * width + quad_x),
                                mask.data() + quad_y * width + quad_x,
-                               quad_height, quad_width, width, ref.data(), 1);
+                               quad_height, quad_width, width, width,
+                               ref.data(), 1);
 
                     std::vector<std::uint32_t> hist(3 * FULL_NBINS);
                     constexpr auto *histxy_func =
@@ -245,8 +250,8 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
                                                      FULL_SHIFT, 4, 3, 0, 1>;
                     histxy_func(data.data() + 4 * (quad_y * width + quad_x),
                                 mask.data() + quad_y * width + quad_x,
-                                quad_height, quad_width, width, hist.data(),
-                                1);
+                                quad_height, quad_width, width, width,
+                                hist.data(), 1);
                     CHECK(hist == ref);
                 }
             }
@@ -289,7 +294,7 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
                         histxy_unoptimized_st<T, false, HALF_BITS, HALF_SHIFT,
                                               4, 3, 0, 1>;
                     refxy_func(data.data() + 4 * (quad_y * width + quad_x),
-                               nullptr, quad_height, quad_width, width,
+                               nullptr, quad_height, quad_width, width, width,
                                ref.data(), 1);
 
                     std::vector<std::uint32_t> hist(3 * HALF_NBINS);
@@ -297,7 +302,7 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
                         traits::template histxy_func<false, HALF_BITS,
                                                      HALF_SHIFT, 4, 3, 0, 1>;
                     histxy_func(data.data() + 4 * (quad_y * width + quad_x),
-                                nullptr, quad_height, quad_width, width,
+                                nullptr, quad_height, quad_width, width, width,
                                 hist.data(), 1);
                     CHECK(hist == ref);
                 }
@@ -308,7 +313,8 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
                                               4, 3, 0, 1>;
                     refxy_func(data.data() + 4 * (quad_y * width + quad_x),
                                mask.data() + quad_y * width + quad_x,
-                               quad_height, quad_width, width, ref.data(), 1);
+                               quad_height, quad_width, width, width,
+                               ref.data(), 1);
 
                     std::vector<std::uint32_t> hist(3 * HALF_NBINS);
                     constexpr auto *histxy_func =
@@ -316,8 +322,8 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
                                                      HALF_SHIFT, 4, 3, 0, 1>;
                     histxy_func(data.data() + 4 * (quad_y * width + quad_x),
                                 mask.data() + quad_y * width + quad_x,
-                                quad_height, quad_width, width, hist.data(),
-                                1);
+                                quad_height, quad_width, width, width,
+                                hist.data(), 1);
                     CHECK(hist == ref);
                 }
             }
@@ -353,12 +359,13 @@ TEMPLATE_LIST_TEST_CASE("dynamic-random-input", "", dynamic_test_traits_list) {
             constexpr auto *refxy_func =
                 histxy_unoptimized_st<T, false, FULL_BITS, 0, 2, 0, 1>;
             refxy_func(data.data() + 2 * (quad_y * width + quad_x), nullptr,
-                       quad_height, quad_width, width, ref.data(), 1);
+                       quad_height, quad_width, width, width, ref.data(), 1);
 
             std::vector<std::uint32_t> hist(2 * FULL_NBINS);
             traits::template histxy_dynamic<false, FULL_BITS, 0>(
                 data.data() + 2 * (quad_y * width + quad_x), nullptr,
-                quad_height, quad_width, width, 2, 2, indices, hist.data());
+                quad_height, quad_width, width, width, 2, 2, indices,
+                hist.data());
             CHECK(hist == ref);
         }
         SECTION("mask") {
@@ -367,13 +374,13 @@ TEMPLATE_LIST_TEST_CASE("dynamic-random-input", "", dynamic_test_traits_list) {
                 histxy_unoptimized_st<T, true, FULL_BITS, 0, 2, 0, 1>;
             refxy_func(data.data() + 2 * (quad_y * width + quad_x),
                        mask.data() + quad_y * width + quad_x, quad_height,
-                       quad_width, width, ref.data(), 1);
+                       quad_width, width, width, ref.data(), 1);
 
             std::vector<std::uint32_t> hist(2 * FULL_NBINS);
             traits::template histxy_dynamic<true, FULL_BITS, 0>(
                 data.data() + 2 * (quad_y * width + quad_x),
                 mask.data() + quad_y * width + quad_x, quad_height, quad_width,
-                width, 2, 2, indices, hist.data());
+                width, width, 2, 2, indices, hist.data());
             CHECK(hist == ref);
         }
     }
@@ -385,12 +392,13 @@ TEMPLATE_LIST_TEST_CASE("dynamic-random-input", "", dynamic_test_traits_list) {
                 histxy_unoptimized_st<T, false, HALF_BITS, HALF_SHIFT, 2, 0,
                                       1>;
             refxy_func(data.data() + 2 * (quad_y * width + quad_x), nullptr,
-                       quad_height, quad_width, width, ref.data(), 1);
+                       quad_height, quad_width, width, width, ref.data(), 1);
 
             std::vector<std::uint32_t> hist(2 * HALF_NBINS);
             traits::template histxy_dynamic<false, HALF_BITS, HALF_SHIFT>(
                 data.data() + 2 * (quad_y * width + quad_x), nullptr,
-                quad_height, quad_width, width, 2, 2, indices, hist.data());
+                quad_height, quad_width, width, width, 2, 2, indices,
+                hist.data());
             CHECK(hist == ref);
         }
         SECTION("mask") {
@@ -399,13 +407,13 @@ TEMPLATE_LIST_TEST_CASE("dynamic-random-input", "", dynamic_test_traits_list) {
                 histxy_unoptimized_st<T, true, HALF_BITS, HALF_SHIFT, 2, 0, 1>;
             refxy_func(data.data() + 2 * (quad_y * width + quad_x),
                        mask.data() + quad_y * width + quad_x, quad_height,
-                       quad_width, width, ref.data(), 1);
+                       quad_width, width, width, ref.data(), 1);
 
             std::vector<std::uint32_t> hist(2 * HALF_NBINS);
             traits::template histxy_dynamic<true, HALF_BITS, HALF_SHIFT>(
                 data.data() + 2 * (quad_y * width + quad_x),
                 mask.data() + quad_y * width + quad_x, quad_height, quad_width,
-                width, 2, 2, indices, hist.data());
+                width, width, 2, 2, indices, hist.data());
             CHECK(hist == ref);
         }
     }

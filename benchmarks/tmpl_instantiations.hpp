@@ -71,8 +71,8 @@ constexpr tuning_parameters tuning{Stripes, Unrolls};
     template void histxy_striped_##mt<tuning<stripes, unrolls>, T, mask,      \
                                       bits, 0, n_components, __VA_ARGS__>(    \
         T const *IHIST_RESTRICT, std::uint8_t const *IHIST_RESTRICT,          \
-        std::size_t, std::size_t, std::size_t, std::uint32_t *IHIST_RESTRICT, \
-        std::size_t);
+        std::size_t, std::size_t, std::size_t, std::size_t,                   \
+        std::uint32_t *IHIST_RESTRICT, std::size_t);
 
 #define IHIST_TMPL_INST_BOTHD(Extern, mt, T, mask, bits, stripes, unrolls,    \
                               n_components, ...)                              \

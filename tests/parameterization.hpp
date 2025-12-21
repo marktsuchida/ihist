@@ -24,8 +24,8 @@ struct hist_function_traits {
                                 std::uint32_t *, std::size_t);
 
     using histxy_func_type = void(T const *, std::uint8_t const *, std::size_t,
-                                  std::size_t, std::size_t, std::uint32_t *,
-                                  std::size_t);
+                                  std::size_t, std::size_t, std::size_t,
+                                  std::uint32_t *, std::size_t);
 
     static constexpr tuning_parameters tuning{Stripes, Unroll};
 
@@ -87,20 +87,19 @@ template <typename T, bool MT> struct dynamic_function_traits {
     static constexpr bool is_mt = MT;
 
     template <bool UseMask, unsigned Bits, unsigned LoBit>
-    static void histxy_dynamic(T const *data, std::uint8_t const *mask,
-                               std::size_t height, std::size_t width,
-                               std::size_t stride, std::size_t n_components,
-                               std::size_t n_hist_components,
-                               std::size_t const *component_indices,
-                               std::uint32_t *histogram) {
+    static void histxy_dynamic(
+        T const *data, std::uint8_t const *mask, std::size_t height,
+        std::size_t width, std::size_t image_stride, std::size_t mask_stride,
+        std::size_t n_components, std::size_t n_hist_components,
+        std::size_t const *component_indices, std::uint32_t *histogram) {
         if constexpr (MT) {
             histxy_dynamic_mt<T, UseMask, Bits, LoBit>(
-                data, mask, height, width, stride, n_components,
-                n_hist_components, component_indices, histogram);
+                data, mask, height, width, image_stride, mask_stride,
+                n_components, n_hist_components, component_indices, histogram);
         } else {
             histxy_dynamic_st<T, UseMask, Bits, LoBit>(
-                data, mask, height, width, stride, n_components,
-                n_hist_components, component_indices, histogram);
+                data, mask, height, width, image_stride, mask_stride,
+                n_components, n_hist_components, component_indices, histogram);
         }
     }
 };

@@ -214,15 +214,15 @@ nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
         if (is_8bit) {
             ihist_hist8_2d(sample_bits,
                            static_cast<std::uint8_t const *>(image_ptr),
-                           mask_ptr, height, width, width, n_components,
+                           mask_ptr, height, width, width, width, n_components,
                            n_hist_components, component_indices.data(),
                            hist_ptr, parallel);
         } else {
             ihist_hist16_2d(sample_bits,
                             static_cast<std::uint16_t const *>(image_ptr),
-                            mask_ptr, height, width, width, n_components,
-                            n_hist_components, component_indices.data(),
-                            hist_ptr, parallel);
+                            mask_ptr, height, width, width, width,
+                            n_components, n_hist_components,
+                            component_indices.data(), hist_ptr, parallel);
         }
     }
 

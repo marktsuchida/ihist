@@ -33,7 +33,7 @@ using i64 = std::int64_t;
 template <typename T>
 using ihist_api_func = void(std::size_t, T const *, u8 const *, std::size_t,
                             std::size_t, std::size_t, std::size_t, std::size_t,
-                            std::size_t const *, u32 *, bool);
+                            std::size_t, std::size_t const *, u32 *, bool);
 
 template <typename T>
 void bm_ihist_api(benchmark::State &state, ihist_api_func<T> *func,
@@ -49,7 +49,7 @@ void bm_ihist_api(benchmark::State &state, ihist_api_func<T> *func,
     std::vector<u32> hist(n_hist_components * (1 << bits));
     for ([[maybe_unused]] auto _ : state) {
         func(bits, data.data(), masked ? mask.data() : nullptr, height, width,
-             width, n_components, n_hist_components, component_indices,
+             width, width, n_components, n_hist_components, component_indices,
              hist.data(), mt);
         benchmark::DoNotOptimize(hist.data());
     }
@@ -65,7 +65,8 @@ void bm_ihist_api(benchmark::State &state, ihist_api_func<T> *func,
 
 template <typename T>
 using ihist_internal_func = void(T const *, u8 const *, std::size_t,
-                                 std::size_t, std::size_t, u32 *, std::size_t);
+                                 std::size_t, std::size_t, std::size_t, u32 *,
+                                 std::size_t);
 
 template <typename T>
 void bm_ihist_internal(benchmark::State &state, ihist_internal_func<T> *func,
@@ -80,7 +81,7 @@ void bm_ihist_internal(benchmark::State &state, ihist_internal_func<T> *func,
     std::vector<u32> hist(n_hist_components * (1 << bits));
     for ([[maybe_unused]] auto _ : state) {
         func(data.data(), masked ? mask.data() : nullptr, height, width, width,
-             hist.data(), 0);
+             width, hist.data(), 0);
         benchmark::DoNotOptimize(hist.data());
     }
     state.SetBytesProcessed(static_cast<i64>(state.iterations()) * size *
