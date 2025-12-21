@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <numeric>
 #include <stdexcept>
 #include <string>
@@ -65,6 +66,15 @@ nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
     }
     if (n_components == 0) {
         throw std::invalid_argument("Image must have at least one component");
+    }
+
+    std::size_t const n_pixels = height * width;
+    if (n_pixels > std::numeric_limits<std::uint32_t>::max()) {
+        throw std::invalid_argument(
+            "Image has too many pixels (" + std::to_string(n_pixels) +
+            "); maximum is " +
+            std::to_string(std::numeric_limits<std::uint32_t>::max()) +
+            " to avoid histogram overflow");
     }
 
     std::size_t sample_bits = max_bits;
