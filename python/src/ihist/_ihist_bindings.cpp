@@ -20,18 +20,180 @@ namespace nb = nanobind;
 
 namespace {
 
-inline bool memory_overlaps(void const *a, std::size_t a_size, void const *b,
-                            std::size_t b_size) {
-    auto a_start = static_cast<char const *>(a);
-    auto b_start = static_cast<char const *>(b);
-    auto a_end = a_start + a_size;
-    auto b_end = b_start + b_size;
-    return !(a_end <= b_start || b_end <= a_start);
-}
+// Analyzed image array for zero-copy histogram processing.
+// Requires pixels to be contiguous along one axis (which becomes "width");
+// the other axis can have arbitrary stride (row padding). For 2D/3D, either
+// axis 0 or 1 may be contiguous. For 3D, components must also be contiguous
+// (axis 2). For incompatible layouts, creates a C-contiguous copy.
+class ImageView {
+  public:
+    ImageView(nb::ndarray<nb::ro> &image, std::size_t ndim, std::size_t height,
+              std::size_t width, std::size_t n_components, bool is_8bit)
+        : data_(image.data()), height_(height), width_(width), stride_(width),
+          pixel_size_((is_8bit ? 1 : 2) * n_components), transposed_(false) {
+        std::size_t const elem_size = is_8bit ? 1 : 2;
+        bool compat = false;
+
+        if (ndim == 1) {
+            compat =
+                (image.stride(0) == static_cast<std::intptr_t>(elem_size));
+        } else {
+            bool const components_contig =
+                (ndim == 2) ||
+                (image.stride(2) == static_cast<std::intptr_t>(elem_size));
+
+            if (components_contig && pixel_size_ != 0) {
+                if (image.stride(1) ==
+                    static_cast<std::intptr_t>(pixel_size_)) {
+                    // Axis 1 contiguous: rows along axis 0
+                    if (image.stride(0) >=
+                            static_cast<std::intptr_t>(width * pixel_size_) &&
+                        static_cast<std::size_t>(image.stride(0)) %
+                                pixel_size_ ==
+                            0) {
+                        compat = true;
+                        stride_ = static_cast<std::size_t>(image.stride(0)) /
+                                  pixel_size_;
+                    }
+                } else if (image.stride(0) ==
+                           static_cast<std::intptr_t>(pixel_size_)) {
+                    // Axis 0 contiguous: rows along axis 1
+                    if (image.stride(1) >=
+                            static_cast<std::intptr_t>(height * pixel_size_) &&
+                        static_cast<std::size_t>(image.stride(1)) %
+                                pixel_size_ ==
+                            0) {
+                        compat = true;
+                        transposed_ = true;
+                        std::swap(height_, width_);
+                        stride_ = static_cast<std::size_t>(image.stride(1)) /
+                                  pixel_size_;
+                    }
+                }
+            }
+        }
+
+        if (!compat) {
+            auto image_c =
+                nb::cast<nb::ndarray<nb::ro, nb::c_contig>>(image.cast());
+            owner_ = nb::cast(image_c);
+            data_ = image_c.data();
+            height_ = height;
+            width_ = width;
+            stride_ = width;
+            transposed_ = false;
+        }
+    }
+
+    [[nodiscard]] auto data() const -> void const * { return data_; }
+    [[nodiscard]] auto height() const -> std::size_t { return height_; }
+    [[nodiscard]] auto width() const -> std::size_t { return width_; }
+    [[nodiscard]] auto stride() const -> std::size_t { return stride_; }
+    [[nodiscard]] auto pixel_size() const -> std::size_t {
+        return pixel_size_;
+    }
+    [[nodiscard]] auto transposed() const -> bool { return transposed_; }
+
+    [[nodiscard]] auto memory_span() const -> std::size_t {
+        return (height_ > 0) ? (height_ - 1) * stride_ * pixel_size_ +
+                                   width_ * pixel_size_
+                             : 0;
+    }
+
+    [[nodiscard]] auto overlaps_with(void const *ptr, std::size_t size) const
+        -> bool {
+        auto a_start = static_cast<char const *>(data_);
+        auto b_start = static_cast<char const *>(ptr);
+        auto a_end = a_start + memory_span();
+        auto b_end = b_start + size;
+        return !(a_end <= b_start || b_end <= a_start);
+    }
+
+  private:
+    void const *data_;
+    std::size_t height_;     // Effective height (may be swapped for F-order)
+    std::size_t width_;      // Effective width (may be swapped for F-order)
+    std::size_t stride_;     // Row stride in pixels
+    std::size_t pixel_size_; // Bytes per pixel
+    nb::object owner_;       // Prevents deallocation of any copy
+    bool transposed_;        // True if axis 0 is contiguous (H/W swapped)
+};
+
+// Analyzed mask array for zero-copy histogram processing.
+// Mask must have the same contiguous axis as the image. On mismatch, creates
+// a copy with the required layout.
+class MaskView {
+  public:
+    // Construct an empty (no-mask) view.
+    explicit MaskView(std::size_t effective_width)
+        : data_(nullptr), stride_(effective_width) {}
+
+    // Construct from a mask array. The mask must have the same contiguous axis
+    // as the image (axis 1 if not transposed, axis 0 if transposed).
+    MaskView(nb::ndarray<nb::ro> &mask, std::size_t orig_height,
+             std::size_t orig_width, bool image_transposed)
+        : data_(nullptr),
+          stride_(image_transposed ? orig_height : orig_width) {
+        std::size_t const contig_axis = image_transposed ? 0 : 1;
+        std::size_t const row_axis = image_transposed ? 1 : 0;
+        std::size_t const min_row_stride =
+            image_transposed ? orig_height : orig_width;
+
+        if (mask.stride(contig_axis) == 1 &&
+            mask.stride(row_axis) >=
+                static_cast<std::intptr_t>(min_row_stride)) {
+            // Mask has matching contiguous axis
+            data_ = static_cast<std::uint8_t const *>(mask.data());
+            stride_ = static_cast<std::size_t>(mask.stride(row_axis));
+        } else {
+            // Copy mask to required layout
+            if (!image_transposed) {
+                auto mask_c =
+                    nb::cast<nb::ndarray<nb::ro, nb::c_contig>>(mask.cast());
+                owner_ = nb::cast(mask_c);
+                data_ = static_cast<std::uint8_t const *>(mask_c.data());
+                stride_ = orig_width;
+            } else {
+                nb::module_ np = nb::module_::import_("numpy");
+                nb::object mask_obj = mask.cast();
+                owner_ = np.attr("asfortranarray")(mask_obj);
+                auto mask_f = nb::cast<nb::ndarray<nb::ro>>(owner_);
+                data_ = static_cast<std::uint8_t const *>(mask_f.data());
+                stride_ = orig_height;
+            }
+        }
+    }
+
+    [[nodiscard]] auto data() const -> std::uint8_t const * { return data_; }
+    [[nodiscard]] auto stride() const -> std::size_t { return stride_; }
+
+    [[nodiscard]] auto memory_span(std::size_t height, std::size_t width) const
+        -> std::size_t {
+        return (height > 0) ? (height - 1) * stride_ + width : 0;
+    }
+
+    [[nodiscard]] auto overlaps_with(void const *ptr, std::size_t size,
+                                     std::size_t height,
+                                     std::size_t width) const -> bool {
+        if (data_ == nullptr)
+            return false;
+        auto a_start =
+            static_cast<char const *>(static_cast<void const *>(data_));
+        auto b_start = static_cast<char const *>(ptr);
+        auto a_end = a_start + memory_span(height, width);
+        auto b_end = b_start + size;
+        return !(a_end <= b_start || b_end <= a_start);
+    }
+
+  private:
+    std::uint8_t const *data_; // nullptr if no mask
+    std::size_t stride_;       // Row stride in bytes
+    nb::object owner_;         // Prevents deallocation of any copy
+};
 
 } // namespace
 
-nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
+nb::object histogram(nb::ndarray<nb::ro> image,
                      nb::object bits_obj = nb::none(),
                      nb::object mask_obj = nb::none(),
                      nb::object components_obj = nb::none(),
@@ -64,6 +226,8 @@ nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
         width = image.shape(1);
         n_components = image.shape(2);
     }
+
+    ImageView const img(image, ndim, height, width, n_components, is_8bit);
 
     std::size_t const n_pixels = height * width;
     if (n_pixels > std::numeric_limits<std::uint32_t>::max()) {
@@ -107,9 +271,11 @@ nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
                        });
     }
 
-    std::uint8_t const *mask_ptr = nullptr;
-    if (!mask_obj.is_none()) {
-        auto mask = nb::cast<nb::ndarray<nb::ro, nb::c_contig>>(mask_obj);
+    MaskView const msk = [&]() {
+        if (mask_obj.is_none())
+            return MaskView(img.width());
+
+        auto mask = nb::cast<nb::ndarray<nb::ro>>(mask_obj);
         if (mask.dtype() != nb::dtype<std::uint8_t>()) {
             throw std::invalid_argument("Mask must have dtype uint8");
         }
@@ -117,6 +283,7 @@ nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
             throw std::invalid_argument("Mask must be 2D, got " +
                                         std::to_string(mask.ndim()) + "D");
         }
+        // Validate against original image shape (before any transposition)
         if (mask.shape(0) != height || mask.shape(1) != width) {
             throw std::invalid_argument(
                 "Mask shape " + std::to_string(mask.shape(0)) + "x" +
@@ -124,8 +291,9 @@ nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
                 " does not match image shape " + std::to_string(height) + "x" +
                 std::to_string(width));
         }
-        mask_ptr = static_cast<std::uint8_t const *>(mask.data());
-    }
+
+        return MaskView(mask, height, width, img.transposed());
+    }();
 
     std::size_t const n_bins = 1uLL << sample_bits;
     std::size_t const hist_size = n_hist_components * n_bins;
@@ -163,14 +331,12 @@ nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
                                         std::to_string(out.ndim()) + "D");
         }
 
-        // Check for overlap with inputs
-        if (memory_overlaps(out.data(), out.nbytes(), image.data(),
-                            image.nbytes())) {
+        if (img.overlaps_with(out.data(), out.nbytes())) {
             throw std::invalid_argument(
                 "Output buffer overlaps with input image");
         }
-        if (mask_ptr != nullptr && memory_overlaps(out.data(), out.nbytes(),
-                                                   mask_ptr, height * width)) {
+        if (msk.overlaps_with(out.data(), out.nbytes(), img.height(),
+                              img.width())) {
             throw std::invalid_argument("Output buffer overlaps with mask");
         }
 
@@ -204,8 +370,6 @@ nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
         std::fill(hist_ptr, std::next(hist_ptr, hist_size), 0);
     }
 
-    void const *image_ptr = image.data();
-
     // We could keep the GIL acquired when data size is small (say, less than
     // 500 elements; should benchmark), but always release for now.
     {
@@ -213,16 +377,16 @@ nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
 
         if (is_8bit) {
             ihist_hist8_2d(sample_bits,
-                           static_cast<std::uint8_t const *>(image_ptr),
-                           mask_ptr, height, width, width, width, n_components,
-                           n_hist_components, component_indices.data(),
-                           hist_ptr, parallel);
+                           static_cast<std::uint8_t const *>(img.data()),
+                           msk.data(), img.height(), img.width(), img.stride(),
+                           msk.stride(), n_components, n_hist_components,
+                           component_indices.data(), hist_ptr, parallel);
         } else {
-            ihist_hist16_2d(sample_bits,
-                            static_cast<std::uint16_t const *>(image_ptr),
-                            mask_ptr, height, width, width, width,
-                            n_components, n_hist_components,
-                            component_indices.data(), hist_ptr, parallel);
+            ihist_hist16_2d(
+                sample_bits, static_cast<std::uint16_t const *>(img.data()),
+                msk.data(), img.height(), img.width(), img.stride(),
+                msk.stride(), n_components, n_hist_components,
+                component_indices.data(), hist_ptr, parallel);
         }
     }
 
