@@ -145,10 +145,11 @@ class TestComponentsParameterValidation:
             ihist.histogram(image, components=[3])
 
     def test_components_empty(self):
-        """Test that empty components raises error."""
+        """Test that empty components produces empty output."""
         image = np.zeros((10, 10, 3), dtype=np.uint8)
-        with pytest.raises(ValueError, match="components must not be empty"):
-            ihist.histogram(image, components=[])
+        hist = ihist.histogram(image, components=[])
+        assert hist.shape == (0, 256)
+        assert hist.dtype == np.uint32
 
 
 class TestOutParameterValidation:
@@ -334,3 +335,64 @@ class TestAccumulateParameter:
 
         # Both should give the same result
         np.testing.assert_array_equal(hist1, hist2)
+
+
+class TestEmptyInputs:
+    """Test handling of empty inputs (zero-sized dimensions)."""
+
+    def test_zero_height_image(self):
+        """Test histogram of image with zero height."""
+        image = np.zeros((0, 10), dtype=np.uint8)
+        hist = ihist.histogram(image)
+        assert hist.shape == (256,)
+        assert hist.sum() == 0
+
+    def test_zero_width_image(self):
+        """Test histogram of image with zero width."""
+        image = np.zeros((10, 0), dtype=np.uint8)
+        hist = ihist.histogram(image)
+        assert hist.shape == (256,)
+        assert hist.sum() == 0
+
+    def test_zero_component_image(self):
+        """Test histogram of 3D image with zero components."""
+        image = np.zeros((10, 10, 0), dtype=np.uint8)
+        hist = ihist.histogram(image)
+        assert hist.shape == (0, 256)
+        assert hist.dtype == np.uint32
+
+    def test_zero_height_with_components(self):
+        """Test histogram of zero-height RGB image."""
+        image = np.zeros((0, 10, 3), dtype=np.uint8)
+        hist = ihist.histogram(image)
+        assert hist.shape == (3, 256)
+        assert hist.sum() == 0
+
+    def test_zero_width_with_components(self):
+        """Test histogram of zero-width RGB image."""
+        image = np.zeros((10, 0, 3), dtype=np.uint8)
+        hist = ihist.histogram(image)
+        assert hist.shape == (3, 256)
+        assert hist.sum() == 0
+
+    def test_empty_1d_image(self):
+        """Test histogram of empty 1D image."""
+        image = np.zeros((0,), dtype=np.uint8)
+        hist = ihist.histogram(image)
+        assert hist.shape == (256,)
+        assert hist.sum() == 0
+
+    def test_empty_components_with_out(self):
+        """Test empty components with pre-allocated output."""
+        image = np.zeros((10, 10, 3), dtype=np.uint8)
+        out = np.zeros((0, 256), dtype=np.uint32)
+        result = ihist.histogram(image, components=[], out=out)
+        assert result is out
+        assert result.shape == (0, 256)
+
+    def test_zero_height_16bit(self):
+        """Test empty histogram for 16-bit image."""
+        image = np.zeros((0, 10), dtype=np.uint16)
+        hist = ihist.histogram(image, bits=12)
+        assert hist.shape == (4096,)
+        assert hist.sum() == 0

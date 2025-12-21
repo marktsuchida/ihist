@@ -576,8 +576,7 @@ histxy_dynamic_st(T const *IHIST_RESTRICT data,
                   std::uint32_t *IHIST_RESTRICT histogram) {
     assert(width * height < std::numeric_limits<std::uint32_t>::max());
     assert(width <= stride);
-    assert(n_hist_components > 0);
-    assert(component_indices != nullptr);
+    assert(component_indices != nullptr || n_hist_components == 0);
 
     constexpr std::size_t NBINS = 1uLL << Bits;
 

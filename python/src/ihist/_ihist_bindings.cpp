@@ -64,9 +64,6 @@ nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
         width = image.shape(1);
         n_components = image.shape(2);
     }
-    if (n_components == 0) {
-        throw std::invalid_argument("Image must have at least one component");
-    }
 
     std::size_t const n_pixels = height * width;
     if (n_pixels > std::numeric_limits<std::uint32_t>::max()) {
@@ -91,9 +88,6 @@ nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
         components_obj.is_none()
             ? n_components
             : nb::len(nb::cast<nb::sequence>(components_obj));
-    if (n_hist_components == 0) {
-        throw std::invalid_argument("components must not be empty");
-    }
 
     std::vector<std::size_t> component_indices(n_hist_components);
     std::iota(component_indices.begin(), component_indices.end(), 0);
