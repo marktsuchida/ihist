@@ -211,6 +211,24 @@ class TestOutParameterValidation:
         ):
             ihist.histogram(image, out=out)
 
+    def test_out_overlaps_image_rejected(self):
+        """Test that out overlapping with image is rejected."""
+        # Create a buffer large enough for histogram (256 uint32 = 1024 bytes)
+        # and view part of it as a small image
+        buf = np.zeros(256, dtype=np.uint32)
+        image = buf.view(np.uint8)[:100].reshape(10, 10)
+        with pytest.raises(ValueError, match="overlaps with input"):
+            ihist.histogram(image, out=buf)
+
+    def test_out_overlaps_mask_rejected(self):
+        """Test that out overlapping with mask is rejected."""
+        image = np.zeros((10, 10), dtype=np.uint8)
+        # Create histogram buffer and view part of it as mask
+        buf = np.zeros(256, dtype=np.uint32)
+        mask = buf.view(np.uint8)[:100].reshape(10, 10)
+        with pytest.raises(ValueError, match="overlaps with mask"):
+            ihist.histogram(image, mask=mask, out=buf)
+
 
 class TestParameterCombinations:
     """Test various parameter combinations."""

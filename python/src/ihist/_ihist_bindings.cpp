@@ -17,6 +17,19 @@
 
 namespace nb = nanobind;
 
+namespace {
+
+inline bool memory_overlaps(void const *a, std::size_t a_size, void const *b,
+                            std::size_t b_size) {
+    auto a_start = static_cast<char const *>(a);
+    auto b_start = static_cast<char const *>(b);
+    auto a_end = a_start + a_size;
+    auto b_end = b_start + b_size;
+    return !(a_end <= b_start || b_end <= a_start);
+}
+
+} // namespace
+
 nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
                      nb::object bits_obj = nb::none(),
                      nb::object mask_obj = nb::none(),
@@ -144,6 +157,17 @@ nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
         } else {
             throw std::invalid_argument("Output must be 1D or 2D, got " +
                                         std::to_string(out.ndim()) + "D");
+        }
+
+        // Check for overlap with inputs
+        if (memory_overlaps(out.data(), out.nbytes(), image.data(),
+                            image.nbytes())) {
+            throw std::invalid_argument(
+                "Output buffer overlaps with input image");
+        }
+        if (mask_ptr != nullptr && memory_overlaps(out.data(), out.nbytes(),
+                                                   mask_ptr, height * width)) {
+            throw std::invalid_argument("Output buffer overlaps with mask");
         }
 
         out_array = out_obj;
