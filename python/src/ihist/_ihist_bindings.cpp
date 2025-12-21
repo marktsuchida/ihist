@@ -148,7 +148,11 @@ nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
         std::size_t shape[2];
         std::size_t out_ndim;
 
-        if (n_hist_components == 1) {
+        // Return 2D if image is 3D or components explicitly specified; this
+        // makes it easy to write generic code that handles any number of
+        // components.
+        bool const force_2d = (ndim == 3) || !components_obj.is_none();
+        if (n_hist_components == 1 && !force_2d) {
             out_ndim = 1;
             shape[0] = n_bins;
         } else {
@@ -246,10 +250,10 @@ NB_MODULE(_ihist_bindings, m) {
         Returns
         -------
         histogram : ndarray
-            Histogram(s) as uint32 array. If a single component is
-            histogrammed, returns 1D array of shape (2^bits,). If multiple
-            components are histogrammed, returns 2D array of shape
-            (n_hist_components, 2^bits). If 'out' was provided, returns the
-            same array after filling.
+            Histogram(s) as uint32 array. If the image is 1D or 2D and
+            'components' is not specified, returns 1D array of shape
+            (2^bits,). If the image is 3D or 'components' is explicitly
+            specified, returns 2D array of shape (n_hist_components, 2^bits).
+            If 'out' was provided, returns the same array after filling.
         )doc");
 }

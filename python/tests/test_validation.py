@@ -134,7 +134,7 @@ class TestComponentsParameterValidation:
         """Test selecting single component."""
         image = np.zeros((10, 10, 3), dtype=np.uint8)
         hist = ihist.histogram(image, components=[1])
-        assert hist.shape == (256,)  # Single component returns 1D
+        assert hist.shape == (1, 256)  # Explicit components= returns 2D
 
     def test_components_out_of_range(self):
         """Test that out-of-range component raises error."""

@@ -140,13 +140,14 @@ class TestReturnTypes:
         assert hist.ndim == 2
         assert hist.shape == (3, 256)
 
-    def test_single_selected_component_returns_1d(self):
-        """Test that selecting single component from multi-component returns 1D."""
+    def test_single_selected_component_returns_2d(self):
+        """Test that selecting single component explicitly returns 2D."""
         image = np.zeros((5, 5, 3), dtype=np.uint8)
         hist = ihist.histogram(image, components=[0])
 
-        assert hist.ndim == 1
-        assert hist.shape == (256,)
+        # Explicit components= always returns 2D for generic code compatibility
+        assert hist.ndim == 2
+        assert hist.shape == (1, 256)
 
 
 class TestMemoryLayout:
@@ -452,12 +453,12 @@ class TestSingleComponentImages:
         image = np.array([[[10], [20]], [[30], [40]]], dtype=np.uint8)
         hist = ihist.histogram(image)
 
-        # Single component should return 1D histogram
-        assert hist.shape == (256,)
-        assert hist[10] == 1
-        assert hist[20] == 1
-        assert hist[30] == 1
-        assert hist[40] == 1
+        # 3D image always returns 2D histogram for generic code compatibility
+        assert hist.shape == (1, 256)
+        assert hist[0, 10] == 1
+        assert hist[0, 20] == 1
+        assert hist[0, 30] == 1
+        assert hist[0, 40] == 1
 
     def test_select_single_component_from_rgb(self):
         """Test selecting single component from RGB."""
@@ -466,6 +467,6 @@ class TestSingleComponentImages:
 
         hist = ihist.histogram(image, components=[1])
 
-        # Single component should return 1D histogram
-        assert hist.shape == (256,)
-        assert hist[42] == 100
+        # Explicit components= returns 2D histogram
+        assert hist.shape == (1, 256)
+        assert hist[0, 42] == 100

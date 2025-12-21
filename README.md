@@ -95,9 +95,10 @@ If `False`, guarantees single-threaded execution.
 **histogram** : *ndarray*
 Histogram(s) as uint32 array.
 
-- If a single component is histogrammed, returns 1D array of shape `(2^bits,)`
-- If multiple components are histogrammed, returns 2D array of shape
-  `(n_hist_components, 2^bits)`
+- If the image is 1D or 2D and `components` is not specified, returns 1D array
+  of shape `(2^bits,)`
+- If the image is 3D or `components` is explicitly specified, returns 2D array
+  of shape `(n_hist_components, 2^bits)`
 - If `out` was provided, returns the same array after filling
 
 ## C API
