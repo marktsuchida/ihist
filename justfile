@@ -118,7 +118,7 @@ _benchmark-compare *ARGS:
     GB_VERSION=$(meson introspect --dependencies builddir |jq -r \
         '.[] | select(.meson_variables[]? == "benchmark_dep") | .version')
     GB_TOOLS=subprojects/benchmark-$GB_VERSION/tools
-    uv run --with=scipy "$GB_TOOLS/compare.py" "$@" \
+    uv run --no-project --with=scipy "$GB_TOOLS/compare.py" "$@" \
         --benchmark_time_unit=ms --benchmark_counters_tabular=true
 
 # Compare benchmarks with baseline
@@ -137,7 +137,7 @@ benchmark-compare-filters FILTER1 FILTER2 *FLAGS: build test
 # Run a banchmarking or tuning script (in scripts/)
 [positional-arguments]
 run SCRIPT *FLAGS: build
-    uv run "$@"
+    uv run --no-project "$@"
 
 # Note: We prefer (for now) pip over uv for Python bindings build because uv
 # can sometimes fail to invalidate its cache when used with meson-python.
