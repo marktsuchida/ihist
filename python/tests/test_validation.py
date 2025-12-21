@@ -202,17 +202,14 @@ class TestOutParameterValidation:
         assert result[0, 0] == 1
         assert result[1, 1] == 1
 
-    def test_out_flattened_multicomponent(self):
-        """Test that flattened (1D) out works for multi-component."""
+    def test_out_1d_rejected_for_multicomponent(self):
+        """Test that 1D out is rejected for multi-component histogram."""
         image = np.array([[[0, 1]]], dtype=np.uint8)
         out = np.zeros(2 * 256, dtype=np.uint32)
-        result = ihist.histogram(image, out=out)
-
-        assert result is out
-        # Component 0 has value 0 -> bin 0
-        assert result[0] == 1
-        # Component 1 has value 1 -> bin 1 (offset by 256)
-        assert result[256 + 1] == 1
+        with pytest.raises(
+            ValueError, match="Output must be 2D for multi-component"
+        ):
+            ihist.histogram(image, out=out)
 
 
 class TestParameterCombinations:

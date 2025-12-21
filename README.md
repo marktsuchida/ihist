@@ -76,7 +76,7 @@ Examples:
 **`out`** : *array_like, optional*
 Pre-allocated output buffer. Must be uint32, and either:
 
-- 1D with shape `(n_hist_components * 2^bits,)`, or
+- 1D with shape `(2^bits,)` for single-component histogram, or
 - 2D with shape `(n_hist_components, 2^bits)`
 
 If not specified, a new array is allocated and returned.

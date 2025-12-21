@@ -122,11 +122,15 @@ nb::object histogram(nb::ndarray<nb::ro, nb::c_contig> image,
         }
 
         if (out.ndim() == 1) {
-            if (out.shape(0) != hist_size) {
+            if (n_hist_components > 1) {
+                throw std::invalid_argument(
+                    "Output must be 2D for multi-component histogram");
+            }
+            if (out.shape(0) != n_bins) {
                 throw std::invalid_argument("Output shape (" +
                                             std::to_string(out.shape(0)) +
                                             ",) does not match expected (" +
-                                            std::to_string(hist_size) + ",)");
+                                            std::to_string(n_bins) + ",)");
             }
         } else if (out.ndim() == 2) {
             if (out.shape(0) != n_hist_components || out.shape(1) != n_bins) {
@@ -234,7 +238,7 @@ NB_MODULE(_ihist_bindings, m) {
 
         out : array_like, optional
             Pre-allocated output buffer. Must be uint32, and either 1D with
-            shape (n_hist_components * 2^bits,) or 2D with shape
+            shape (2^bits,) for single-component histogram, or 2D with shape
             (n_hist_components, 2^bits). If not specified, a new array is
             allocated and returned.
 
