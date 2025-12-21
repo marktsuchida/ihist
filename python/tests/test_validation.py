@@ -151,6 +151,19 @@ class TestComponentsParameterValidation:
         assert hist.shape == (0, 256)
         assert hist.dtype == np.uint32
 
+    def test_components_repeated(self):
+        """Test that repeated component indices are allowed."""
+        image = np.zeros((2, 2, 3), dtype=np.uint8)
+        image[0, 0, 0] = 10  # R
+        image[0, 0, 1] = 20  # G
+
+        hist = ihist.histogram(image, components=[0, 0, 1])
+
+        assert hist.shape == (3, 256)
+        assert hist[0, 10] == 1  # First R
+        assert hist[1, 10] == 1  # Second R (same as first)
+        assert hist[2, 20] == 1  # G
+
 
 class TestOutParameterValidation:
     """Test validation of out parameter."""
