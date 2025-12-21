@@ -17,11 +17,6 @@
 # However, the warning only applies if there is a chance that symbols from
 # multiple copies of oneTBB may be accessible within a program:
 # https://github.com/uxlfoundation/oneTBB/issues/646#issuecomment-966106176
-#
-# TODO -fvisibility=hidden is not enough to hide TBB API symbols. For the
-# Python extension maybe we can use a version script (Linux) or export list
-# (macOS) to hide all but the entry point. Failing that, patch TBB to avoid
-# __attribute__((visibility("default"))).
 
 set -euxo pipefail
 

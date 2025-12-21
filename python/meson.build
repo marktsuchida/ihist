@@ -39,6 +39,19 @@ numpy_dep = declare_dependency(
 
 py_package_name = 'ihist'
 
+# Hide symbols from statically linked dependencies (e.g., TBB). TBB uses
+# visibility("default") on its API, which overrides -fvisibility=hidden.
+symbol_hide_link_args = []
+symbol_hide_link_depends = []
+
+if host_machine.system() == 'linux'
+    symbol_hide_link_args += ['-Wl,--exclude-libs,ALL']
+elif host_machine.system() == 'darwin'
+    symbols_file = meson.current_source_dir() / 'symbols-macos.txt'
+    symbol_hide_link_args += ['-Wl,-exported_symbols_list,' + symbols_file]
+    symbol_hide_link_depends += [files('symbols-macos.txt')]
+endif
+
 py.extension_module(
     '_ihist_bindings',
     'src/ihist/_ihist_bindings.cpp',
@@ -47,6 +60,8 @@ py.extension_module(
         nanobind_dep,
         numpy_dep,
     ],
+    link_args: symbol_hide_link_args,
+    link_depends: symbol_hide_link_depends,
     install: true,
     subdir: py_package_name,
     install_tag: 'python-runtime',
