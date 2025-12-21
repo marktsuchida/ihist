@@ -52,7 +52,7 @@ Input image data. Must be uint8 or uint16, and 1D, 2D, or 3D.
 - 2D arrays `(H, W)` are interpreted as `(H, W, 1)`
 - 3D arrays `(H, W, C)` use C as number of components
 
-Must be C-contiguous. Total pixel count must not exceed `2^32-1`.
+Total pixel count must not exceed `2^32-1`.
 
 **`bits`** : *int, optional*
 Number of significant bits per sample. If not specified, defaults to full depth
