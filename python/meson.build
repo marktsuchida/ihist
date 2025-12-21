@@ -28,14 +28,20 @@ nanobind_dep = declare_dependency(
 )
 
 # Get numpy include path directly from Python for cross-compilation support
-# (dependency('numpy') doesn't work for that).
+# (dependency('numpy') doesn't work for that). Use compiler-specific system
+# include flags to avoid Meson's rejection of absolute paths inside the
+# source tree (e.g., venv).
 numpy_inc = run_command(
     py, ['-c', 'import numpy; print(numpy.get_include())'],
     check: true,
 ).stdout().strip()
-numpy_dep = declare_dependency(
-    include_directories: include_directories(numpy_inc),
-)
+cxx = meson.get_compiler('cpp')
+if cxx.get_argument_syntax() == 'msvc'
+    numpy_args = ['/external:I', numpy_inc]
+else
+    numpy_args = ['-isystem', numpy_inc]
+endif
+numpy_dep = declare_dependency(compile_args: numpy_args)
 
 py_package_name = 'ihist'
 
