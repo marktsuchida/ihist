@@ -74,26 +74,6 @@ constexpr auto bin_index(T value) -> std::size_t {
     }
 }
 
-// Note that the first aligned index may be beyond the end of the buffer.
-template <typename T, std::size_t Alignment>
-constexpr auto first_aligned_index_impl(std::uintptr_t addr) -> std::size_t {
-    static_assert((Alignment & (Alignment - 1)) == 0,
-                  "Alignment must be a power of 2");
-    if constexpr (Alignment <= alignof(T)) {
-        return 0;
-    } else {
-        auto const aligned_addr = (addr + Alignment - 1) & ~(Alignment - 1);
-        std::size_t const byte_offset = aligned_addr - addr;
-        return byte_offset / sizeof(T);
-    }
-}
-
-template <typename T, std::size_t Alignment>
-constexpr auto first_aligned_index(T const *buffer) -> std::size_t {
-    return first_aligned_index_impl<T, Alignment>(
-        reinterpret_cast<std::uintptr_t>(buffer));
-}
-
 } // namespace internal
 
 template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
@@ -204,48 +184,12 @@ hist_striped_st(T const *IHIST_RESTRICT data,
 
     constexpr std::size_t BLOCKSIZE =
         std::max(std::size_t(1), Tuning.n_unroll);
-    constexpr std::size_t BLOCKSIZE_BYTES =
-        BLOCKSIZE * SamplesPerPixel * sizeof(T);
-    constexpr bool BLOCKSIZE_BYTES_IS_POWER_OF_2 =
-        (BLOCKSIZE_BYTES & (BLOCKSIZE_BYTES - 1)) == 0;
-    constexpr std::size_t BLOCK_ALIGNMENT =
-        BLOCKSIZE_BYTES_IS_POWER_OF_2 ? BLOCKSIZE_BYTES : alignof(T);
 
-    std::size_t const prolog_size = [&] {
-        if constexpr (BLOCKSIZE_BYTES_IS_POWER_OF_2) {
-            return std::min(
-                size, internal::first_aligned_index<T, BLOCKSIZE_BYTES>(data));
-        } else {
-            return 0;
-        }
-    }();
-
-    hist_unoptimized_st<T, UseMask, Bits, LoBit, SamplesPerPixel, Sample0Index,
-                        SampleIndices...>(data, mask, prolog_size, histogram);
-
-    std::size_t const size_after_prolog = size - prolog_size;
-    if (size_after_prolog == 0) {
-        return;
-    }
-
-    T const *blocks_data =
-#if defined(__GNUC__) || defined(__clang__)
-        (T const *)__builtin_assume_aligned(
-#endif
-            data + prolog_size * SamplesPerPixel
-#if defined(__GNUC__) || defined(__clang__)
-            ,
-            BLOCK_ALIGNMENT)
-#endif
-        ;
-    std::uint8_t const *blocks_mask = UseMask ? mask + prolog_size : nullptr;
-
-    std::size_t const n_blocks = size_after_prolog / BLOCKSIZE;
-    std::size_t const epilog_size = size_after_prolog % BLOCKSIZE;
-    T const *epilog_data =
-        blocks_data + n_blocks * BLOCKSIZE * SamplesPerPixel;
+    std::size_t const n_blocks = size / BLOCKSIZE;
+    std::size_t const epilog_size = size % BLOCKSIZE;
+    T const *epilog_data = data + n_blocks * BLOCKSIZE * SamplesPerPixel;
     std::uint8_t const *epilog_mask =
-        UseMask ? blocks_mask + n_blocks * BLOCKSIZE : nullptr;
+        UseMask ? mask + n_blocks * BLOCKSIZE : nullptr;
 
     IHIST_PRAGMA_DISABLE_LOOP_UNROLL
     for (std::size_t block = 0; block < n_blocks; ++block) {
@@ -255,10 +199,9 @@ hist_striped_st(T const *IHIST_RESTRICT data,
         std::array<std::size_t, BLOCKSIZE * SamplesPerPixel> bins;
         for (std::size_t n = 0; n < BLOCKSIZE * SamplesPerPixel; ++n) {
             auto const i = block * BLOCKSIZE * SamplesPerPixel + n;
-            bins[n] = internal::bin_index<T, Bits, LoBit>(blocks_data[i]);
+            bins[n] = internal::bin_index<T, Bits, LoBit>(data[i]);
         }
-        auto const *block_mask =
-            UseMask ? blocks_mask + block * BLOCKSIZE : nullptr;
+        auto const *block_mask = UseMask ? mask + block * BLOCKSIZE : nullptr;
 
         for (std::size_t s = 0; s < NSAMPLES; ++s) {
             auto const s_index = s_indices[s];

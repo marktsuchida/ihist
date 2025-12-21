@@ -40,25 +40,4 @@ TEST_CASE("bin_index-mid-bits") {
     STATIC_CHECK(bin_index<std::uint16_t, 8, 4>(0xffff) == 256);
 }
 
-TEST_CASE("first_aligned_index_impl") {
-    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 1>(0) == 0);
-    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 1>(1) == 0);
-    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 2>(0) == 0);
-    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 2>(1) == 1);
-    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 2>(2) == 0);
-    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 4>(0) == 0);
-    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 4>(1) == 3);
-    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 4>(2) == 2);
-    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 4>(3) == 1);
-    STATIC_CHECK(first_aligned_index_impl<std::uint8_t, 4>(4) == 0);
-
-    STATIC_CHECK(first_aligned_index_impl<std::uint16_t, 1>(0) == 0);
-    STATIC_CHECK(first_aligned_index_impl<std::uint16_t, 1>(2) == 0);
-    STATIC_CHECK(first_aligned_index_impl<std::uint16_t, 2>(0) == 0);
-    STATIC_CHECK(first_aligned_index_impl<std::uint16_t, 2>(2) == 0);
-    STATIC_CHECK(first_aligned_index_impl<std::uint16_t, 4>(0) == 0);
-    STATIC_CHECK(first_aligned_index_impl<std::uint16_t, 4>(2) == 1);
-    STATIC_CHECK(first_aligned_index_impl<std::uint16_t, 4>(4) == 0);
-}
-
 } // namespace ihist::internal
