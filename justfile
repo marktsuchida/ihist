@@ -75,6 +75,7 @@ build: _configure_if_not_configured
 # Remove build products
 clean:
     if [ -d builddir ]; then meson compile --clean -C builddir; fi
+    rm -f coverage/cpp.*
 
 # Wipe build directory and reconfigure using previous options
 wipe:
@@ -83,6 +84,18 @@ wipe:
 # Run the unit tests
 test: _configure_if_not_configured
     meson test -C builddir
+
+# Run the unit tests with coverage (coverage/cpp.html)
+coverage:
+    meson setup --wipe builddir-coverage \
+        --buildtype=debugoptimized \
+        -Dbenchmarks=disabled \
+        -Dcatch2:tests=false \
+        -Db_coverage=true
+    meson test -C builddir-coverage
+    mkdir -p coverage
+    gcovr builddir-coverage/ --html-details coverage/cpp.html \
+        -e subprojects/ -e tests/
 
 # Run the 'ihist_test' program directly
 [positional-arguments]
@@ -146,19 +159,37 @@ run SCRIPT *FLAGS: build
 py-install:
     pip --require-virtualenv install meson-python numpy
     pip --require-virtualenv install -e . --no-build-isolation -v \
-        -C setup-args=-Db_ndebug=false  # Don't disable C assert()
+        -C setup-args=-Db_ndebug=false \
+
+# Build and install Python bindings for coverage
+py-cov-install:
+    rm -rf build  # Remove the meson-python build dir
+    pip --require-virtualenv install meson-python numpy
+    pip --require-virtualenv install -e . --no-build-isolation -v \
+        -C build-dir=build-coverage \
+        -C setup-args=-Db_coverage=true \
+        -C setup-args=-Dbuildtype=debugoptimized
 
 # Run Python tests
 py-test: py-install
     pip --require-virtualenv install pytest
     pytest
 
+# Run Python tests with coverage (coverage/python.html)
+py-coverage: py-cov-install
+    pip --require-virtualenv install pytest gcovr
+    find build-coverage/ -name '*.gcda' -exec rm -f {} \;
+    pytest
+    mkdir -p coverage
+    gcovr build-coverage/ -f python/src/ihist/_ihist_bindings.cpp \
+        --html-details coverage/python.html
+
 # Clean Python build artifacts
 py-clean:
-    rm -rf build/ dist/ *.egg-info
+    rm -rf build/ dist/ *.egg-info build-coverage/ coverage/python.*
     find python -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
-# Build Python wheel
+# Build Python wheel (for local test)
 py-build:
     pip --require-virtualenv install build
     python -m build

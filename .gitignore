@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 /builddir/
+/builddir-coverage/
 /dependencies/
 
 # Sometimes left behind by Meson
@@ -12,3 +13,5 @@ __pycache__/
 /build/
 /dist/
 /wheelhouse/
+
+/coverage/
