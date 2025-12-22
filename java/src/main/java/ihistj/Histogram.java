@@ -70,8 +70,7 @@ public final class Histogram {
      */
     public static int[] compute(byte[] image, int width, int height,
                                 int nComponents) {
-        return HistogramRequest.forImage8(image, width, height)
-            .components(nComponents)
+        return HistogramRequest.forImage8(image, width, height, nComponents)
             .compute();
     }
 
@@ -87,8 +86,7 @@ public final class Histogram {
      */
     public static int[] compute(ByteBuffer image, int width, int height,
                                 int nComponents) {
-        return HistogramRequest.forImage8(image, width, height)
-            .components(nComponents)
+        return HistogramRequest.forImage8(image, width, height, nComponents)
             .compute();
     }
 
@@ -139,8 +137,7 @@ public final class Histogram {
      */
     public static int[] compute(short[] image, int width, int height,
                                 int nComponents, int bits) {
-        return HistogramRequest.forImage16(image, width, height)
-            .components(nComponents)
+        return HistogramRequest.forImage16(image, width, height, nComponents)
             .bits(bits)
             .compute();
     }
@@ -158,8 +155,7 @@ public final class Histogram {
      */
     public static int[] compute(ShortBuffer image, int width, int height,
                                 int nComponents, int bits) {
-        return HistogramRequest.forImage16(image, width, height)
-            .components(nComponents)
+        return HistogramRequest.forImage16(image, width, height, nComponents)
             .bits(bits)
             .compute();
     }
@@ -180,8 +176,7 @@ public final class Histogram {
      */
     public static int[] compute(byte[] image, int width, int height,
                                 int nComponents, int... componentIndices) {
-        return HistogramRequest.forImage8(image, width, height)
-            .components(nComponents)
+        return HistogramRequest.forImage8(image, width, height, nComponents)
             .selectComponents(componentIndices)
             .compute();
     }
@@ -201,8 +196,7 @@ public final class Histogram {
     public static int[] compute(short[] image, int width, int height,
                                 int nComponents, int bits,
                                 int... componentIndices) {
-        return HistogramRequest.forImage16(image, width, height)
-            .components(nComponents)
+        return HistogramRequest.forImage16(image, width, height, nComponents)
             .bits(bits)
             .selectComponents(componentIndices)
             .compute();

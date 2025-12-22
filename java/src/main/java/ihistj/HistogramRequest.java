@@ -22,8 +22,7 @@ import java.util.Arrays;
  *     .compute();
  *
  * // RGB histogram with ROI and mask
- * int[] histogram = HistogramRequest.forImage8(imageData, width, height)
- *     .components(3)
+ * int[] histogram = HistogramRequest.forImage8(imageData, width, height, 3)
  *     .roi(10, 10, 100, 100)
  *     .mask(maskData)
  *     .bits(8)
@@ -75,9 +74,9 @@ public final class HistogramRequest {
     // ========== Factory methods ==========
 
     /**
-     * Create a request for 8-bit image data from a byte array.
+     * Create a request for 8-bit grayscale image data from a byte array.
      *
-     * @param image  row-major interleaved pixel data
+     * @param image  row-major pixel data
      * @param width  image width in pixels
      * @param height image height in pixels
      * @return new HistogramRequest builder
@@ -85,6 +84,21 @@ public final class HistogramRequest {
      */
     public static HistogramRequest forImage8(byte[] image, int width,
                                              int height) {
+        return forImage8(image, width, height, 1);
+    }
+
+    /**
+     * Create a request for 8-bit image data from a byte array.
+     *
+     * @param image       row-major interleaved pixel data
+     * @param width       image width in pixels
+     * @param height      image height in pixels
+     * @param nComponents number of interleaved components per pixel
+     * @return new HistogramRequest builder
+     * @throws IllegalArgumentException if dimensions are invalid
+     */
+    public static HistogramRequest forImage8(byte[] image, int width,
+                                             int height, int nComponents) {
         if (image == null) {
             throw new IllegalArgumentException("image cannot be null");
         }
@@ -92,18 +106,22 @@ public final class HistogramRequest {
             throw new IllegalArgumentException(
                 "dimensions must be non-negative");
         }
+        if (nComponents < 1) {
+            throw new IllegalArgumentException("nComponents must be >= 1");
+        }
         HistogramRequest req = new HistogramRequest(true);
         req.image8Array = image;
         req.imageWidth = width;
         req.imageHeight = height;
         req.imageStride = width;
+        req.nComponents = nComponents;
         return req;
     }
 
     /**
-     * Create a request for 8-bit image data from a ByteBuffer.
+     * Create a request for 8-bit grayscale image data from a ByteBuffer.
      *
-     * @param image  row-major interleaved pixel data
+     * @param image  row-major pixel data
      * @param width  image width in pixels
      * @param height image height in pixels
      * @return new HistogramRequest builder
@@ -111,6 +129,21 @@ public final class HistogramRequest {
      */
     public static HistogramRequest forImage8(ByteBuffer image, int width,
                                              int height) {
+        return forImage8(image, width, height, 1);
+    }
+
+    /**
+     * Create a request for 8-bit image data from a ByteBuffer.
+     *
+     * @param image       row-major interleaved pixel data
+     * @param width       image width in pixels
+     * @param height      image height in pixels
+     * @param nComponents number of interleaved components per pixel
+     * @return new HistogramRequest builder
+     * @throws IllegalArgumentException if dimensions are invalid
+     */
+    public static HistogramRequest forImage8(ByteBuffer image, int width,
+                                             int height, int nComponents) {
         if (image == null) {
             throw new IllegalArgumentException("image cannot be null");
         }
@@ -118,18 +151,22 @@ public final class HistogramRequest {
             throw new IllegalArgumentException(
                 "dimensions must be non-negative");
         }
+        if (nComponents < 1) {
+            throw new IllegalArgumentException("nComponents must be >= 1");
+        }
         HistogramRequest req = new HistogramRequest(true);
         req.image8Buffer = image;
         req.imageWidth = width;
         req.imageHeight = height;
         req.imageStride = width;
+        req.nComponents = nComponents;
         return req;
     }
 
     /**
-     * Create a request for 16-bit image data from a short array.
+     * Create a request for 16-bit grayscale image data from a short array.
      *
-     * @param image  row-major interleaved pixel data
+     * @param image  row-major pixel data
      * @param width  image width in pixels
      * @param height image height in pixels
      * @return new HistogramRequest builder
@@ -137,6 +174,21 @@ public final class HistogramRequest {
      */
     public static HistogramRequest forImage16(short[] image, int width,
                                               int height) {
+        return forImage16(image, width, height, 1);
+    }
+
+    /**
+     * Create a request for 16-bit image data from a short array.
+     *
+     * @param image       row-major interleaved pixel data
+     * @param width       image width in pixels
+     * @param height      image height in pixels
+     * @param nComponents number of interleaved components per pixel
+     * @return new HistogramRequest builder
+     * @throws IllegalArgumentException if dimensions are invalid
+     */
+    public static HistogramRequest forImage16(short[] image, int width,
+                                              int height, int nComponents) {
         if (image == null) {
             throw new IllegalArgumentException("image cannot be null");
         }
@@ -144,18 +196,22 @@ public final class HistogramRequest {
             throw new IllegalArgumentException(
                 "dimensions must be non-negative");
         }
+        if (nComponents < 1) {
+            throw new IllegalArgumentException("nComponents must be >= 1");
+        }
         HistogramRequest req = new HistogramRequest(false);
         req.image16Array = image;
         req.imageWidth = width;
         req.imageHeight = height;
         req.imageStride = width;
+        req.nComponents = nComponents;
         return req;
     }
 
     /**
-     * Create a request for 16-bit image data from a ShortBuffer.
+     * Create a request for 16-bit grayscale image data from a ShortBuffer.
      *
-     * @param image  row-major interleaved pixel data
+     * @param image  row-major pixel data
      * @param width  image width in pixels
      * @param height image height in pixels
      * @return new HistogramRequest builder
@@ -163,6 +219,21 @@ public final class HistogramRequest {
      */
     public static HistogramRequest forImage16(ShortBuffer image, int width,
                                               int height) {
+        return forImage16(image, width, height, 1);
+    }
+
+    /**
+     * Create a request for 16-bit image data from a ShortBuffer.
+     *
+     * @param image       row-major interleaved pixel data
+     * @param width       image width in pixels
+     * @param height      image height in pixels
+     * @param nComponents number of interleaved components per pixel
+     * @return new HistogramRequest builder
+     * @throws IllegalArgumentException if dimensions are invalid
+     */
+    public static HistogramRequest forImage16(ShortBuffer image, int width,
+                                              int height, int nComponents) {
         if (image == null) {
             throw new IllegalArgumentException("image cannot be null");
         }
@@ -170,11 +241,15 @@ public final class HistogramRequest {
             throw new IllegalArgumentException(
                 "dimensions must be non-negative");
         }
+        if (nComponents < 1) {
+            throw new IllegalArgumentException("nComponents must be >= 1");
+        }
         HistogramRequest req = new HistogramRequest(false);
         req.image16Buffer = image;
         req.imageWidth = width;
         req.imageHeight = height;
         req.imageStride = width;
+        req.nComponents = nComponents;
         return req;
     }
 
@@ -188,17 +263,6 @@ public final class HistogramRequest {
      */
     public HistogramRequest stride(int stride) {
         this.imageStride = stride;
-        return this;
-    }
-
-    /**
-     * Set the number of interleaved components per pixel.
-     *
-     * @param n number of components (1 for grayscale, 3 for RGB, 4 for RGBA)
-     * @return this builder
-     */
-    public HistogramRequest components(int n) {
-        this.nComponents = n;
         return this;
     }
 

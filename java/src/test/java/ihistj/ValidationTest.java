@@ -266,10 +266,7 @@ class ValidationTest {
             byte[] image = {0, 1, 2, 3};
 
             assertThrows(IllegalArgumentException.class,
-                         ()
-                             -> HistogramRequest.forImage8(image, 4, 1)
-                                    .components(0)
-                                    .compute());
+                         () -> HistogramRequest.forImage8(image, 4, 1, 0));
         }
 
         @Test
@@ -349,8 +346,7 @@ class ValidationTest {
             assertThrows(
                 IllegalArgumentException.class,
                 ()
-                    -> HistogramRequest.forImage8(image, 4, 1)
-                           .components(3)
+                    -> HistogramRequest.forImage8(image, 4, 1, 3)
                            .selectComponents(0, 1, 3) // 3 is out of range
                            .compute());
         }
@@ -361,8 +357,7 @@ class ValidationTest {
 
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> HistogramRequest.forImage8(image, 4, 1)
-                                    .components(3)
+                             -> HistogramRequest.forImage8(image, 4, 1, 3)
                                     .selectComponents(-1, 0)
                                     .compute());
         }

@@ -143,9 +143,9 @@ int[] hist = Histogram.compute(shortImage, width, height, bits);
 **`HistogramRequest`** - Builder for advanced use cases:
 
 ```java
-int[] hist = HistogramRequest.forImage8(image, width, height)
+// Multi-component image (e.g., RGB)
+int[] hist = HistogramRequest.forImage8(image, width, height, 3)
     .stride(rowStride)              // Row stride if image is padded
-    .components(nComponents)        // Number of components per pixel
     .selectComponents(0, 1, 2)      // Which components to histogram
     .roi(x, y, roiWidth, roiHeight) // Region of interest
     .mask(maskData)                 // Per-pixel mask

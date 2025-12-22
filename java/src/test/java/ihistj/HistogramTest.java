@@ -145,9 +145,7 @@ class HistogramTest {
         @Test
         void withComponents() {
             byte[] image = {10, 20, 11, 21}; // 2-pixel, 2-component image
-            int[] hist = HistogramRequest.forImage8(image, 2, 1)
-                             .components(2)
-                             .compute();
+            int[] hist = HistogramRequest.forImage8(image, 2, 1, 2).compute();
 
             assertEquals(2 * 256, hist.length);
             assertEquals(1, hist[10]);
@@ -160,8 +158,7 @@ class HistogramTest {
         void selectComponents() {
             // RGBA, select only G and A
             byte[] image = {10, 20, 30, 40, 11, 21, 31, 41};
-            int[] hist = HistogramRequest.forImage8(image, 2, 1)
-                             .components(4)
+            int[] hist = HistogramRequest.forImage8(image, 2, 1, 4)
                              .selectComponents(1, 3) // G and A
                              .compute();
 
