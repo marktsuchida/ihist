@@ -145,7 +145,8 @@ run SCRIPT *FLAGS: build
 # Build and install Python bindings (editable install)
 py-install:
     pip --require-virtualenv install meson-python numpy
-    pip --require-virtualenv install -e . --no-build-isolation
+    pip --require-virtualenv install -e . --no-build-isolation -v \
+        -C setup-args=-Db_ndebug=false  # Don't disable C assert()
 
 # Run Python tests
 py-test: py-install
