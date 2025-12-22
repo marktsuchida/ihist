@@ -13,3 +13,6 @@ option('benchmarks', type: 'feature', value: 'auto',
 
 option('python-bindings', type: 'feature', value: 'disabled',
        description: 'Build Python bindings')
+
+option('java-bindings', type: 'feature', value: 'disabled',
+       description: 'Build Java JNI bindings')

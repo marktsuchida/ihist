@@ -101,6 +101,99 @@ Histogram(s) as uint32 array.
   of shape `(n_hist_components, 2^bits)`
 - If `out` was provided, returns the same array after filling
 
+## Java API
+
+### Quick Start
+
+```java
+import ihistj.*;
+
+// Grayscale image
+byte[] image = new byte[100 * 100];
+int[] hist = Histogram.compute(image, 100, 100);  // 256 bins
+
+// RGB image
+byte[] rgb = new byte[100 * 100 * 3];
+int[] hist = Histogram.compute(rgb, 100, 100, 3);  // 3 * 256 bins
+
+// With builder for advanced options
+int[] hist = HistogramRequest.forImage8(image, 100, 100)
+    .roi(10, 10, 80, 80)       // Region of interest
+    .mask(maskData)            // Per-pixel mask
+    .bits(8)                   // Significant bits
+    .parallel(true)            // Allow multi-threading
+    .compute();
+```
+
+### Classes
+
+**`Histogram`** - Simple static methods for common cases:
+
+```java
+// Grayscale 8-bit
+int[] hist = Histogram.compute(image, width, height);
+
+// Multi-component 8-bit (e.g., RGB)
+int[] hist = Histogram.compute(image, width, height, nComponents);
+
+// 16-bit with specified bit depth
+int[] hist = Histogram.compute(shortImage, width, height, bits);
+```
+
+**`HistogramRequest`** - Builder for advanced use cases:
+
+```java
+int[] hist = HistogramRequest.forImage8(image, width, height)
+    .stride(rowStride)              // Row stride if image is padded
+    .components(nComponents)        // Number of components per pixel
+    .selectComponents(0, 1, 2)      // Which components to histogram
+    .roi(x, y, roiWidth, roiHeight) // Region of interest
+    .mask(maskData)                 // Per-pixel mask
+    .maskLayout(maskStride, offsetX, offsetY)  // Mask layout options
+    .bits(sampleBits)               // Significant bits per sample
+    .output(preallocatedArray)      // Pre-allocated output
+    .accumulate(true)               // Add to existing values
+    .parallel(true)                 // Allow multi-threading
+    .compute();
+```
+
+**`IHistNative`** - Low-level JNI wrapper (advanced):
+
+```java
+// Array-based
+IHistNative.histogram8(sampleBits, image, imageOffset, mask, maskOffset,
+    height, width, imageStride, maskStride, nComponents, componentIndices,
+    histogram, histogramOffset, parallel);
+
+// Buffer-based (supports direct ByteBuffer for zero-copy)
+IHistNative.histogram8(sampleBits, imageBuffer, maskBuffer,
+    height, width, imageStride, maskStride, nComponents, componentIndices,
+    histogramBuffer, parallel);
+```
+
+### Input Types
+
+The Java API supports both arrays and NIO buffers:
+
+- **8-bit images**: `byte[]` or `ByteBuffer`
+- **16-bit images**: `short[]` or `ShortBuffer`
+- **Mask**: `byte[]` or `ByteBuffer`
+- **Histogram output**: `int[]` or `IntBuffer`
+
+Direct `ByteBuffer` instances provide zero-copy access to native memory.
+
+### Notes
+
+- **Signed types**: Java `byte` is signed (-128 to 127), but pixel values are
+  interpreted as unsigned (0 to 255). The native code correctly handles this.
+  Similarly for `short` with 16-bit images.
+
+- **Accumulation**: Like the C API, histogram values are accumulated. Use
+  `.accumulate(false)` (default) to zero the output first.
+
+- **Thread safety**: The histogram functions are thread-safe for independent
+  calls. Multiple threads can compute histograms simultaneously.
+
 ## C API
 
 The C API provides two functions for computing histograms of 2D image data:

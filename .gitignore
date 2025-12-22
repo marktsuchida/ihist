@@ -12,4 +12,6 @@ __pycache__/
 /dist/
 /wheelhouse/
 
+/java/target/
+
 /coverage/

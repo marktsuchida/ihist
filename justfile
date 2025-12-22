@@ -207,3 +207,19 @@ cibuildwheel:
     fi
     pip --require-virtualenv install cibuildwheel
     CIBW_ARCHS=native cibuildwheel
+
+# Build Java native library
+java-build:
+    meson setup --reconfigure builddir-jni -Djava-bindings=enabled \
+        -Dtests=disabled -Dbenchmarks=disabled
+    meson compile -C builddir-jni
+
+# Run Java tests (requires Maven)
+java-test: java-build
+    cd java && uvx cjdk -j zulu:8 exec -- \
+        mvn test -Dnative.library.path=../builddir-jni/java
+
+# Clean Java build artifacts
+java-clean:
+    cd java && mvn clean 2>/dev/null || true
+    rm -rf java/target/

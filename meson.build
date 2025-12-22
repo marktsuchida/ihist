@@ -132,6 +132,10 @@ if get_option('python-bindings').enabled()
     subdir('python')
 endif
 
+if get_option('java-bindings').enabled()
+    subdir('java')
+endif
+
 # Make this library usable as a Meson subproject.
 meson.override_dependency('ihist', ihist_dep)
 
