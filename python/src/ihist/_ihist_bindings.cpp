@@ -372,7 +372,7 @@ nb::object histogram(nb::ndarray<nb::ro> image,
 
     // We could keep the GIL acquired when data size is small (say, less than
     // 500 elements; should benchmark), but always release for now.
-    {
+    if (n_hist_components > 0) {
         nb::gil_scoped_release gil_released;
 
         if (is_8bit) {
