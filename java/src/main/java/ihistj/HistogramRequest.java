@@ -4,6 +4,7 @@
 
 package ihistj;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
@@ -44,8 +45,6 @@ import java.util.Arrays;
 public final class HistogramRequest {
 
     // Image data (one of these is set)
-    private byte[] image8Array;
-    private short[] image16Array;
     private ByteBuffer image8Buffer;
     private ShortBuffer image16Buffer;
 
@@ -61,7 +60,6 @@ public final class HistogramRequest {
     private int roiHeight = -1; // -1 means use full height
 
     // Mask data (optional)
-    private byte[] maskArray;
     private ByteBuffer maskBuffer;
     private int maskWidth = -1; // -1 means no mask
     private int maskHeight = -1;
@@ -74,7 +72,6 @@ public final class HistogramRequest {
 
     // Histogram parameters
     private int sampleBits = -1; // -1 means use default (8 or 16)
-    private int[] outputHistogram;
     private IntBuffer outputBuffer;
     private boolean accumulate = false;
     private boolean parallel = true;
@@ -83,7 +80,7 @@ public final class HistogramRequest {
 
     private HistogramRequest(boolean is8Bit) { this.is8Bit = is8Bit; }
 
-    private static void validateImageParams(Object image, int width,
+    private static void validateImageParams(Buffer image, int width,
                                             int height, int nComponents) {
         if (image == null) {
             throw new IllegalArgumentException("image cannot be null");
@@ -125,14 +122,10 @@ public final class HistogramRequest {
      */
     public static HistogramRequest forImage(byte[] image, int width,
                                             int height, int nComponents) {
-        validateImageParams(image, width, height, nComponents);
-        HistogramRequest req = new HistogramRequest(true);
-        req.image8Array = image;
-        req.imageWidth = width;
-        req.imageHeight = height;
-        req.imageStride = width;
-        req.nComponents = nComponents;
-        return req;
+        if (image == null) {
+            throw new IllegalArgumentException("image cannot be null");
+        }
+        return forImage(ByteBuffer.wrap(image), width, height, nComponents);
     }
 
     /**
@@ -197,14 +190,10 @@ public final class HistogramRequest {
      */
     public static HistogramRequest forImage(short[] image, int width,
                                             int height, int nComponents) {
-        validateImageParams(image, width, height, nComponents);
-        HistogramRequest req = new HistogramRequest(false);
-        req.image16Array = image;
-        req.imageWidth = width;
-        req.imageHeight = height;
-        req.imageStride = width;
-        req.nComponents = nComponents;
-        return req;
+        if (image == null) {
+            throw new IllegalArgumentException("image cannot be null");
+        }
+        return forImage(ShortBuffer.wrap(image), width, height, nComponents);
     }
 
     /**
@@ -291,11 +280,10 @@ public final class HistogramRequest {
      * @return this builder
      */
     public HistogramRequest mask(byte[] mask, int width, int height) {
-        this.maskArray = mask;
-        this.maskBuffer = null;
-        this.maskWidth = width;
-        this.maskHeight = height;
-        return this;
+        if (mask == null) {
+            throw new IllegalArgumentException("mask cannot be null");
+        }
+        return mask(ByteBuffer.wrap(mask), width, height);
     }
 
     /**
@@ -312,7 +300,6 @@ public final class HistogramRequest {
      */
     public HistogramRequest mask(ByteBuffer mask, int width, int height) {
         this.maskBuffer = mask;
-        this.maskArray = null;
         this.maskWidth = width;
         this.maskHeight = height;
         return this;
@@ -362,9 +349,10 @@ public final class HistogramRequest {
      * @return this builder
      */
     public HistogramRequest output(int[] histogram) {
-        this.outputHistogram = histogram;
-        this.outputBuffer = null;
-        return this;
+        if (histogram == null) {
+            throw new IllegalArgumentException("histogram cannot be null");
+        }
+        return output(IntBuffer.wrap(histogram));
     }
 
     /**
@@ -379,7 +367,6 @@ public final class HistogramRequest {
      */
     public HistogramRequest output(IntBuffer histogram) {
         this.outputBuffer = histogram;
-        this.outputHistogram = null;
         return this;
     }
 
@@ -511,7 +498,7 @@ public final class HistogramRequest {
         }
 
         // Validate mask dimensions if mask is set
-        if (maskArray != null || maskBuffer != null) {
+        if (maskBuffer != null) {
             if (maskWidth <= 0 || maskHeight <= 0) {
                 throw new IllegalArgumentException(
                     "Mask dimensions must be positive");
@@ -561,12 +548,7 @@ public final class HistogramRequest {
     // Prepare the output histogram array, handling clearing if needed
     private int[] prepareOutputHistogram(int histSize) {
         int[] histogram;
-        if (outputHistogram != null) {
-            histogram = outputHistogram;
-            if (!accumulate) {
-                Arrays.fill(histogram, 0, histSize, 0);
-            }
-        } else if (outputBuffer != null) {
+        if (outputBuffer != null) {
             if (outputBuffer.hasArray()) {
                 histogram = outputBuffer.array();
                 if (!accumulate) {
@@ -636,13 +618,6 @@ public final class HistogramRequest {
 
     // Prepare 8-bit image buffer for JNI call
     private ByteBuffer prepareImage8Buffer(int imageOffset) {
-        if (image8Array != null) {
-            // Wrap array as buffer
-            ByteBuffer buf = ByteBuffer.wrap(image8Array);
-            buf.position(imageOffset);
-            return buf;
-        }
-        // Use existing buffer
         ByteBuffer buf = image8Buffer;
         if (buf.isDirect() || buf.hasArray()) {
             // Supported by JNI; apply offset
@@ -656,13 +631,6 @@ public final class HistogramRequest {
 
     // Prepare 16-bit image buffer for JNI call
     private ShortBuffer prepareImage16Buffer(int imageOffset) {
-        if (image16Array != null) {
-            // Wrap array as buffer
-            ShortBuffer buf = ShortBuffer.wrap(image16Array);
-            buf.position(imageOffset);
-            return buf;
-        }
-        // Use existing buffer
         ShortBuffer buf = image16Buffer;
         if (buf.isDirect() || buf.hasArray()) {
             // Supported by JNI; apply offset
@@ -676,12 +644,6 @@ public final class HistogramRequest {
 
     // Prepare mask buffer for JNI call
     private ByteBuffer prepareMaskBuffer(int maskOffset) {
-        if (maskArray != null) {
-            // Wrap array as buffer
-            ByteBuffer buf = ByteBuffer.wrap(maskArray);
-            buf.position(maskOffset);
-            return buf;
-        }
         if (maskBuffer == null) {
             return null;
         }
