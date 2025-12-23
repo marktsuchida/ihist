@@ -106,39 +106,26 @@ Histogram(s) as uint32 array.
 ### Quick Start
 
 ```java
-import ihistj.*;
+import ihistj.HistogramRequest;
 
 // Grayscale image
 byte[] image = new byte[100 * 100];
-int[] hist = Histogram.compute(image, 100, 100);  // 256 bins
+int[] hist = HistogramRequest.forImage8(image, 100, 100).compute(); // 256 bins
 
 // RGB image
 byte[] rgb = new byte[100 * 100 * 3];
-int[] hist = Histogram.compute(rgb, 100, 100, 3);  // 3 * 256 bins
+int[] hist = HistogramRequest.forImage8(rgb, 100, 100, 3).compute(); // 3 * 256 bins
 
-// With builder for advanced options
+// With advanced options
 int[] hist = HistogramRequest.forImage8(image, 100, 100)
     .roi(10, 10, 80, 80)       // Region of interest
-    .mask(maskData)            // Per-pixel mask
+    .mask(maskData, 80, 80)    // Per-pixel mask
     .bits(8)                   // Significant bits
     .parallel(true)            // Allow multi-threading
     .compute();
 ```
 
 ### Classes
-
-**`Histogram`** - Simple static methods for common cases:
-
-```java
-// Grayscale 8-bit
-int[] hist = Histogram.compute(image, width, height);
-
-// Multi-component 8-bit (e.g., RGB)
-int[] hist = Histogram.compute(image, width, height, nComponents);
-
-// 16-bit with specified bit depth
-int[] hist = Histogram.compute(shortImage, width, height, bits);
-```
 
 **`HistogramRequest`** - Builder for advanced use cases:
 
