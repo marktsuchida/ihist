@@ -18,11 +18,11 @@ import java.util.Arrays;
  * <p>Example usage:
  * <pre>{@code
  * // Simple grayscale histogram
- * int[] histogram = HistogramRequest.forImage8(imageData, width, height)
+ * int[] histogram = HistogramRequest.forImage(imageData, width, height)
  *     .compute();
  *
  * // RGB histogram with ROI and mask
- * int[] histogram = HistogramRequest.forImage8(imageData, width, height, 3)
+ * int[] histogram = HistogramRequest.forImage(imageData, width, height, 3)
  *     .roi(10, 10, 100, 100)
  *     .mask(maskData)
  *     .bits(8)
@@ -83,9 +83,9 @@ public final class HistogramRequest {
      * @return new HistogramRequest builder
      * @throws IllegalArgumentException if dimensions are invalid
      */
-    public static HistogramRequest forImage8(byte[] image, int width,
-                                             int height) {
-        return forImage8(image, width, height, 1);
+    public static HistogramRequest forImage(byte[] image, int width,
+                                            int height) {
+        return forImage(image, width, height, 1);
     }
 
     /**
@@ -98,8 +98,8 @@ public final class HistogramRequest {
      * @return new HistogramRequest builder
      * @throws IllegalArgumentException if dimensions are invalid
      */
-    public static HistogramRequest forImage8(byte[] image, int width,
-                                             int height, int nComponents) {
+    public static HistogramRequest forImage(byte[] image, int width,
+                                            int height, int nComponents) {
         if (image == null) {
             throw new IllegalArgumentException("image cannot be null");
         }
@@ -128,9 +128,9 @@ public final class HistogramRequest {
      * @return new HistogramRequest builder
      * @throws IllegalArgumentException if dimensions are invalid
      */
-    public static HistogramRequest forImage8(ByteBuffer image, int width,
-                                             int height) {
-        return forImage8(image, width, height, 1);
+    public static HistogramRequest forImage(ByteBuffer image, int width,
+                                            int height) {
+        return forImage(image, width, height, 1);
     }
 
     /**
@@ -143,8 +143,8 @@ public final class HistogramRequest {
      * @return new HistogramRequest builder
      * @throws IllegalArgumentException if dimensions are invalid
      */
-    public static HistogramRequest forImage8(ByteBuffer image, int width,
-                                             int height, int nComponents) {
+    public static HistogramRequest forImage(ByteBuffer image, int width,
+                                            int height, int nComponents) {
         if (image == null) {
             throw new IllegalArgumentException("image cannot be null");
         }
@@ -173,9 +173,9 @@ public final class HistogramRequest {
      * @return new HistogramRequest builder
      * @throws IllegalArgumentException if dimensions are invalid
      */
-    public static HistogramRequest forImage16(short[] image, int width,
-                                              int height) {
-        return forImage16(image, width, height, 1);
+    public static HistogramRequest forImage(short[] image, int width,
+                                            int height) {
+        return forImage(image, width, height, 1);
     }
 
     /**
@@ -188,8 +188,8 @@ public final class HistogramRequest {
      * @return new HistogramRequest builder
      * @throws IllegalArgumentException if dimensions are invalid
      */
-    public static HistogramRequest forImage16(short[] image, int width,
-                                              int height, int nComponents) {
+    public static HistogramRequest forImage(short[] image, int width,
+                                            int height, int nComponents) {
         if (image == null) {
             throw new IllegalArgumentException("image cannot be null");
         }
@@ -218,9 +218,9 @@ public final class HistogramRequest {
      * @return new HistogramRequest builder
      * @throws IllegalArgumentException if dimensions are invalid
      */
-    public static HistogramRequest forImage16(ShortBuffer image, int width,
-                                              int height) {
-        return forImage16(image, width, height, 1);
+    public static HistogramRequest forImage(ShortBuffer image, int width,
+                                            int height) {
+        return forImage(image, width, height, 1);
     }
 
     /**
@@ -233,8 +233,8 @@ public final class HistogramRequest {
      * @return new HistogramRequest builder
      * @throws IllegalArgumentException if dimensions are invalid
      */
-    public static HistogramRequest forImage16(ShortBuffer image, int width,
-                                              int height, int nComponents) {
+    public static HistogramRequest forImage(ShortBuffer image, int width,
+                                            int height, int nComponents) {
         if (image == null) {
             throw new IllegalArgumentException("image cannot be null");
         }

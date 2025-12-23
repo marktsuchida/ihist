@@ -23,7 +23,7 @@ class HistogramTest {
     @Test
     void basicUsage() {
         byte[] image = {0, 1, 2, 3};
-        int[] hist = HistogramRequest.forImage8(image, 4, 1).compute();
+        int[] hist = HistogramRequest.forImage(image, 4, 1).compute();
 
         assertEquals(256, hist.length);
         assertEquals(1, hist[0]);
@@ -37,7 +37,7 @@ class HistogramTest {
         // 4x2 image, ROI is middle 2x1
         byte[] image = {0, 1, 2, 3, 4, 5, 6, 7};
         int[] hist =
-            HistogramRequest.forImage8(image, 4, 2).roi(1, 0, 2, 1).compute();
+            HistogramRequest.forImage(image, 4, 2).roi(1, 0, 2, 1).compute();
 
         assertEquals(1, hist[1]); // Only values 1, 2 from ROI
         assertEquals(1, hist[2]);
@@ -51,7 +51,7 @@ class HistogramTest {
         byte[] mask = {1, 0, 1, 0};
 
         int[] hist =
-            HistogramRequest.forImage8(image, 4, 1).mask(mask, 4, 1).compute();
+            HistogramRequest.forImage(image, 4, 1).mask(mask, 4, 1).compute();
 
         assertEquals(1, hist[0]);
         assertEquals(0, hist[1]);
@@ -62,7 +62,7 @@ class HistogramTest {
     @Test
     void withComponents() {
         byte[] image = {10, 20, 11, 21}; // 2-pixel, 2-component image
-        int[] hist = HistogramRequest.forImage8(image, 2, 1, 2).compute();
+        int[] hist = HistogramRequest.forImage(image, 2, 1, 2).compute();
 
         assertEquals(2 * 256, hist.length);
         assertEquals(1, hist[10]);
@@ -75,7 +75,7 @@ class HistogramTest {
     void selectComponents() {
         // RGBA, select only G and A
         byte[] image = {10, 20, 30, 40, 11, 21, 31, 41};
-        int[] hist = HistogramRequest.forImage8(image, 2, 1, 4)
+        int[] hist = HistogramRequest.forImage(image, 2, 1, 4)
                          .selectComponents(1, 3) // G and A
                          .compute();
 
@@ -91,7 +91,7 @@ class HistogramTest {
     @Test
     void withBits() {
         byte[] image = {0, 1, 2, 3, 4, 5, 6, 7};
-        int[] hist = HistogramRequest.forImage8(image, 8, 1).bits(3).compute();
+        int[] hist = HistogramRequest.forImage(image, 8, 1).bits(3).compute();
 
         assertEquals(8, hist.length); // 2^3 = 8 bins
         assertEquals(1, hist[0]);
@@ -106,7 +106,7 @@ class HistogramTest {
         int[] hist = new int[256];
         hist[0] = 100; // Pre-existing value
 
-        int[] result = HistogramRequest.forImage8(image, 4, 1)
+        int[] result = HistogramRequest.forImage(image, 4, 1)
                            .output(hist)
                            .accumulate(false) // Should zero first
                            .compute();
@@ -121,7 +121,7 @@ class HistogramTest {
         int[] hist = new int[256];
         hist[0] = 100;
 
-        HistogramRequest.forImage8(image, 2, 1)
+        HistogramRequest.forImage(image, 2, 1)
             .output(hist)
             .accumulate(true)
             .compute();
@@ -137,11 +137,11 @@ class HistogramTest {
             image[i] = (byte)(i % 256);
         }
 
-        int[] hist1 = HistogramRequest.forImage8(image, 1000, 1000)
+        int[] hist1 = HistogramRequest.forImage(image, 1000, 1000)
                           .parallel(true)
                           .compute();
 
-        int[] hist2 = HistogramRequest.forImage8(image, 1000, 1000)
+        int[] hist2 = HistogramRequest.forImage(image, 1000, 1000)
                           .parallel(false)
                           .compute();
 
@@ -151,8 +151,7 @@ class HistogramTest {
     @Test
     void image16() {
         short[] image = {0, 1000, 2000, 3000};
-        int[] hist =
-            HistogramRequest.forImage16(image, 4, 1).bits(12).compute();
+        int[] hist = HistogramRequest.forImage(image, 4, 1).bits(12).compute();
 
         assertEquals(4096, hist.length);
         assertEquals(1, hist[0]);
@@ -170,8 +169,7 @@ class HistogramTest {
         image.put((short)300);
         image.flip();
 
-        int[] hist =
-            HistogramRequest.forImage16(image, 4, 1).bits(9).compute();
+        int[] hist = HistogramRequest.forImage(image, 4, 1).bits(9).compute();
 
         assertEquals(512, hist.length);
         assertEquals(1, hist[0]);

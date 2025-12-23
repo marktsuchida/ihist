@@ -110,14 +110,14 @@ import ihistj.HistogramRequest;
 
 // Grayscale image
 byte[] image = new byte[100 * 100];
-int[] hist = HistogramRequest.forImage8(image, 100, 100).compute(); // 256 bins
+int[] hist = HistogramRequest.forImage(image, 100, 100).compute(); // 256 bins
 
 // RGB image
 byte[] rgb = new byte[100 * 100 * 3];
-int[] hist = HistogramRequest.forImage8(rgb, 100, 100, 3).compute(); // 3 * 256 bins
+int[] hist = HistogramRequest.forImage(rgb, 100, 100, 3).compute(); // 3 * 256 bins
 
 // With advanced options
-int[] hist = HistogramRequest.forImage8(image, 100, 100)
+int[] hist = HistogramRequest.forImage(image, 100, 100)
     .roi(10, 10, 80, 80)       // Region of interest
     .mask(maskData, 80, 80)    // Per-pixel mask
     .bits(8)                   // Significant bits
@@ -131,7 +131,7 @@ int[] hist = HistogramRequest.forImage8(image, 100, 100)
 
 ```java
 // Multi-component image (e.g., RGB)
-int[] hist = HistogramRequest.forImage8(image, width, height, 3)
+int[] hist = HistogramRequest.forImage(image, width, height, 3)
     .selectComponents(0, 1, 2)      // Which components to histogram
     .roi(x, y, roiWidth, roiHeight) // Region of interest
     .mask(maskData, maskWidth, maskHeight)  // Per-pixel mask with dimensions
