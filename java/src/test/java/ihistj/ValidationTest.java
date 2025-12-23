@@ -251,17 +251,6 @@ class ValidationTest {
         }
 
         @Test
-        void invalidStride() {
-            byte[] image = {0, 1, 2, 3};
-
-            assertThrows(IllegalArgumentException.class,
-                         ()
-                             -> HistogramRequest.forImage8(image, 4, 1)
-                                    .stride(3) // Less than width
-                                    .compute());
-        }
-
-        @Test
         void invalidComponents() {
             byte[] image = {0, 1, 2, 3};
 

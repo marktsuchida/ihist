@@ -119,27 +119,14 @@ class HistogramTest {
             byte[] image = {0, 1, 2, 3};
             byte[] mask = {1, 0, 1, 0};
 
-            int[] hist =
-                HistogramRequest.forImage8(image, 4, 1).mask(mask).compute();
+            int[] hist = HistogramRequest.forImage8(image, 4, 1)
+                             .mask(mask, 4, 1)
+                             .compute();
 
             assertEquals(1, hist[0]);
             assertEquals(0, hist[1]);
             assertEquals(1, hist[2]);
             assertEquals(0, hist[3]);
-        }
-
-        @Test
-        void withStride() {
-            // 2x2 image with stride=4
-            byte[] image = {1, 2, 99, 99, 3, 4, 99, 99};
-            int[] hist =
-                HistogramRequest.forImage8(image, 2, 2).stride(4).compute();
-
-            assertEquals(1, hist[1]);
-            assertEquals(1, hist[2]);
-            assertEquals(1, hist[3]);
-            assertEquals(1, hist[4]);
-            assertEquals(0, hist[99]);
         }
 
         @Test

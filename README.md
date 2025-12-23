@@ -145,11 +145,10 @@ int[] hist = Histogram.compute(shortImage, width, height, bits);
 ```java
 // Multi-component image (e.g., RGB)
 int[] hist = HistogramRequest.forImage8(image, width, height, 3)
-    .stride(rowStride)              // Row stride if image is padded
     .selectComponents(0, 1, 2)      // Which components to histogram
     .roi(x, y, roiWidth, roiHeight) // Region of interest
-    .mask(maskData)                 // Per-pixel mask
-    .maskLayout(maskStride, offsetX, offsetY)  // Mask layout options
+    .mask(maskData, maskWidth, maskHeight)  // Per-pixel mask with dimensions
+    .maskOffset(offsetX, offsetY)   // Mask offset for ROI alignment
     .bits(sampleBits)               // Significant bits per sample
     .output(preallocatedArray)      // Pre-allocated output
     .accumulate(true)               // Add to existing values

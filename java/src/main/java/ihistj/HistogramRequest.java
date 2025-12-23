@@ -52,7 +52,8 @@ public final class HistogramRequest {
     // Mask data (optional)
     private byte[] maskArray;
     private ByteBuffer maskBuffer;
-    private int maskStride = -1; // -1 means same as effective ROI width
+    private int maskWidth = -1; // -1 means no mask
+    private int maskHeight = -1;
     private int maskOffsetX = 0; // offset within mask for ROI
     private int maskOffsetY = 0;
 
@@ -256,17 +257,6 @@ public final class HistogramRequest {
     // ========== Builder methods ==========
 
     /**
-     * Set the image row stride (for non-contiguous image data).
-     *
-     * @param stride row stride in pixels (must be &gt;= width)
-     * @return this builder
-     */
-    public HistogramRequest stride(int stride) {
-        this.imageStride = stride;
-        return this;
-    }
-
-    /**
      * Set which component indices to histogram.
      *
      * <p>Example: For RGBA data, use {@code selectComponents(0, 1, 2)} to
@@ -304,12 +294,16 @@ public final class HistogramRequest {
      * <p>Pixels with mask value 0 are excluded from the histogram.
      * Pixels with non-zero mask values are included.
      *
-     * @param mask mask data
+     * @param mask   mask data in row-major order
+     * @param width  mask width in pixels
+     * @param height mask height in pixels
      * @return this builder
      */
-    public HistogramRequest mask(byte[] mask) {
+    public HistogramRequest mask(byte[] mask, int width, int height) {
         this.maskArray = mask;
         this.maskBuffer = null;
+        this.maskWidth = width;
+        this.maskHeight = height;
         return this;
     }
 
@@ -319,30 +313,33 @@ public final class HistogramRequest {
      * <p>Pixels with mask value 0 are excluded from the histogram.
      * Pixels with non-zero mask values are included.
      *
-     * @param mask mask data
+     * @param mask   mask data in row-major order
+     * @param width  mask width in pixels
+     * @param height mask height in pixels
      * @return this builder
      */
-    public HistogramRequest mask(ByteBuffer mask) {
+    public HistogramRequest mask(ByteBuffer mask, int width, int height) {
         this.maskBuffer = mask;
         this.maskArray = null;
+        this.maskWidth = width;
+        this.maskHeight = height;
         return this;
     }
 
     /**
-     * Set the mask stride and offset for ROI alignment.
+     * Set the mask offset for ROI alignment.
      *
-     * <p>This allows the mask to have a different layout than the image ROI.
-     * The mask offset specifies where in the mask the ROI data begins.
+     * <p>The mask offset specifies where in the mask the ROI data begins.
+     * The ROI pixels will be read from
+     * mask[(offsetY + y) * maskWidth + (offsetX + x)].
      *
-     * @param stride  mask row stride in pixels
-     * @param offsetX mask X offset for ROI alignment
-     * @param offsetY mask Y offset for ROI alignment
+     * @param x mask X offset for ROI alignment
+     * @param y mask Y offset for ROI alignment
      * @return this builder
      */
-    public HistogramRequest maskLayout(int stride, int offsetX, int offsetY) {
-        this.maskStride = stride;
-        this.maskOffsetX = offsetX;
-        this.maskOffsetY = offsetY;
+    public HistogramRequest maskOffset(int x, int y) {
+        this.maskOffsetX = x;
+        this.maskOffsetY = y;
         return this;
     }
 
@@ -430,8 +427,7 @@ public final class HistogramRequest {
 
         int effectiveWidth = (roiWidth < 0) ? imageWidth : roiWidth;
         int effectiveHeight = (roiHeight < 0) ? imageHeight : roiHeight;
-        int effectiveMaskStride =
-            (maskStride < 0) ? effectiveWidth : maskStride;
+        int effectiveMaskStride = (maskWidth > 0) ? maskWidth : effectiveWidth;
         int effectiveBits = (sampleBits < 0) ? (is8Bit ? 8 : 16) : sampleBits;
 
         int[] indices = (componentIndices != null)
@@ -534,10 +530,6 @@ public final class HistogramRequest {
             throw new IllegalArgumentException(
                 "Image dimensions must be non-negative");
         }
-        if (imageStride < imageWidth) {
-            throw new IllegalArgumentException(
-                "Image stride must be >= width");
-        }
         if (nComponents < 1) {
             throw new IllegalArgumentException(
                 "Number of components must be >= 1");
@@ -553,6 +545,22 @@ public final class HistogramRequest {
         if (roiX + effectiveWidth > imageWidth ||
             roiY + effectiveHeight > imageHeight) {
             throw new IllegalArgumentException("ROI exceeds image bounds");
+        }
+
+        // Validate mask dimensions if mask is set
+        if (maskArray != null || maskBuffer != null) {
+            if (maskWidth <= 0 || maskHeight <= 0) {
+                throw new IllegalArgumentException(
+                    "Mask dimensions must be positive");
+            }
+            if (maskOffsetX < 0 || maskOffsetY < 0) {
+                throw new IllegalArgumentException(
+                    "Mask offset cannot be negative");
+            }
+            if (maskOffsetX + effectiveWidth > maskWidth ||
+                maskOffsetY + effectiveHeight > maskHeight) {
+                throw new IllegalArgumentException("ROI exceeds mask bounds");
+            }
         }
 
         int effectiveBits = (sampleBits < 0) ? (is8Bit ? 8 : 16) : sampleBits;
