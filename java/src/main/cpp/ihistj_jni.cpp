@@ -65,27 +65,6 @@ auto get_buffer_position(JNIEnv *env, jobject buffer) -> jint {
     return env->CallIntMethod(buffer, position_method);
 }
 
-auto get_buffer_remaining(JNIEnv *env, jobject buffer) -> jint {
-    jclass buffer_class = env->GetObjectClass(buffer);
-    jmethodID remaining_method =
-        env->GetMethodID(buffer_class, "remaining", "()I");
-    return env->CallIntMethod(buffer, remaining_method);
-}
-
-auto buffer_has_array(JNIEnv *env, jobject buffer) -> bool {
-    jclass buffer_class = env->GetObjectClass(buffer);
-    jmethodID has_array_method =
-        env->GetMethodID(buffer_class, "hasArray", "()Z");
-    return env->CallBooleanMethod(buffer, has_array_method) != JNI_FALSE;
-}
-
-auto get_buffer_array_offset(JNIEnv *env, jobject buffer) -> jint {
-    jclass buffer_class = env->GetObjectClass(buffer);
-    jmethodID array_offset_method =
-        env->GetMethodID(buffer_class, "arrayOffset", "()I");
-    return env->CallIntMethod(buffer, array_offset_method);
-}
-
 template <typename PixelT> struct jni_pixel_traits;
 
 template <> struct jni_pixel_traits<std::uint8_t> {
@@ -95,9 +74,8 @@ template <> struct jni_pixel_traits<std::uint8_t> {
     static constexpr int max_sample_bits = 8;
     static constexpr char const *bit_error_msg =
         "sampleBits must be in range [1, 8] for 8-bit";
-    static constexpr char const *array_method_sig = "()[B";
     static constexpr char const *buffer_type_error =
-        "ByteBuffer must be direct or array-backed";
+        "ByteBuffer must be direct";
 
     static auto get_array_elements(JNIEnv *env, jni_array_type arr)
         -> jni_element_type * {
@@ -140,9 +118,8 @@ template <> struct jni_pixel_traits<std::uint16_t> {
     static constexpr int max_sample_bits = 16;
     static constexpr char const *bit_error_msg =
         "sampleBits must be in range [1, 16] for 16-bit";
-    static constexpr char const *array_method_sig = "()[S";
     static constexpr char const *buffer_type_error =
-        "ShortBuffer must be direct or array-backed";
+        "ShortBuffer must be direct";
 
     static auto get_array_elements(JNIEnv *env, jni_array_type arr)
         -> jni_element_type * {
@@ -215,12 +192,11 @@ auto validate_params(JNIEnv *env, jint sample_bits, jint height, jint width,
     return true;
 }
 
-// For direct buffers, returns pointer directly
-// For heap-backed buffers, copies data into provided vector and returns its
-// pointer
+// Returns pointer to direct buffer data, or nullptr with exception if not
+// direct
 template <typename PixelT>
-auto get_image_buffer_data(JNIEnv *env, jobject image_buffer,
-                           std::vector<PixelT> &image_copy) -> PixelT const * {
+auto get_image_buffer_data(JNIEnv *env, jobject image_buffer)
+    -> PixelT const * {
     using traits = jni_pixel_traits<PixelT>;
 
     void *image_direct = env->GetDirectBufferAddress(image_buffer);
@@ -231,34 +207,13 @@ auto get_image_buffer_data(JNIEnv *env, jobject image_buffer,
             position * sizeof(typename traits::jni_element_type));
     }
 
-    if (buffer_has_array(env, image_buffer)) {
-        jclass buffer_class = env->GetObjectClass(image_buffer);
-        jmethodID array_method =
-            env->GetMethodID(buffer_class, "array", traits::array_method_sig);
-        auto arr = static_cast<typename traits::jni_array_type>(
-            env->CallObjectMethod(image_buffer, array_method));
-        jint const offset = get_buffer_array_offset(env, image_buffer);
-        jint const position = get_buffer_position(env, image_buffer);
-        jint const remaining = get_buffer_remaining(env, image_buffer);
-
-        auto *arr_ptr = traits::get_array_elements(env, arr);
-        if (arr_ptr == nullptr) {
-            return nullptr;
-        }
-        image_copy.assign(
-            reinterpret_cast<PixelT *>(arr_ptr + offset + position),
-            reinterpret_cast<PixelT *>(arr_ptr + offset + position +
-                                       remaining));
-        traits::release_array_elements(env, arr, arr_ptr, JNI_ABORT);
-        return image_copy.data();
-    }
-
     throw_illegal_argument(env, traits::buffer_type_error);
     return nullptr;
 }
 
-auto get_mask_buffer_data(JNIEnv *env, jobject mask_buffer,
-                          std::vector<std::uint8_t> &mask_copy)
+// Returns pointer to direct mask buffer data, or nullptr with exception if not
+// direct
+auto get_mask_buffer_data(JNIEnv *env, jobject mask_buffer)
     -> std::uint8_t const * {
     void *mask_direct = env->GetDirectBufferAddress(mask_buffer);
     if (mask_direct != nullptr) {
@@ -266,34 +221,11 @@ auto get_mask_buffer_data(JNIEnv *env, jobject mask_buffer,
         return static_cast<std::uint8_t const *>(mask_direct) + position;
     }
 
-    if (buffer_has_array(env, mask_buffer)) {
-        jclass byte_buffer_class = env->GetObjectClass(mask_buffer);
-        jmethodID array_method =
-            env->GetMethodID(byte_buffer_class, "array", "()[B");
-        jbyteArray arr = static_cast<jbyteArray>(
-            env->CallObjectMethod(mask_buffer, array_method));
-        jint const offset = get_buffer_array_offset(env, mask_buffer);
-        jint const position = get_buffer_position(env, mask_buffer);
-        jint const remaining = get_buffer_remaining(env, mask_buffer);
-
-        jbyte *arr_ptr = env->GetByteArrayElements(arr, nullptr);
-        if (arr_ptr == nullptr) {
-            return nullptr;
-        }
-        mask_copy.assign(
-            reinterpret_cast<std::uint8_t *>(arr_ptr + offset + position),
-            reinterpret_cast<std::uint8_t *>(arr_ptr + offset + position +
-                                             remaining));
-        env->ReleaseByteArrayElements(arr, arr_ptr, JNI_ABORT);
-        return mask_copy.data();
-    }
-
-    throw_illegal_argument(env,
-                           "mask ByteBuffer must be direct or array-backed");
+    throw_illegal_argument(env, "mask ByteBuffer must be direct");
     return nullptr;
 }
 
-// Buffer-based histogram implementation template
+// Buffer-based histogram implementation template (direct buffers only)
 template <typename PixelT>
 void histogram_buffer_impl(JNIEnv *env, jint sample_bits, jobject image_buffer,
                            jobject mask_buffer, jint height, jint width,
@@ -329,51 +261,27 @@ void histogram_buffer_impl(JNIEnv *env, jint sample_bits, jobject image_buffer,
         return;
     }
 
-    std::vector<PixelT> image_copy;
-    PixelT const *image_ptr =
-        get_image_buffer_data<PixelT>(env, image_buffer, image_copy);
+    PixelT const *image_ptr = get_image_buffer_data<PixelT>(env, image_buffer);
     if (image_ptr == nullptr) {
         return;
     }
 
     std::uint8_t const *mask_ptr = nullptr;
-    std::vector<std::uint8_t> mask_copy;
     if (mask_buffer != nullptr) {
-        mask_ptr = get_mask_buffer_data(env, mask_buffer, mask_copy);
+        mask_ptr = get_mask_buffer_data(env, mask_buffer);
         if (mask_ptr == nullptr) {
             return;
         }
     }
 
     void *histogram_direct = env->GetDirectBufferAddress(histogram_buffer);
-    std::uint32_t *histogram_ptr = nullptr;
-    jintArray histogram_backing_array = nullptr;
-    jint *histogram_backing_ptr = nullptr;
-    if (histogram_direct != nullptr) {
-        jint const position = get_buffer_position(env, histogram_buffer);
-        histogram_ptr = reinterpret_cast<std::uint32_t *>(
-            static_cast<char *>(histogram_direct) + position * sizeof(jint));
-    } else if (buffer_has_array(env, histogram_buffer)) {
-        jclass int_buffer_class = env->GetObjectClass(histogram_buffer);
-        jmethodID array_method =
-            env->GetMethodID(int_buffer_class, "array", "()[I");
-        histogram_backing_array = static_cast<jintArray>(
-            env->CallObjectMethod(histogram_buffer, array_method));
-        jint const offset = get_buffer_array_offset(env, histogram_buffer);
-        jint const position = get_buffer_position(env, histogram_buffer);
-
-        histogram_backing_ptr =
-            env->GetIntArrayElements(histogram_backing_array, nullptr);
-        if (histogram_backing_ptr == nullptr) {
-            return;
-        }
-        histogram_ptr = reinterpret_cast<std::uint32_t *>(
-            histogram_backing_ptr + offset + position);
-    } else {
-        throw_illegal_argument(
-            env, "histogram IntBuffer must be direct or array-backed");
+    if (histogram_direct == nullptr) {
+        throw_illegal_argument(env, "histogram IntBuffer must be direct");
         return;
     }
+    jint const position = get_buffer_position(env, histogram_buffer);
+    auto *histogram_ptr = reinterpret_cast<std::uint32_t *>(
+        static_cast<char *>(histogram_direct) + position * sizeof(jint));
 
     traits::call_ihist(
         static_cast<std::size_t>(sample_bits), image_ptr, mask_ptr,
@@ -382,11 +290,6 @@ void histogram_buffer_impl(JNIEnv *env, jint sample_bits, jobject image_buffer,
         static_cast<std::size_t>(mask_stride),
         static_cast<std::size_t>(n_components), n_hist_components,
         indices.data(), histogram_ptr, parallel != JNI_FALSE);
-
-    if (histogram_backing_ptr != nullptr) {
-        env->ReleaseIntArrayElements(histogram_backing_array,
-                                     histogram_backing_ptr, 0);
-    }
 }
 
 template <typename PixelT>

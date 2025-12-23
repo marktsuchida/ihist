@@ -151,11 +151,13 @@ IHistNative.histogram8(sampleBits, image, imageOffset, mask, maskOffset,
     height, width, imageStride, maskStride, nComponents, componentIndices,
     histogram, histogramOffset, parallel);
 
-// Buffer-based (supports direct ByteBuffer for zero-copy)
+// Buffer-based (direct buffers only, zero-copy)
 IHistNative.histogram8(sampleBits, imageBuffer, maskBuffer,
     height, width, imageStride, maskStride, nComponents, componentIndices,
     histogramBuffer, parallel);
 ```
+
+(And, similarly, `histogram16()` for arrays and for direct buffers.)
 
 ### Input Types
 
@@ -166,7 +168,10 @@ The Java API supports both arrays and NIO buffers:
 - **Mask**: `byte[]` or `ByteBuffer`
 - **Histogram output**: `int[]` or `IntBuffer`
 
-Direct `ByteBuffer` instances provide zero-copy access to native memory.
+Direct buffers provide zero-copy access to native memory. For `IHistNative`
+buffer-based methods, all buffers must be direct. `HistogramRequest` accepts
+both heap-backed and direct buffers, routing heap-backed buffers to the
+array-based methods automatically.
 
 ### Notes
 

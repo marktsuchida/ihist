@@ -12,22 +12,25 @@ import java.util.Arrays;
 /**
  * Builder for configuring and executing histogram computation.
  *
- * <p>This class provides a fluent API for specifying image data,
+ * <p>
+ * This class provides a fluent API for specifying image data,
  * regions of interest (ROI), masking, and output options.
  *
- * <p>Example usage:
+ * <p>
+ * Example usage:
+ *
  * <pre>{@code
  * // Simple grayscale histogram
  * int[] histogram = HistogramRequest.forImage(imageData, width, height)
- *     .compute();
+ *         .compute();
  *
  * // RGB histogram with ROI and mask
  * int[] histogram = HistogramRequest.forImage(imageData, width, height, 3)
- *     .roi(10, 10, 100, 100)
- *     .mask(maskData)
- *     .bits(8)
- *     .parallel(true)
- *     .compute();
+ *         .roi(10, 10, 100, 100)
+ *         .mask(maskData)
+ *         .bits(8)
+ *         .parallel(true)
+ *         .compute();
  * }</pre>
  */
 public final class HistogramRequest {
@@ -237,11 +240,12 @@ public final class HistogramRequest {
     /**
      * Set which component indices to histogram.
      *
-     * <p>Example: For RGBA data, use {@code selectComponents(0, 1, 2)} to
+     * <p>
+     * Example: For RGBA data, use {@code selectComponents(0, 1, 2)} to
      * histogram only RGB and skip alpha.
      *
      * @param indices component indices to histogram (each must be &lt;
-     *     nComponents)
+     *                nComponents)
      * @return this builder
      */
     public HistogramRequest selectComponents(int... indices) {
@@ -269,7 +273,8 @@ public final class HistogramRequest {
     /**
      * Set a per-pixel mask (array input).
      *
-     * <p>Pixels with mask value 0 are excluded from the histogram.
+     * <p>
+     * Pixels with mask value 0 are excluded from the histogram.
      * Pixels with non-zero mask values are included.
      *
      * @param mask   mask data in row-major order
@@ -288,7 +293,8 @@ public final class HistogramRequest {
     /**
      * Set a per-pixel mask (buffer input).
      *
-     * <p>Pixels with mask value 0 are excluded from the histogram.
+     * <p>
+     * Pixels with mask value 0 are excluded from the histogram.
      * Pixels with non-zero mask values are included.
      *
      * @param mask   mask data in row-major order
@@ -307,7 +313,8 @@ public final class HistogramRequest {
     /**
      * Set the mask offset for ROI alignment.
      *
-     * <p>The mask offset specifies where in the mask the ROI data begins.
+     * <p>
+     * The mask offset specifies where in the mask the ROI data begins.
      * The ROI pixels will be read from
      * mask[(offsetY + y) * maskWidth + (offsetX + x)].
      *
@@ -324,7 +331,8 @@ public final class HistogramRequest {
     /**
      * Set the number of significant bits per sample.
      *
-     * <p>This determines the histogram size (2^bits bins per component).
+     * <p>
+     * This determines the histogram size (2^bits bins per component).
      * Values outside the significant bit range are truncated.
      *
      * @param bits 1-8 for 8-bit images, 1-16 for 16-bit images
@@ -338,10 +346,11 @@ public final class HistogramRequest {
     /**
      * Set a pre-allocated output histogram array.
      *
-     * <p>If not specified, a new array will be allocated.
+     * <p>
+     * If not specified, a new array will be allocated.
      *
      * @param histogram output array (size must be &gt;= nHistComponents *
-     *     2^bits)
+     *                  2^bits)
      * @return this builder
      */
     public HistogramRequest output(int[] histogram) {
@@ -353,7 +362,8 @@ public final class HistogramRequest {
     /**
      * Set a pre-allocated output histogram buffer.
      *
-     * <p>If not specified, a new array will be allocated.
+     * <p>
+     * If not specified, a new array will be allocated.
      *
      * @param histogram output buffer (remaining capacity must be sufficient)
      * @return this builder
@@ -367,7 +377,8 @@ public final class HistogramRequest {
     /**
      * Set whether to accumulate into existing output values.
      *
-     * <p>If false (default), the output buffer is zeroed before computing.
+     * <p>
+     * If false (default), the output buffer is zeroed before computing.
      * If true, histogram counts are added to existing values.
      *
      * @param accumulate true to add to existing values
@@ -381,7 +392,8 @@ public final class HistogramRequest {
     /**
      * Set whether to allow parallel execution.
      *
-     * <p>If true (default), multiple threads may be used for large images.
+     * <p>
+     * If true (default), multiple threads may be used for large images.
      * If false, single-threaded execution is guaranteed.
      *
      * @param parallel true to allow multi-threading
@@ -450,24 +462,36 @@ public final class HistogramRequest {
                         ? outputBuffer.arrayOffset() + outputBuffer.position()
                         : 0,
                     parallel);
+            } else if (image8Buffer.hasArray()) {
+                // Heap-backed buffer: extract array and use array-based method
+                byte[] imageArr = image8Buffer.array();
+                int imgOff = image8Buffer.arrayOffset() +
+                             image8Buffer.position() + imageOffset;
+
+                IHistNative.histogram8(
+                    effectiveBits, imageArr, imgOff,
+                    resolveMaskArray(maskOffset),
+                    resolveMaskOffset(maskOffset), effectiveHeight,
+                    effectiveWidth, imageStride, effectiveMaskStride,
+                    nComponents, indices, histogram,
+                    outputBuffer != null
+                        ? outputBuffer.arrayOffset() + outputBuffer.position()
+                        : 0,
+                    parallel);
             } else {
+                // Direct buffer: use buffer-based method
                 ByteBuffer sliced = image8Buffer.duplicate();
                 sliced.position(sliced.position() + imageOffset);
 
-                ByteBuffer maskSliced = null;
-                if (maskBuffer != null) {
-                    maskSliced = maskBuffer.duplicate();
-                    maskSliced.position(maskSliced.position() + maskOffset);
-                }
-
-                IntBuffer histBuf = outputBuffer != null
-                                        ? outputBuffer
-                                        : IntBuffer.wrap(histogram);
+                IntBuffer histBuf = prepareDirectHistogramBuffer(histSize);
 
                 IHistNative.histogram8(
-                    effectiveBits, sliced, maskSliced, effectiveHeight,
-                    effectiveWidth, imageStride, effectiveMaskStride,
-                    nComponents, indices, histBuf, parallel);
+                    effectiveBits, sliced, prepareMaskSlice(maskOffset),
+                    effectiveHeight, effectiveWidth, imageStride,
+                    effectiveMaskStride, nComponents, indices, histBuf,
+                    parallel);
+
+                copyHistogramResults(histBuf, histogram, histSize);
             }
         } else {
             if (image16Array != null) {
@@ -479,24 +503,36 @@ public final class HistogramRequest {
                         ? outputBuffer.arrayOffset() + outputBuffer.position()
                         : 0,
                     parallel);
+            } else if (image16Buffer.hasArray()) {
+                // Heap-backed buffer: extract array and use array-based method
+                short[] imageArr = image16Buffer.array();
+                int imgOff = image16Buffer.arrayOffset() +
+                             image16Buffer.position() + imageOffset;
+
+                IHistNative.histogram16(
+                    effectiveBits, imageArr, imgOff,
+                    resolveMaskArray(maskOffset),
+                    resolveMaskOffset(maskOffset), effectiveHeight,
+                    effectiveWidth, imageStride, effectiveMaskStride,
+                    nComponents, indices, histogram,
+                    outputBuffer != null
+                        ? outputBuffer.arrayOffset() + outputBuffer.position()
+                        : 0,
+                    parallel);
             } else {
+                // Direct buffer: use buffer-based method
                 ShortBuffer sliced = image16Buffer.duplicate();
                 sliced.position(sliced.position() + imageOffset);
 
-                ByteBuffer maskSliced = null;
-                if (maskBuffer != null) {
-                    maskSliced = maskBuffer.duplicate();
-                    maskSliced.position(maskSliced.position() + maskOffset);
-                }
-
-                IntBuffer histBuf = outputBuffer != null
-                                        ? outputBuffer
-                                        : IntBuffer.wrap(histogram);
+                IntBuffer histBuf = prepareDirectHistogramBuffer(histSize);
 
                 IHistNative.histogram16(
-                    effectiveBits, sliced, maskSliced, effectiveHeight,
-                    effectiveWidth, imageStride, effectiveMaskStride,
-                    nComponents, indices, histBuf, parallel);
+                    effectiveBits, sliced, prepareMaskSlice(maskOffset),
+                    effectiveHeight, effectiveWidth, imageStride,
+                    effectiveMaskStride, nComponents, indices, histBuf,
+                    parallel);
+
+                copyHistogramResults(histBuf, histogram, histSize);
             }
         }
 
@@ -565,5 +601,60 @@ public final class HistogramRequest {
             indices[i] = i;
         }
         return indices;
+    }
+
+    // Helper to resolve mask array and offset for heap-backed buffer case
+    private byte[] resolveMaskArray(int maskOffset) {
+        if (maskBuffer != null && maskBuffer.hasArray()) {
+            return maskBuffer.array();
+        } else if (maskArray != null) {
+            return maskArray;
+        }
+        return null;
+    }
+
+    private int resolveMaskOffset(int maskOffset) {
+        if (maskBuffer != null && maskBuffer.hasArray()) {
+            return maskBuffer.arrayOffset() + maskBuffer.position() +
+                maskOffset;
+        } else if (maskArray != null) {
+            return maskOffset;
+        }
+        return 0;
+    }
+
+    // Helper to prepare mask buffer slice for direct buffer case
+    private ByteBuffer prepareMaskSlice(int maskOffset) {
+        if (maskBuffer != null) {
+            ByteBuffer maskSliced = maskBuffer.duplicate();
+            maskSliced.position(maskSliced.position() + maskOffset);
+            return maskSliced;
+        }
+        return null;
+    }
+
+    // Helper to get or create direct histogram buffer with capacity validation
+    private IntBuffer prepareDirectHistogramBuffer(int histSize) {
+        if (outputBuffer != null && outputBuffer.isDirect()) {
+            if (outputBuffer.remaining() < histSize) {
+                throw new IllegalArgumentException(
+                    "output IntBuffer has insufficient capacity: " +
+                    outputBuffer.remaining() + " < " + histSize);
+            }
+            return outputBuffer;
+        }
+        // Need a temporary direct IntBuffer for native method
+        ByteBuffer bb = ByteBuffer.allocateDirect(histSize * 4)
+                            .order(java.nio.ByteOrder.nativeOrder());
+        return bb.asIntBuffer();
+    }
+
+    // Helper to copy histogram results if using temporary buffer
+    private void copyHistogramResults(IntBuffer histBuf, int[] histogram,
+                                      int histSize) {
+        if (histBuf != outputBuffer) {
+            histBuf.rewind();
+            histBuf.get(histogram, 0, histSize);
+        }
     }
 }

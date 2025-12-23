@@ -120,11 +120,12 @@ public final class IHistNative {
     // ========== Buffer-based methods ==========
 
     /**
-     * Compute histogram for 8-bit image data (buffer input).
+     * Compute histogram for 8-bit image data (direct buffer input).
      *
-     * <p>For direct buffers, this provides zero-copy access to native memory.
-     * For heap buffers backed by arrays, the backing array is accessed
-     * directly.
+     * <p>This method requires direct buffers for zero-copy access to native
+     * memory. For heap-backed buffers, use the array-based overload instead
+     * (extracting the backing array with {@code array()} and computing the
+     * offset from {@code arrayOffset() + position()}).
      *
      * <p>Buffer positions are used as the starting point for data access.
      *
@@ -150,11 +151,12 @@ public final class IHistNative {
                int[] componentIndices, IntBuffer histogram, boolean parallel);
 
     /**
-     * Compute histogram for 16-bit image data (buffer input).
+     * Compute histogram for 16-bit image data (direct buffer input).
      *
-     * <p>For direct buffers, this provides zero-copy access to native memory.
-     * For heap buffers backed by arrays, the backing array is accessed
-     * directly.
+     * <p>This method requires direct buffers for zero-copy access to native
+     * memory. For heap-backed buffers, use the array-based overload instead
+     * (extracting the backing array with {@code array()} and computing the
+     * offset from {@code arrayOffset() + position()}).
      *
      * <p>Buffer positions are used as the starting point for data access.
      *

@@ -6,6 +6,7 @@ package ihistj;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
 import org.junit.jupiter.api.*;
 
@@ -176,5 +177,103 @@ class HistogramTest {
         assertEquals(1, hist[100]);
         assertEquals(1, hist[200]);
         assertEquals(1, hist[300]);
+    }
+
+    // Tests for heap vs direct buffer handling
+
+    @Test
+    void heapByteBuffer() {
+        ByteBuffer image = ByteBuffer.allocate(4);
+        image.put(new byte[] {0, 1, 2, 3});
+        image.flip();
+
+        int[] hist = HistogramRequest.forImage(image, 4, 1).compute();
+
+        assertEquals(1, hist[0]);
+        assertEquals(1, hist[1]);
+        assertEquals(1, hist[2]);
+        assertEquals(1, hist[3]);
+    }
+
+    @Test
+    void directByteBuffer() {
+        ByteBuffer image = ByteBuffer.allocateDirect(4);
+        image.put(new byte[] {0, 1, 2, 3});
+        image.flip();
+
+        int[] hist = HistogramRequest.forImage(image, 4, 1).compute();
+
+        assertEquals(1, hist[0]);
+        assertEquals(1, hist[1]);
+        assertEquals(1, hist[2]);
+        assertEquals(1, hist[3]);
+    }
+
+    @Test
+    void heapShortBuffer() {
+        ShortBuffer image = ShortBuffer.allocate(4);
+        image.put(new short[] {0, 1, 2, 3});
+        image.flip();
+
+        int[] hist = HistogramRequest.forImage(image, 4, 1).bits(8).compute();
+
+        assertEquals(1, hist[0]);
+        assertEquals(1, hist[1]);
+        assertEquals(1, hist[2]);
+        assertEquals(1, hist[3]);
+    }
+
+    @Test
+    void directShortBuffer() {
+        ByteBuffer bb = ByteBuffer.allocateDirect(4 * 2).order(
+            java.nio.ByteOrder.nativeOrder());
+        ShortBuffer image = bb.asShortBuffer();
+        image.put(new short[] {0, 1, 2, 3});
+        image.flip();
+
+        int[] hist = HistogramRequest.forImage(image, 4, 1).bits(8).compute();
+
+        assertEquals(1, hist[0]);
+        assertEquals(1, hist[1]);
+        assertEquals(1, hist[2]);
+        assertEquals(1, hist[3]);
+    }
+
+    @Test
+    void heapByteBufferWithMask() {
+        ByteBuffer image = ByteBuffer.allocate(4);
+        image.put(new byte[] {0, 1, 2, 3});
+        image.flip();
+
+        ByteBuffer mask = ByteBuffer.allocate(4);
+        mask.put(new byte[] {1, 0, 1, 0});
+        mask.flip();
+
+        int[] hist =
+            HistogramRequest.forImage(image, 4, 1).mask(mask, 4, 1).compute();
+
+        assertEquals(1, hist[0]);
+        assertEquals(0, hist[1]);
+        assertEquals(1, hist[2]);
+        assertEquals(0, hist[3]);
+    }
+
+    @Test
+    void directByteBufferWithMask() {
+        ByteBuffer image = ByteBuffer.allocateDirect(4);
+        image.put(new byte[] {0, 1, 2, 3});
+        image.flip();
+
+        ByteBuffer mask = ByteBuffer.allocateDirect(4);
+        mask.put(new byte[] {1, 0, 1, 0});
+        mask.flip();
+
+        int[] hist =
+            HistogramRequest.forImage(image, 4, 1).mask(mask, 4, 1).compute();
+
+        assertEquals(1, hist[0]);
+        assertEquals(0, hist[1]);
+        assertEquals(1, hist[2]);
+        assertEquals(0, hist[3]);
     }
 }

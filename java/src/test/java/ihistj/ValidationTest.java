@@ -6,6 +6,8 @@ package ihistj;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import org.junit.jupiter.api.*;
 
 /**
@@ -348,6 +350,25 @@ class ValidationTest {
                          ()
                              -> HistogramRequest.forImage(image, 4, 1, 3)
                                     .selectComponents(-1, 0)
+                                    .compute());
+        }
+
+        @Test
+        void directOutputBufferTooSmall() {
+            // Direct image buffer with direct output buffer that's too small
+            ByteBuffer image = ByteBuffer.allocateDirect(4);
+            image.put(new byte[] {0, 1, 2, 3});
+            image.flip();
+
+            // Create a direct IntBuffer that's too small (need 256 for 8 bits)
+            ByteBuffer bb = ByteBuffer.allocateDirect(128 * 4).order(
+                java.nio.ByteOrder.nativeOrder());
+            IntBuffer tooSmall = bb.asIntBuffer();
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> HistogramRequest.forImage(image, 4, 1)
+                                    .output(tooSmall)
                                     .compute());
         }
     }

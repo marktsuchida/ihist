@@ -234,6 +234,10 @@ class IHistNativeTest {
     @Nested
     class Histogram8BufferTests {
 
+        // Note: Buffer-based native methods require direct buffers only.
+        // Heap buffer support is handled at the Java level by
+        // HistogramRequest.
+
         @Test
         void directBuffer() {
             ByteBuffer image = ByteBuffer.allocateDirect(256);
@@ -242,26 +246,9 @@ class IHistNativeTest {
             }
             image.flip();
 
-            IntBuffer histogram = IntBuffer.allocate(256);
-            int[] indices = {0};
-
-            IHistNative.histogram8(8, image, null, 1, 256, 256, 256, 1,
-                                   indices, histogram, false);
-
-            for (int i = 0; i < 256; i++) {
-                assertEquals(1, histogram.get(i));
-            }
-        }
-
-        @Test
-        void heapBuffer() {
-            ByteBuffer image = ByteBuffer.allocate(256);
-            for (int i = 0; i < 256; i++) {
-                image.put((byte)i);
-            }
-            image.flip();
-
-            IntBuffer histogram = IntBuffer.allocate(256);
+            ByteBuffer histBuf = ByteBuffer.allocateDirect(256 * 4).order(
+                java.nio.ByteOrder.nativeOrder());
+            IntBuffer histogram = histBuf.asIntBuffer();
             int[] indices = {0};
 
             IHistNative.histogram8(8, image, null, 1, 256, 256, 256, 1,
@@ -274,14 +261,16 @@ class IHistNativeTest {
 
         @Test
         void bufferPosition() {
-            ByteBuffer image = ByteBuffer.allocate(260);
+            ByteBuffer image = ByteBuffer.allocateDirect(260);
             image.position(4); // Skip first 4 bytes
             for (int i = 0; i < 256; i++) {
                 image.put((byte)i);
             }
             image.position(4); // Reset to start of data
 
-            IntBuffer histogram = IntBuffer.allocate(256);
+            ByteBuffer histBuf = ByteBuffer.allocateDirect(256 * 4).order(
+                java.nio.ByteOrder.nativeOrder());
+            IntBuffer histogram = histBuf.asIntBuffer();
             int[] indices = {0};
 
             IHistNative.histogram8(8, image, null, 1, 256, 256, 256, 1,
@@ -290,6 +279,30 @@ class IHistNativeTest {
             for (int i = 0; i < 256; i++) {
                 assertEquals(1, histogram.get(i));
             }
+        }
+
+        @Test
+        void directBufferWithMask() {
+            ByteBuffer image = ByteBuffer.allocateDirect(4);
+            image.put(new byte[] {0, 1, 2, 3});
+            image.flip();
+
+            ByteBuffer mask = ByteBuffer.allocateDirect(4);
+            mask.put(new byte[] {1, 0, 1, 0}); // Include pixels 0 and 2
+            mask.flip();
+
+            ByteBuffer histBuf = ByteBuffer.allocateDirect(256 * 4).order(
+                java.nio.ByteOrder.nativeOrder());
+            IntBuffer histogram = histBuf.asIntBuffer();
+            int[] indices = {0};
+
+            IHistNative.histogram8(8, image, mask, 1, 4, 4, 4, 1, indices,
+                                   histogram, false);
+
+            assertEquals(1, histogram.get(0));
+            assertEquals(0, histogram.get(1));
+            assertEquals(1, histogram.get(2));
+            assertEquals(0, histogram.get(3));
         }
     }
 
@@ -347,6 +360,10 @@ class IHistNativeTest {
     @Nested
     class Histogram16BufferTests {
 
+        // Note: Buffer-based native methods require direct buffers only.
+        // Heap buffer support is handled at the Java level by
+        // HistogramRequest.
+
         @Test
         void directShortBuffer() {
             // ShortBuffer.allocateDirect doesn't exist; we must wrap a direct
@@ -360,7 +377,9 @@ class IHistNativeTest {
             }
             image.flip();
 
-            IntBuffer histogram = IntBuffer.allocate(256);
+            ByteBuffer histBuf = ByteBuffer.allocateDirect(256 * 4).order(
+                java.nio.ByteOrder.nativeOrder());
+            IntBuffer histogram = histBuf.asIntBuffer();
             int[] indices = {0};
 
             IHistNative.histogram16(8, image, null, 1, 256, 256, 256, 1,
@@ -372,22 +391,29 @@ class IHistNativeTest {
         }
 
         @Test
-        void heapShortBuffer() {
-            ShortBuffer image = ShortBuffer.allocate(256);
-            for (int i = 0; i < 256; i++) {
-                image.put((short)i);
-            }
+        void directShortBufferWithMask() {
+            ByteBuffer bb = ByteBuffer.allocateDirect(4 * 2).order(
+                java.nio.ByteOrder.nativeOrder());
+            ShortBuffer image = bb.asShortBuffer();
+            image.put(new short[] {0, 1, 2, 3});
             image.flip();
 
-            IntBuffer histogram = IntBuffer.allocate(256);
+            ByteBuffer mask = ByteBuffer.allocateDirect(4);
+            mask.put(new byte[] {1, 0, 1, 0}); // Include pixels 0 and 2
+            mask.flip();
+
+            ByteBuffer histBuf = ByteBuffer.allocateDirect(256 * 4).order(
+                java.nio.ByteOrder.nativeOrder());
+            IntBuffer histogram = histBuf.asIntBuffer();
             int[] indices = {0};
 
-            IHistNative.histogram16(8, image, null, 1, 256, 256, 256, 1,
-                                    indices, histogram, false);
+            IHistNative.histogram16(8, image, mask, 1, 4, 4, 4, 1, indices,
+                                    histogram, false);
 
-            for (int i = 0; i < 256; i++) {
-                assertEquals(1, histogram.get(i));
-            }
+            assertEquals(1, histogram.get(0));
+            assertEquals(0, histogram.get(1));
+            assertEquals(1, histogram.get(2));
+            assertEquals(0, histogram.get(3));
         }
     }
 }
