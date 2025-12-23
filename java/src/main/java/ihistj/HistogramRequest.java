@@ -72,6 +72,20 @@ public final class HistogramRequest {
 
     private HistogramRequest(boolean is8Bit) { this.is8Bit = is8Bit; }
 
+    private static void validateImageParams(Object image, int width,
+                                            int height, int nComponents) {
+        if (image == null) {
+            throw new IllegalArgumentException("image cannot be null");
+        }
+        if (width < 0 || height < 0) {
+            throw new IllegalArgumentException(
+                "dimensions must be non-negative");
+        }
+        if (nComponents < 1) {
+            throw new IllegalArgumentException("nComponents must be >= 1");
+        }
+    }
+
     // ========== Factory methods ==========
 
     /**
@@ -100,16 +114,7 @@ public final class HistogramRequest {
      */
     public static HistogramRequest forImage(byte[] image, int width,
                                             int height, int nComponents) {
-        if (image == null) {
-            throw new IllegalArgumentException("image cannot be null");
-        }
-        if (width < 0 || height < 0) {
-            throw new IllegalArgumentException(
-                "dimensions must be non-negative");
-        }
-        if (nComponents < 1) {
-            throw new IllegalArgumentException("nComponents must be >= 1");
-        }
+        validateImageParams(image, width, height, nComponents);
         HistogramRequest req = new HistogramRequest(true);
         req.image8Array = image;
         req.imageWidth = width;
@@ -145,16 +150,7 @@ public final class HistogramRequest {
      */
     public static HistogramRequest forImage(ByteBuffer image, int width,
                                             int height, int nComponents) {
-        if (image == null) {
-            throw new IllegalArgumentException("image cannot be null");
-        }
-        if (width < 0 || height < 0) {
-            throw new IllegalArgumentException(
-                "dimensions must be non-negative");
-        }
-        if (nComponents < 1) {
-            throw new IllegalArgumentException("nComponents must be >= 1");
-        }
+        validateImageParams(image, width, height, nComponents);
         HistogramRequest req = new HistogramRequest(true);
         req.image8Buffer = image;
         req.imageWidth = width;
@@ -190,16 +186,7 @@ public final class HistogramRequest {
      */
     public static HistogramRequest forImage(short[] image, int width,
                                             int height, int nComponents) {
-        if (image == null) {
-            throw new IllegalArgumentException("image cannot be null");
-        }
-        if (width < 0 || height < 0) {
-            throw new IllegalArgumentException(
-                "dimensions must be non-negative");
-        }
-        if (nComponents < 1) {
-            throw new IllegalArgumentException("nComponents must be >= 1");
-        }
+        validateImageParams(image, width, height, nComponents);
         HistogramRequest req = new HistogramRequest(false);
         req.image16Array = image;
         req.imageWidth = width;
@@ -235,16 +222,7 @@ public final class HistogramRequest {
      */
     public static HistogramRequest forImage(ShortBuffer image, int width,
                                             int height, int nComponents) {
-        if (image == null) {
-            throw new IllegalArgumentException("image cannot be null");
-        }
-        if (width < 0 || height < 0) {
-            throw new IllegalArgumentException(
-                "dimensions must be non-negative");
-        }
-        if (nComponents < 1) {
-            throw new IllegalArgumentException("nComponents must be >= 1");
-        }
+        validateImageParams(image, width, height, nComponents);
         HistogramRequest req = new HistogramRequest(false);
         req.image16Buffer = image;
         req.imageWidth = width;
