@@ -107,17 +107,19 @@ Histogram(s) as uint32 array.
 
 ```java
 import ihistj.HistogramRequest;
+import java.nio.IntBuffer;
 
 // Grayscale image
 byte[] image = new byte[100 * 100];
-int[] hist = HistogramRequest.forImage(image, 100, 100).compute(); // 256 bins
+IntBuffer hist = HistogramRequest.forImage(image, 100, 100).compute(); // 256 bins
+// hist.remaining() == 256, access with hist.get(i)
 
 // RGB image
 byte[] rgb = new byte[100 * 100 * 3];
-int[] hist = HistogramRequest.forImage(rgb, 100, 100, 3).compute(); // 3 * 256 bins
+IntBuffer hist = HistogramRequest.forImage(rgb, 100, 100, 3).compute(); // 3 * 256 bins
 
 // With advanced options
-int[] hist = HistogramRequest.forImage(image, 100, 100)
+IntBuffer hist = HistogramRequest.forImage(image, 100, 100)
     .roi(10, 10, 80, 80)       // Region of interest
     .mask(maskData, 80, 80)    // Per-pixel mask
     .bits(8)                   // Significant bits
@@ -131,16 +133,22 @@ int[] hist = HistogramRequest.forImage(image, 100, 100)
 
 ```java
 // Multi-component image (e.g., RGB)
-int[] hist = HistogramRequest.forImage(image, width, height, 3)
+IntBuffer hist = HistogramRequest.forImage(image, width, height, 3)
     .selectComponents(0, 1, 2)      // Which components to histogram
     .roi(x, y, roiWidth, roiHeight) // Region of interest
     .mask(maskData, maskWidth, maskHeight)  // Per-pixel mask with dimensions
     .maskOffset(offsetX, offsetY)   // Mask offset for ROI alignment
     .bits(sampleBits)               // Significant bits per sample
-    .output(preallocatedArray)      // Pre-allocated output
+    .output(preallocatedBuffer)     // Pre-allocated output (int[] or IntBuffer)
     .accumulate(true)               // Add to existing values
     .parallel(true)                 // Allow multi-threading
     .compute();
+
+// The returned IntBuffer has position/limit set to cover the histogram data.
+// If output(IntBuffer) was used, the returned buffer is a duplicate that shares
+// storage with the original; the original's position/limit are not modified.
+// For heap buffers (default or when output(int[]) was used), get the array:
+int[] array = hist.array();
 ```
 
 **`IHistNative`** - Low-level JNI wrapper (advanced):

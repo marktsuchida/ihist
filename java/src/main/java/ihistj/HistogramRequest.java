@@ -23,13 +23,14 @@ import java.util.Arrays;
  *
  * <pre>{@code
  * // Simple grayscale histogram
- * int[] histogram = HistogramRequest.forImage(imageData, width, height)
+ * IntBuffer histogram = HistogramRequest.forImage(imageData, width, height)
  *         .compute();
+ * // Access counts: histogram.get(i) for bin i
  *
  * // RGB histogram with ROI and mask
- * int[] histogram = HistogramRequest.forImage(imageData, width, height, 3)
+ * IntBuffer histogram = HistogramRequest.forImage(imageData, width, height, 3)
  *         .roi(10, 10, 100, 100)
- *         .mask(maskData)
+ *         .mask(maskData, 100, 100)
  *         .bits(8)
  *         .parallel(true)
  *         .compute();
@@ -405,10 +406,20 @@ public final class HistogramRequest {
     /**
      * Compute the histogram.
      *
-     * @return histogram data (allocated if output was not specified)
+     * <p>
+     * The returned buffer's position and limit are set to cover exactly the
+     * histogram data: position at the start, limit at position + histogram
+     * size. This means {@code remaining()} equals the histogram size.
+     *
+     * <p>
+     * If an output buffer was provided via {@link #output(IntBuffer)}, the
+     * returned buffer is a duplicate that shares the same backing storage.
+     * The original buffer's position and limit are not modified.
+     *
+     * @return histogram buffer (allocated if output was not specified)
      * @throws IllegalArgumentException if parameters are invalid
      */
-    public int[] compute() {
+    public IntBuffer compute() {
         validate();
 
         int effectiveWidth = (roiWidth < 0) ? imageWidth : roiWidth;
@@ -423,21 +434,49 @@ public final class HistogramRequest {
 
         int histSize = nHistComponents * (1 << effectiveBits);
 
-        // Prepare output histogram
-        int[] histogram = prepareOutputHistogram(histSize);
+        // Create working buffer: duplicate of user's buffer or newly allocated
+        IntBuffer workBuffer;
+        int originalPos;
+        if (outputBuffer != null) {
+            // Validate capacity before duplicating
+            if (outputBuffer.remaining() < histSize) {
+                throw new IllegalArgumentException(
+                    "output IntBuffer has insufficient capacity: " +
+                    outputBuffer.remaining() + " < " + histSize);
+            }
+            // Use duplicate so we don't modify user's buffer position/limit
+            workBuffer = outputBuffer.duplicate();
+            originalPos = workBuffer.position();
+        } else {
+            workBuffer = IntBuffer.allocate(histSize);
+            originalPos = 0;
+        }
+
+        // Clear if not accumulating
+        if (!accumulate) {
+            clearBuffer(workBuffer, histSize);
+        }
 
         // Prepare histogram buffer for JNI call
-        IntBuffer histBuf = prepareHistogramBuffer(histogram, histSize);
+        IntBuffer histBuf;
         IntBuffer tempHistBuf = null;
-        if (histBuf == null) {
-            // Need temp buffer for unsupported output buffer type
+        boolean isViewBuffer =
+            !workBuffer.isDirect() && !workBuffer.hasArray();
+
+        if (isViewBuffer) {
+            // View buffer: need temp direct buffer for JNI
             tempHistBuf = allocateDirectIntBuffer(histSize);
             if (accumulate) {
                 // Copy existing values to temp buffer for accumulation
-                tempHistBuf.put(histogram, 0, histSize);
+                IntBuffer dup = workBuffer.duplicate();
+                for (int i = 0; i < histSize; i++) {
+                    tempHistBuf.put(dup.get());
+                }
                 tempHistBuf.flip();
             }
             histBuf = tempHistBuf;
+        } else {
+            histBuf = workBuffer;
         }
 
         int imageOffset = (roiY * imageStride + roiX) * nComponents;
@@ -462,17 +501,29 @@ public final class HistogramRequest {
 
         // Copy back from temp buffer if used (view buffer case)
         if (tempHistBuf != null) {
-            copyHistogramFromTempBuffer(tempHistBuf, histogram, histSize);
-            // Copy results to the view buffer
-            IntBuffer dup = outputBuffer.duplicate();
-            dup.put(histogram, 0, histSize);
-        } else if (needsCopyFromDirectBuffer()) {
-            // Copy from direct output buffer to return array
-            IntBuffer dup = outputBuffer.duplicate();
-            dup.get(histogram, 0, histSize);
+            tempHistBuf.rewind();
+            IntBuffer dup = workBuffer.duplicate();
+            for (int i = 0; i < histSize; i++) {
+                dup.put(tempHistBuf.get());
+            }
         }
 
-        return histogram;
+        // Set position and limit for the returned buffer
+        workBuffer.position(originalPos).limit(originalPos + histSize);
+        return workBuffer;
+    }
+
+    // Clear buffer contents (for non-accumulate mode)
+    private static void clearBuffer(IntBuffer buf, int size) {
+        if (buf.hasArray()) {
+            int offset = buf.arrayOffset() + buf.position();
+            Arrays.fill(buf.array(), offset, offset + size, 0);
+        } else {
+            IntBuffer dup = buf.duplicate();
+            for (int i = 0; i < size; i++) {
+                dup.put(0);
+            }
+        }
     }
 
     private void validate() {
@@ -543,77 +594,6 @@ public final class HistogramRequest {
             indices[i] = i;
         }
         return indices;
-    }
-
-    // Prepare the output histogram array, handling clearing if needed
-    private int[] prepareOutputHistogram(int histSize) {
-        int[] histogram;
-        if (outputBuffer != null) {
-            if (outputBuffer.hasArray()) {
-                histogram = outputBuffer.array();
-                if (!accumulate) {
-                    int offset =
-                        outputBuffer.arrayOffset() + outputBuffer.position();
-                    Arrays.fill(histogram, offset, offset + histSize, 0);
-                }
-            } else if (outputBuffer.isDirect()) {
-                // Direct buffer: we'll copy results to this array after JNI
-                histogram = new int[histSize];
-                // Zero the direct buffer if not accumulating
-                if (!accumulate) {
-                    if (outputBuffer.remaining() < histSize) {
-                        throw new IllegalArgumentException(
-                            "output IntBuffer has insufficient capacity: " +
-                            outputBuffer.remaining() + " < " + histSize);
-                    }
-                    IntBuffer dup = outputBuffer.duplicate();
-                    for (int i = 0; i < histSize; i++) {
-                        dup.put(0);
-                    }
-                }
-            } else {
-                // View buffer: allocate array, will use temp direct buffer
-                histogram = new int[histSize];
-                if (accumulate) {
-                    // Copy existing values from view buffer for accumulation
-                    if (outputBuffer.remaining() < histSize) {
-                        throw new IllegalArgumentException(
-                            "output IntBuffer has insufficient capacity: " +
-                            outputBuffer.remaining() + " < " + histSize);
-                    }
-                    IntBuffer dup = outputBuffer.duplicate();
-                    dup.get(histogram, 0, histSize);
-                }
-            }
-        } else {
-            histogram = new int[histSize];
-        }
-
-        return histogram;
-    }
-
-    // Prepare IntBuffer for JNI call; returns null if temp buffer needed
-    // Also returns whether we need to copy back from the buffer to histogram
-    private IntBuffer prepareHistogramBuffer(int[] histogram, int histSize) {
-        if (outputBuffer != null) {
-            if (outputBuffer.isDirect() || outputBuffer.hasArray()) {
-                if (outputBuffer.remaining() < histSize) {
-                    throw new IllegalArgumentException(
-                        "output IntBuffer has insufficient capacity: " +
-                        outputBuffer.remaining() + " < " + histSize);
-                }
-                return outputBuffer;
-            }
-            // Neither direct nor array-backed; need temp buffer
-            return null;
-        }
-        // Wrap the histogram array
-        return IntBuffer.wrap(histogram);
-    }
-
-    // Check if we need to copy from direct buffer to histogram array
-    private boolean needsCopyFromDirectBuffer() {
-        return outputBuffer != null && outputBuffer.isDirect();
     }
 
     // Prepare 8-bit image buffer for JNI call
@@ -688,13 +668,5 @@ public final class HistogramRequest {
         ByteBuffer bb =
             ByteBuffer.allocateDirect(size * 4).order(ByteOrder.nativeOrder());
         return bb.asIntBuffer();
-    }
-
-    // Copy histogram from temp buffer to output array
-    private static void copyHistogramFromTempBuffer(IntBuffer tempBuf,
-                                                    int[] histogram,
-                                                    int histSize) {
-        tempBuf.rewind();
-        tempBuf.get(histogram, 0, histSize);
     }
 }
