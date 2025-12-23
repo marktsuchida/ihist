@@ -7,6 +7,8 @@ package ihistj;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import org.junit.jupiter.api.*;
 
@@ -275,5 +277,272 @@ class HistogramTest {
         assertEquals(0, hist[1]);
         assertEquals(1, hist[2]);
         assertEquals(0, hist[3]);
+    }
+
+    // Tests for view buffers (automatically copied to temp direct buffer)
+
+    @Test
+    void viewByteBuffer() {
+        // Create a view buffer via asReadOnlyBuffer() - this is neither
+        // direct nor array-backed, so HistogramRequest copies to temp buffer
+        ByteBuffer original = ByteBuffer.allocate(4);
+        original.put(new byte[] {0, 1, 2, 3});
+        original.flip();
+        ByteBuffer view = original.asReadOnlyBuffer();
+
+        int[] hist = HistogramRequest.forImage(view, 4, 1).compute();
+
+        assertEquals(1, hist[0]);
+        assertEquals(1, hist[1]);
+        assertEquals(1, hist[2]);
+        assertEquals(1, hist[3]);
+    }
+
+    @Test
+    void viewShortBuffer() {
+        // Create a view buffer that is neither direct nor array-backed
+        ShortBuffer original = ShortBuffer.allocate(4);
+        original.put(new short[] {0, 1, 2, 3});
+        original.flip();
+        ShortBuffer view = original.asReadOnlyBuffer();
+
+        int[] hist = HistogramRequest.forImage(view, 4, 1).bits(8).compute();
+
+        assertEquals(1, hist[0]);
+        assertEquals(1, hist[1]);
+        assertEquals(1, hist[2]);
+        assertEquals(1, hist[3]);
+    }
+
+    @Test
+    void viewByteBufferWithMask() {
+        ByteBuffer original = ByteBuffer.allocate(4);
+        original.put(new byte[] {0, 1, 2, 3});
+        original.flip();
+        ByteBuffer imageView = original.asReadOnlyBuffer();
+
+        ByteBuffer maskOrig = ByteBuffer.allocate(4);
+        maskOrig.put(new byte[] {1, 0, 1, 0});
+        maskOrig.flip();
+        ByteBuffer maskView = maskOrig.asReadOnlyBuffer();
+
+        int[] hist = HistogramRequest.forImage(imageView, 4, 1)
+                         .mask(maskView, 4, 1)
+                         .compute();
+
+        assertEquals(1, hist[0]);
+        assertEquals(0, hist[1]);
+        assertEquals(1, hist[2]);
+        assertEquals(0, hist[3]);
+    }
+
+    // Tests for mixed buffer types
+
+    @Test
+    void arrayImageDirectHistogram() {
+        byte[] imageData = {0, 1, 2, 3};
+        ByteBuffer histBuf =
+            ByteBuffer.allocateDirect(256 * 4).order(ByteOrder.nativeOrder());
+        IntBuffer histogram = histBuf.asIntBuffer();
+
+        int[] result = HistogramRequest.forImage(imageData, 4, 1)
+                           .output(histogram)
+                           .compute();
+
+        assertEquals(1, histogram.get(0));
+        assertEquals(1, histogram.get(1));
+        assertEquals(1, histogram.get(2));
+        assertEquals(1, histogram.get(3));
+    }
+
+    @Test
+    void directImageArrayHistogram() {
+        ByteBuffer image = ByteBuffer.allocateDirect(4);
+        image.put(new byte[] {0, 1, 2, 3});
+        image.flip();
+
+        int[] histogram = new int[256];
+
+        int[] result =
+            HistogramRequest.forImage(image, 4, 1).output(histogram).compute();
+
+        assertSame(histogram, result);
+        assertEquals(1, histogram[0]);
+        assertEquals(1, histogram[1]);
+        assertEquals(1, histogram[2]);
+        assertEquals(1, histogram[3]);
+    }
+
+    @Test
+    void viewImageDirectHistogram() {
+        // View buffer for image (will be copied), direct for histogram
+        ByteBuffer original = ByteBuffer.allocate(4);
+        original.put(new byte[] {0, 1, 2, 3});
+        original.flip();
+        ByteBuffer view = original.asReadOnlyBuffer();
+
+        ByteBuffer histBuf =
+            ByteBuffer.allocateDirect(256 * 4).order(ByteOrder.nativeOrder());
+        IntBuffer histogram = histBuf.asIntBuffer();
+
+        HistogramRequest.forImage(view, 4, 1).output(histogram).compute();
+
+        assertEquals(1, histogram.get(0));
+        assertEquals(1, histogram.get(1));
+        assertEquals(1, histogram.get(2));
+        assertEquals(1, histogram.get(3));
+    }
+
+    @Test
+    void directImageArrayMask() {
+        ByteBuffer image = ByteBuffer.allocateDirect(4);
+        image.put(new byte[] {0, 1, 2, 3});
+        image.flip();
+
+        byte[] maskData = {1, 0, 1, 0};
+
+        int[] hist = HistogramRequest.forImage(image, 4, 1)
+                         .mask(maskData, 4, 1)
+                         .compute();
+
+        assertEquals(1, hist[0]);
+        assertEquals(0, hist[1]);
+        assertEquals(1, hist[2]);
+        assertEquals(0, hist[3]);
+    }
+
+    // Test read-only histogram buffer rejection
+
+    @Test
+    void readOnlyHistogramBufferRejected() {
+        byte[] imageData = {0, 1, 2, 3};
+        IntBuffer histogram = IntBuffer.allocate(256).asReadOnlyBuffer();
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            HistogramRequest.forImage(imageData, 4, 1)
+                .output(histogram)
+                .compute();
+        });
+    }
+
+    // Tests for direct output buffer accumulation
+
+    @Test
+    void directHistogramBufferNoAccumulate() {
+        byte[] imageData = {0, 1, 2, 3};
+
+        ByteBuffer histBuf =
+            ByteBuffer.allocateDirect(256 * 4).order(ByteOrder.nativeOrder());
+        IntBuffer histogram = histBuf.asIntBuffer();
+        // Pre-fill with values that should be cleared
+        for (int i = 0; i < 256; i++) {
+            histogram.put(i, 100);
+        }
+
+        int[] result = HistogramRequest.forImage(imageData, 4, 1)
+                           .output(histogram)
+                           .accumulate(false)
+                           .compute();
+
+        // Should have been zeroed first, then histogram computed
+        assertEquals(1, result[0]);
+        assertEquals(1, result[1]);
+        assertEquals(1, result[2]);
+        assertEquals(1, result[3]);
+        assertEquals(0, result[4]); // Other bins should be zero
+        assertEquals(0, result[100]);
+
+        // Direct buffer should also have the results
+        assertEquals(1, histogram.get(0));
+        assertEquals(1, histogram.get(1));
+    }
+
+    @Test
+    void directHistogramBufferAccumulate() {
+        byte[] imageData = {0, 1, 2, 3};
+
+        ByteBuffer histBuf =
+            ByteBuffer.allocateDirect(256 * 4).order(ByteOrder.nativeOrder());
+        IntBuffer histogram = histBuf.asIntBuffer();
+        // Pre-fill with values that should be accumulated
+        histogram.put(0, 100);
+        histogram.put(1, 200);
+
+        int[] result = HistogramRequest.forImage(imageData, 4, 1)
+                           .output(histogram)
+                           .accumulate(true)
+                           .compute();
+
+        // Should have accumulated
+        assertEquals(101, result[0]); // 100 + 1
+        assertEquals(201, result[1]); // 200 + 1
+        assertEquals(1, result[2]);
+        assertEquals(1, result[3]);
+
+        // Direct buffer should also have the accumulated results
+        assertEquals(101, histogram.get(0));
+        assertEquals(201, histogram.get(1));
+    }
+
+    // Tests for view output buffer accumulation
+
+    @Test
+    void viewHistogramBufferNoAccumulate() {
+        byte[] imageData = {0, 1, 2, 3};
+
+        // Create a view buffer (asIntBuffer on a heap ByteBuffer)
+        ByteBuffer heapBuf =
+            ByteBuffer.allocate(256 * 4).order(ByteOrder.nativeOrder());
+        IntBuffer histogram = heapBuf.asIntBuffer();
+        // Pre-fill with values that should be zeroed
+        for (int i = 0; i < 10; i++) {
+            histogram.put(i, 100);
+        }
+
+        int[] result = HistogramRequest.forImage(imageData, 4, 1)
+                           .output(histogram)
+                           .accumulate(false)
+                           .compute();
+
+        // Should have been zeroed first, then histogram computed
+        assertEquals(1, result[0]);
+        assertEquals(1, result[1]);
+        assertEquals(1, result[2]);
+        assertEquals(1, result[3]);
+        for (int i = 4; i < 10; i++) {
+            assertEquals(0, result[i]);
+        }
+
+        // View buffer should also have the results
+        assertEquals(1, histogram.get(0));
+        assertEquals(1, histogram.get(1));
+    }
+
+    @Test
+    void viewHistogramBufferAccumulate() {
+        byte[] imageData = {0, 1, 2, 3};
+
+        // Create a view buffer (asIntBuffer on a heap ByteBuffer)
+        ByteBuffer heapBuf =
+            ByteBuffer.allocate(256 * 4).order(ByteOrder.nativeOrder());
+        IntBuffer histogram = heapBuf.asIntBuffer();
+        // Pre-fill with values that should be accumulated
+        histogram.put(0, 100);
+        histogram.put(1, 200);
+
+        int[] result = HistogramRequest.forImage(imageData, 4, 1)
+                           .output(histogram)
+                           .accumulate(true)
+                           .compute();
+
+        // Should have accumulated
+        assertEquals(101, result[0]); // 100 + 1
+        assertEquals(201, result[1]); // 200 + 1
+        assertEquals(1, result[2]);
+        assertEquals(1, result[3]);
+
+        // View buffer should also have the accumulated results
+        assertEquals(101, histogram.get(0));
+        assertEquals(201, histogram.get(1));
     }
 }

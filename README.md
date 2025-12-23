@@ -146,18 +146,13 @@ int[] hist = HistogramRequest.forImage(image, width, height, 3)
 **`IHistNative`** - Low-level JNI wrapper (advanced):
 
 ```java
-// Array-based
-IHistNative.histogram8(sampleBits, image, imageOffset, mask, maskOffset,
-    height, width, imageStride, maskStride, nComponents, componentIndices,
-    histogram, histogramOffset, parallel);
-
-// Buffer-based (direct buffers only, zero-copy)
+// Buffer-based (direct or array-backed buffers)
 IHistNative.histogram8(sampleBits, imageBuffer, maskBuffer,
     height, width, imageStride, maskStride, nComponents, componentIndices,
     histogramBuffer, parallel);
 ```
 
-(And, similarly, `histogram16()` for arrays and for direct buffers.)
+(And, similarly, `histogram16()` for 16-bit images.)
 
 ### Input Types
 
@@ -168,10 +163,23 @@ The Java API supports both arrays and NIO buffers:
 - **Mask**: `byte[]` or `ByteBuffer`
 - **Histogram output**: `int[]` or `IntBuffer`
 
-Direct buffers provide zero-copy access to native memory. For `IHistNative`
-buffer-based methods, all buffers must be direct. `HistogramRequest` accepts
-both heap-backed and direct buffers, routing heap-backed buffers to the
-array-based methods automatically.
+### Performance: Zero-Copy vs Copy
+
+| Input Type | IHistNative | HistogramRequest | Notes |
+|------------|-------------|------------------|-------|
+| Array (`byte[]`, `short[]`, `int[]`) | N/A (wrap first) | Zero-copy | Wrapped as heap buffer |
+| Direct buffer | Zero-copy | Zero-copy | `GetDirectBufferAddress` |
+| Array-backed buffer (`ByteBuffer.wrap()`) | Zero-copy | Zero-copy | `GetPrimitiveArrayCritical` |
+| View buffer (e.g., `asReadOnlyBuffer()`) | Rejected | Copy | Copied to temp direct buffer |
+| Read-only heap buffer | Rejected | Copy (input only) | Rejected for histogram output |
+
+**IHistNative** requires buffers to be either direct or array-backed. View
+buffers and other buffer types are rejected with `IllegalArgumentException`.
+
+**HistogramRequest** handles all buffer types automatically. Arrays are wrapped
+in heap buffers (zero-copy). Unsupported buffer types are silently copied to
+temporary direct buffers, which incurs a performance overhead but ensures all
+input types work.
 
 ### Notes
 

@@ -7,7 +7,9 @@ package ihistj;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.IntBuffer;
+import java.nio.ShortBuffer;
 import org.junit.jupiter.api.*;
 
 /**
@@ -25,209 +27,273 @@ class ValidationTest {
 
         @Test
         void invalidSampleBits8() {
-            byte[] image = {0, 1, 2};
-            int[] histogram = new int[256];
+            byte[] imageData = {0, 1, 2};
+            ByteBuffer image = ByteBuffer.wrap(imageData);
+            int[] histData = new int[256];
+            IntBuffer histogram = IntBuffer.wrap(histData);
             int[] indices = {0};
 
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> IHistNative.histogram8(0, image, 0, null, 0, 1,
-                                                       3, 3, 3, 1, indices,
-                                                       histogram, 0, false));
+                             -> IHistNative.histogram8(0, image, null, 1, 3, 3,
+                                                       3, 1, indices,
+                                                       histogram, false));
 
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> IHistNative.histogram8(9, image, 0, null, 0, 1,
-                                                       3, 3, 3, 1, indices,
-                                                       histogram, 0, false));
+                             -> IHistNative.histogram8(9, image, null, 1, 3, 3,
+                                                       3, 1, indices,
+                                                       histogram, false));
         }
 
         @Test
         void invalidSampleBits16() {
-            short[] image = {0, 1, 2};
-            int[] histogram = new int[65536];
+            short[] imageData = {0, 1, 2};
+            ShortBuffer image = ShortBuffer.wrap(imageData);
+            int[] histData = new int[65536];
+            IntBuffer histogram = IntBuffer.wrap(histData);
             int[] indices = {0};
 
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> IHistNative.histogram16(0, image, 0, null, 0,
-                                                        1, 3, 3, 3, 1, indices,
-                                                        histogram, 0, false));
+                             -> IHistNative.histogram16(0, image, null, 1, 3,
+                                                        3, 3, 1, indices,
+                                                        histogram, false));
 
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> IHistNative.histogram16(17, image, 0, null, 0,
-                                                        1, 3, 3, 3, 1, indices,
-                                                        histogram, 0, false));
+                             -> IHistNative.histogram16(17, image, null, 1, 3,
+                                                        3, 3, 1, indices,
+                                                        histogram, false));
         }
 
         @Test
         void invalidStride() {
-            byte[] image = {0, 1, 2};
-            int[] histogram = new int[256];
+            byte[] imageData = {0, 1, 2};
+            ByteBuffer image = ByteBuffer.wrap(imageData);
+            int[] histData = new int[256];
+            IntBuffer histogram = IntBuffer.wrap(histData);
             int[] indices = {0};
 
             // imageStride < width
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> IHistNative.histogram8(8, image, 0, null, 0, 1,
-                                                       3, 2, 3, 1, indices,
-                                                       histogram, 0, false));
+                             -> IHistNative.histogram8(8, image, null, 1, 3, 2,
+                                                       3, 1, indices,
+                                                       histogram, false));
 
             // maskStride < width
-            byte[] mask = {1, 1, 1};
+            byte[] maskData = {1, 1, 1};
+            ByteBuffer mask = ByteBuffer.wrap(maskData);
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> IHistNative.histogram8(8, image, 0, mask, 0, 1,
-                                                       3, 3, 2, 1, indices,
-                                                       histogram, 0, false));
+                             -> IHistNative.histogram8(8, image, mask, 1, 3, 3,
+                                                       2, 1, indices,
+                                                       histogram, false));
         }
 
         @Test
         void invalidNComponents() {
-            byte[] image = {0, 1, 2};
-            int[] histogram = new int[256];
+            byte[] imageData = {0, 1, 2};
+            ByteBuffer image = ByteBuffer.wrap(imageData);
+            int[] histData = new int[256];
+            IntBuffer histogram = IntBuffer.wrap(histData);
             int[] indices = {0};
 
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> IHistNative.histogram8(8, image, 0, null, 0, 1,
-                                                       3, 3, 3, 0, indices,
-                                                       histogram, 0, false));
+                             -> IHistNative.histogram8(8, image, null, 1, 3, 3,
+                                                       3, 0, indices,
+                                                       histogram, false));
         }
 
         @Test
         void nullComponentIndices() {
-            byte[] image = {0, 1, 2};
-            int[] histogram = new int[256];
+            byte[] imageData = {0, 1, 2};
+            ByteBuffer image = ByteBuffer.wrap(imageData);
+            int[] histData = new int[256];
+            IntBuffer histogram = IntBuffer.wrap(histData);
 
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> IHistNative.histogram8(8, image, 0, null, 0, 1,
-                                                       3, 3, 3, 1, null,
-                                                       histogram, 0, false));
+                             -> IHistNative.histogram8(8, image, null, 1, 3, 3,
+                                                       3, 1, null, histogram,
+                                                       false));
         }
 
         @Test
         void emptyComponentIndices() {
-            byte[] image = {0, 1, 2};
-            int[] histogram = new int[256];
+            byte[] imageData = {0, 1, 2};
+            ByteBuffer image = ByteBuffer.wrap(imageData);
+            int[] histData = new int[256];
+            IntBuffer histogram = IntBuffer.wrap(histData);
             int[] indices = {};
 
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> IHistNative.histogram8(8, image, 0, null, 0, 1,
-                                                       3, 3, 3, 1, indices,
-                                                       histogram, 0, false));
+                             -> IHistNative.histogram8(8, image, null, 1, 3, 3,
+                                                       3, 1, indices,
+                                                       histogram, false));
         }
 
         @Test
         void componentIndexOutOfRange() {
-            byte[] image = {0, 1, 2, 3, 4, 5}; // 2 pixels, 3 components each
-            int[] histogram = new int[256];
+            byte[] imageData = {0, 1, 2,
+                                3, 4, 5}; // 2 pixels, 3 components each
+            ByteBuffer image = ByteBuffer.wrap(imageData);
+            int[] histData = new int[256];
+            IntBuffer histogram = IntBuffer.wrap(histData);
             int[] indices = {0,
                              3}; // Index 3 is out of range for nComponents=3
 
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> IHistNative.histogram8(8, image, 0, null, 0, 1,
-                                                       2, 2, 2, 3, indices,
-                                                       histogram, 0, false));
+                             -> IHistNative.histogram8(8, image, null, 1, 2, 2,
+                                                       2, 3, indices,
+                                                       histogram, false));
         }
 
         @Test
         void negativeComponentIndex() {
-            byte[] image = {0, 1, 2};
-            int[] histogram = new int[256];
+            byte[] imageData = {0, 1, 2};
+            ByteBuffer image = ByteBuffer.wrap(imageData);
+            int[] histData = new int[256];
+            IntBuffer histogram = IntBuffer.wrap(histData);
             int[] indices = {-1};
 
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> IHistNative.histogram8(8, image, 0, null, 0, 1,
-                                                       3, 3, 3, 1, indices,
-                                                       histogram, 0, false));
+                             -> IHistNative.histogram8(8, image, null, 1, 3, 3,
+                                                       3, 1, indices,
+                                                       histogram, false));
         }
 
         @Test
-        void negativeOffset() {
-            byte[] image = {0, 1, 2};
-            int[] histogram = new int[256];
+        void nullImageBuffer() {
+            int[] histData = new int[256];
+            IntBuffer histogram = IntBuffer.wrap(histData);
             int[] indices = {0};
 
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> IHistNative.histogram8(8, image, -1, null, 0,
-                                                       1, 3, 3, 3, 1, indices,
-                                                       histogram, 0, false));
+                             -> IHistNative.histogram8(8, null, null, 1, 3, 3,
+                                                       3, 1, indices,
+                                                       histogram, false));
         }
 
         @Test
-        void imageTooSmall() {
-            byte[] image = {0, 1}; // Only 2 elements
-            int[] histogram = new int[256];
+        void nullHistogramBuffer() {
+            byte[] imageData = {0, 1, 2};
+            ByteBuffer image = ByteBuffer.wrap(imageData);
             int[] indices = {0};
 
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> IHistNative.histogram8(8, image, 0, null, 0, 1,
-                                                       3, 3, 3, 1, indices,
-                                                       histogram, 0, false));
-        }
-
-        @Test
-        void histogramTooSmall() {
-            byte[] image = {0, 1, 2};
-            int[] histogram = new int[128]; // Too small for 8 bits
-            int[] indices = {0};
-
-            assertThrows(IllegalArgumentException.class,
-                         ()
-                             -> IHistNative.histogram8(8, image, 0, null, 0, 1,
-                                                       3, 3, 3, 1, indices,
-                                                       histogram, 0, false));
-        }
-
-        @Test
-        void nullImage() {
-            int[] histogram = new int[256];
-            int[] indices = {0};
-
-            assertThrows(IllegalArgumentException.class,
-                         ()
-                             -> IHistNative.histogram8(8, null, 0, null, 0, 1,
-                                                       3, 3, 3, 1, indices,
-                                                       histogram, 0, false));
-        }
-
-        @Test
-        void nullHistogram() {
-            byte[] image = {0, 1, 2};
-            int[] indices = {0};
-
-            assertThrows(IllegalArgumentException.class,
-                         ()
-                             -> IHistNative.histogram8(8, image, 0, null, 0, 1,
-                                                       3, 3, 3, 1, indices,
-                                                       null, 0, false));
+                             -> IHistNative.histogram8(8, image, null, 1, 3, 3,
+                                                       3, 1, indices, null,
+                                                       false));
         }
 
         @Test
         void negativeDimensions() {
-            byte[] image = {0, 1, 2};
-            int[] histogram = new int[256];
+            byte[] imageData = {0, 1, 2};
+            ByteBuffer image = ByteBuffer.wrap(imageData);
+            int[] histData = new int[256];
+            IntBuffer histogram = IntBuffer.wrap(histData);
             int[] indices = {0};
 
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> IHistNative.histogram8(8, image, 0, null, 0,
-                                                       -1, 3, 3, 3, 1, indices,
-                                                       histogram, 0, false));
+                             -> IHistNative.histogram8(8, image, null, -1, 3,
+                                                       3, 3, 1, indices,
+                                                       histogram, false));
 
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> IHistNative.histogram8(8, image, 0, null, 0, 1,
-                                                       -3, 3, 3, 1, indices,
-                                                       histogram, 0, false));
+                             -> IHistNative.histogram8(8, image, null, 1, -3,
+                                                       3, 3, 1, indices,
+                                                       histogram, false));
+        }
+
+        @Test
+        void readOnlyHistogramBufferRejected() {
+            byte[] imageData = {0, 1, 2, 3};
+            ByteBuffer image = ByteBuffer.wrap(imageData);
+            IntBuffer histogram = IntBuffer.allocate(256).asReadOnlyBuffer();
+            int[] indices = {0};
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> IHistNative.histogram8(8, image, null, 1, 4, 4,
+                                                       4, 1, indices,
+                                                       histogram, false));
+        }
+
+        @Test
+        void viewBufferImageRejected() {
+            // Create a view buffer that is neither direct nor array-backed
+            ByteBuffer original = ByteBuffer.allocate(4);
+            original.put(new byte[] {0, 1, 2, 3});
+            original.flip();
+            ByteBuffer view = original.asReadOnlyBuffer();
+
+            int[] histData = new int[256];
+            IntBuffer histogram = IntBuffer.wrap(histData);
+            int[] indices = {0};
+
+            // View buffer should be rejected at JNI level
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> IHistNative.histogram8(8, view, null, 1, 4, 4,
+                                                       4, 1, indices,
+                                                       histogram, false));
+        }
+
+        @Test
+        void viewBufferMaskRejected() {
+            byte[] imageData = {0, 1, 2, 3};
+            ByteBuffer image = ByteBuffer.wrap(imageData);
+
+            // Create a view buffer mask
+            ByteBuffer original = ByteBuffer.allocate(4);
+            original.put(new byte[] {1, 0, 1, 0});
+            original.flip();
+            ByteBuffer maskView = original.asReadOnlyBuffer();
+
+            int[] histData = new int[256];
+            IntBuffer histogram = IntBuffer.wrap(histData);
+            int[] indices = {0};
+
+            // View buffer mask should be rejected at JNI level
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> IHistNative.histogram8(8, image, maskView, 1,
+                                                       4, 4, 4, 1, indices,
+                                                       histogram, false));
+        }
+
+        @Test
+        void viewBufferHistogramRejected() {
+            byte[] imageData = {0, 1, 2, 3};
+            ByteBuffer image = ByteBuffer.wrap(imageData);
+
+            // Create a view buffer histogram (neither direct nor array-backed)
+            // Note: IntBuffer.allocate().asReadOnlyBuffer() creates a
+            // read-only buffer which should also be rejected
+            ByteBuffer bb = ByteBuffer.allocateDirect(256 * 4).order(
+                ByteOrder.nativeOrder());
+            IntBuffer directHist = bb.asIntBuffer();
+            // asReadOnlyBuffer creates a view that's read-only
+            IntBuffer viewHist = directHist.asReadOnlyBuffer();
+
+            int[] indices = {0};
+
+            // This should be rejected (read-only)
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> IHistNative.histogram8(8, image, null, 1, 4, 4,
+                                                       4, 1, indices, viewHist,
+                                                       false));
         }
     }
 
@@ -362,13 +428,25 @@ class ValidationTest {
 
             // Create a direct IntBuffer that's too small (need 256 for 8 bits)
             ByteBuffer bb = ByteBuffer.allocateDirect(128 * 4).order(
-                java.nio.ByteOrder.nativeOrder());
+                ByteOrder.nativeOrder());
             IntBuffer tooSmall = bb.asIntBuffer();
 
             assertThrows(IllegalArgumentException.class,
                          ()
                              -> HistogramRequest.forImage(image, 4, 1)
                                     .output(tooSmall)
+                                    .compute());
+        }
+
+        @Test
+        void readOnlyHistogramBufferRejected() {
+            byte[] image = {0, 1, 2, 3};
+            IntBuffer histogram = IntBuffer.allocate(256).asReadOnlyBuffer();
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> HistogramRequest.forImage(image, 4, 1)
+                                    .output(histogram)
                                     .compute());
         }
     }

@@ -18,6 +18,7 @@ void throw_illegal_argument(JNIEnv *env, char const *message) {
     jclass clazz = env->FindClass("java/lang/IllegalArgumentException");
     if (clazz != nullptr) {
         env->ThrowNew(clazz, message);
+        env->DeleteLocalRef(clazz);
     }
 }
 
@@ -58,11 +59,84 @@ auto validate_component_indices(JNIEnv *env,
     return true;
 }
 
+// Buffer helper functions - call Java Buffer methods
+// These functions properly clean up local references and check for exceptions.
+
 auto get_buffer_position(JNIEnv *env, jobject buffer) -> jint {
     jclass buffer_class = env->GetObjectClass(buffer);
     jmethodID position_method =
         env->GetMethodID(buffer_class, "position", "()I");
+    env->DeleteLocalRef(buffer_class);
+    if (position_method == nullptr || env->ExceptionCheck()) {
+        return 0;
+    }
     return env->CallIntMethod(buffer, position_method);
+}
+
+auto is_direct_buffer(JNIEnv *env, jobject buffer) -> bool {
+    jclass buffer_class = env->GetObjectClass(buffer);
+    jmethodID is_direct_method =
+        env->GetMethodID(buffer_class, "isDirect", "()Z");
+    env->DeleteLocalRef(buffer_class);
+    if (is_direct_method == nullptr || env->ExceptionCheck()) {
+        return false;
+    }
+    return env->CallBooleanMethod(buffer, is_direct_method) != JNI_FALSE;
+}
+
+auto has_array(JNIEnv *env, jobject buffer) -> bool {
+    jclass buffer_class = env->GetObjectClass(buffer);
+    jmethodID has_array_method =
+        env->GetMethodID(buffer_class, "hasArray", "()Z");
+    env->DeleteLocalRef(buffer_class);
+    if (has_array_method == nullptr || env->ExceptionCheck()) {
+        return false;
+    }
+    return env->CallBooleanMethod(buffer, has_array_method) != JNI_FALSE;
+}
+
+auto get_buffer_array(JNIEnv *env, jobject buffer) -> jarray {
+    jclass buffer_class = env->GetObjectClass(buffer);
+    jmethodID array_method =
+        env->GetMethodID(buffer_class, "array", "()Ljava/lang/Object;");
+    env->DeleteLocalRef(buffer_class);
+    if (array_method == nullptr || env->ExceptionCheck()) {
+        return nullptr;
+    }
+    return static_cast<jarray>(env->CallObjectMethod(buffer, array_method));
+}
+
+auto get_array_offset(JNIEnv *env, jobject buffer) -> jint {
+    jclass buffer_class = env->GetObjectClass(buffer);
+    jmethodID array_offset_method =
+        env->GetMethodID(buffer_class, "arrayOffset", "()I");
+    env->DeleteLocalRef(buffer_class);
+    if (array_offset_method == nullptr || env->ExceptionCheck()) {
+        return 0;
+    }
+    return env->CallIntMethod(buffer, array_offset_method);
+}
+
+auto is_read_only(JNIEnv *env, jobject buffer) -> bool {
+    jclass buffer_class = env->GetObjectClass(buffer);
+    jmethodID is_read_only_method =
+        env->GetMethodID(buffer_class, "isReadOnly", "()Z");
+    env->DeleteLocalRef(buffer_class);
+    if (is_read_only_method == nullptr || env->ExceptionCheck()) {
+        return false;
+    }
+    return env->CallBooleanMethod(buffer, is_read_only_method) != JNI_FALSE;
+}
+
+auto get_buffer_remaining(JNIEnv *env, jobject buffer) -> jint {
+    jclass buffer_class = env->GetObjectClass(buffer);
+    jmethodID remaining_method =
+        env->GetMethodID(buffer_class, "remaining", "()I");
+    env->DeleteLocalRef(buffer_class);
+    if (remaining_method == nullptr || env->ExceptionCheck()) {
+        return 0;
+    }
+    return env->CallIntMethod(buffer, remaining_method);
 }
 
 template <typename PixelT> struct jni_pixel_traits;
@@ -75,28 +149,7 @@ template <> struct jni_pixel_traits<std::uint8_t> {
     static constexpr char const *bit_error_msg =
         "sampleBits must be in range [1, 8] for 8-bit";
     static constexpr char const *buffer_type_error =
-        "ByteBuffer must be direct";
-
-    static auto get_array_elements(JNIEnv *env, jni_array_type arr)
-        -> jni_element_type * {
-        return env->GetByteArrayElements(arr, nullptr);
-    }
-
-    static void release_array_elements(JNIEnv *env, jni_array_type arr,
-                                       jni_element_type *elems, jint mode) {
-        env->ReleaseByteArrayElements(arr, elems, mode);
-    }
-
-    static auto get_critical(JNIEnv *env, jni_array_type arr)
-        -> jni_element_type * {
-        return static_cast<jni_element_type *>(
-            env->GetPrimitiveArrayCritical(arr, nullptr));
-    }
-
-    static void release_critical(JNIEnv *env, jni_array_type arr,
-                                 jni_element_type *elems, jint mode) {
-        env->ReleasePrimitiveArrayCritical(arr, elems, mode);
-    }
+        "image buffer must be direct or array-backed";
 
     static void call_ihist(std::size_t sample_bits, pixel_type const *image,
                            std::uint8_t const *mask, std::size_t height,
@@ -119,28 +172,7 @@ template <> struct jni_pixel_traits<std::uint16_t> {
     static constexpr char const *bit_error_msg =
         "sampleBits must be in range [1, 16] for 16-bit";
     static constexpr char const *buffer_type_error =
-        "ShortBuffer must be direct";
-
-    static auto get_array_elements(JNIEnv *env, jni_array_type arr)
-        -> jni_element_type * {
-        return env->GetShortArrayElements(arr, nullptr);
-    }
-
-    static void release_array_elements(JNIEnv *env, jni_array_type arr,
-                                       jni_element_type *elems, jint mode) {
-        env->ReleaseShortArrayElements(arr, elems, mode);
-    }
-
-    static auto get_critical(JNIEnv *env, jni_array_type arr)
-        -> jni_element_type * {
-        return static_cast<jni_element_type *>(
-            env->GetPrimitiveArrayCritical(arr, nullptr));
-    }
-
-    static void release_critical(JNIEnv *env, jni_array_type arr,
-                                 jni_element_type *elems, jint mode) {
-        env->ReleasePrimitiveArrayCritical(arr, elems, mode);
-    }
+        "image buffer must be direct or array-backed";
 
     static void call_ihist(std::size_t sample_bits, pixel_type const *image,
                            std::uint8_t const *mask, std::size_t height,
@@ -192,40 +224,256 @@ auto validate_params(JNIEnv *env, jint sample_bits, jint height, jint width,
     return true;
 }
 
-// Returns pointer to direct buffer data, or nullptr with exception if not
-// direct
-template <typename PixelT>
-auto get_image_buffer_data(JNIEnv *env, jobject image_buffer)
-    -> PixelT const * {
-    using traits = jni_pixel_traits<PixelT>;
+// Structure to hold buffer data pointer and cleanup info.
+// For array-backed buffers, backing_array holds the local reference to the
+// array returned by Buffer.array(). This reference must be deleted after
+// ReleasePrimitiveArrayCritical is called.
+struct buffer_data {
+    void *ptr = nullptr;
+    jarray backing_array = nullptr; // Non-null if using critical array access
+    bool valid = false;
+};
 
-    void *image_direct = env->GetDirectBufferAddress(image_buffer);
-    if (image_direct != nullptr) {
-        jint const position = get_buffer_position(env, image_buffer);
-        return reinterpret_cast<PixelT const *>(
-            static_cast<char *>(image_direct) +
-            position * sizeof(typename traits::jni_element_type));
+// Get image buffer data - handles both direct and array-backed buffers.
+// Validates buffer capacity against required size.
+template <typename PixelT>
+auto get_image_buffer_data(JNIEnv *env, jobject image_buffer,
+                           std::size_t required_elements) -> buffer_data {
+    using traits = jni_pixel_traits<PixelT>;
+    buffer_data result;
+
+    // Validate buffer capacity
+    jint remaining = get_buffer_remaining(env, image_buffer);
+    if (env->ExceptionCheck()) {
+        return result;
+    }
+    if (static_cast<std::size_t>(remaining) < required_elements) {
+        throw_illegal_argument(env, "image buffer has insufficient capacity");
+        return result;
+    }
+
+    if (is_direct_buffer(env, image_buffer)) {
+        if (env->ExceptionCheck()) {
+            return result;
+        }
+        void *direct = env->GetDirectBufferAddress(image_buffer);
+        if (direct != nullptr) {
+            jint const position = get_buffer_position(env, image_buffer);
+            if (env->ExceptionCheck()) {
+                return result;
+            }
+            result.ptr = static_cast<char *>(direct) +
+                         position * sizeof(typename traits::jni_element_type);
+            result.valid = true;
+            return result;
+        }
+    }
+
+    if (has_array(env, image_buffer)) {
+        if (env->ExceptionCheck()) {
+            return result;
+        }
+        jarray arr = get_buffer_array(env, image_buffer);
+        if (env->ExceptionCheck()) {
+            if (arr != nullptr) {
+                env->DeleteLocalRef(arr);
+            }
+            return result;
+        }
+        if (arr != nullptr) {
+            void *critical = env->GetPrimitiveArrayCritical(arr, nullptr);
+            if (critical != nullptr) {
+                jint const array_offset = get_array_offset(env, image_buffer);
+                jint const position = get_buffer_position(env, image_buffer);
+                if (env->ExceptionCheck()) {
+                    env->ReleasePrimitiveArrayCritical(arr, critical,
+                                                       JNI_ABORT);
+                    env->DeleteLocalRef(arr);
+                    return result;
+                }
+                result.ptr = static_cast<typename traits::jni_element_type *>(
+                                 critical) +
+                             array_offset + position;
+                result.backing_array = arr;
+                result.valid = true;
+                return result;
+            }
+            env->DeleteLocalRef(arr);
+        }
     }
 
     throw_illegal_argument(env, traits::buffer_type_error);
-    return nullptr;
+    return result;
 }
 
-// Returns pointer to direct mask buffer data, or nullptr with exception if not
-// direct
-auto get_mask_buffer_data(JNIEnv *env, jobject mask_buffer)
-    -> std::uint8_t const * {
-    void *mask_direct = env->GetDirectBufferAddress(mask_buffer);
-    if (mask_direct != nullptr) {
-        jint const position = get_buffer_position(env, mask_buffer);
-        return static_cast<std::uint8_t const *>(mask_direct) + position;
+// Get mask buffer data - handles both direct and array-backed buffers.
+// Validates buffer capacity against required size.
+auto get_mask_buffer_data(JNIEnv *env, jobject mask_buffer,
+                          std::size_t required_elements) -> buffer_data {
+    buffer_data result;
+
+    // Validate buffer capacity
+    jint remaining = get_buffer_remaining(env, mask_buffer);
+    if (env->ExceptionCheck()) {
+        return result;
+    }
+    if (static_cast<std::size_t>(remaining) < required_elements) {
+        throw_illegal_argument(env, "mask buffer has insufficient capacity");
+        return result;
     }
 
-    throw_illegal_argument(env, "mask ByteBuffer must be direct");
-    return nullptr;
+    if (is_direct_buffer(env, mask_buffer)) {
+        if (env->ExceptionCheck()) {
+            return result;
+        }
+        void *direct = env->GetDirectBufferAddress(mask_buffer);
+        if (direct != nullptr) {
+            jint const position = get_buffer_position(env, mask_buffer);
+            if (env->ExceptionCheck()) {
+                return result;
+            }
+            result.ptr = static_cast<std::uint8_t *>(direct) + position;
+            result.valid = true;
+            return result;
+        }
+    }
+
+    if (has_array(env, mask_buffer)) {
+        if (env->ExceptionCheck()) {
+            return result;
+        }
+        jarray arr = get_buffer_array(env, mask_buffer);
+        if (env->ExceptionCheck()) {
+            if (arr != nullptr) {
+                env->DeleteLocalRef(arr);
+            }
+            return result;
+        }
+        if (arr != nullptr) {
+            void *critical = env->GetPrimitiveArrayCritical(arr, nullptr);
+            if (critical != nullptr) {
+                jint const array_offset = get_array_offset(env, mask_buffer);
+                jint const position = get_buffer_position(env, mask_buffer);
+                if (env->ExceptionCheck()) {
+                    env->ReleasePrimitiveArrayCritical(arr, critical,
+                                                       JNI_ABORT);
+                    env->DeleteLocalRef(arr);
+                    return result;
+                }
+                result.ptr =
+                    static_cast<jbyte *>(critical) + array_offset + position;
+                result.backing_array = arr;
+                result.valid = true;
+                return result;
+            }
+            env->DeleteLocalRef(arr);
+        }
+    }
+
+    throw_illegal_argument(env, "mask buffer must be direct or array-backed");
+    return result;
 }
 
-// Buffer-based histogram implementation template (direct buffers only)
+// Get histogram buffer data - handles both direct and array-backed buffers.
+// Also checks for read-only buffers and validates capacity.
+auto get_histogram_buffer_data(JNIEnv *env, jobject histogram_buffer,
+                               std::size_t required_elements) -> buffer_data {
+    buffer_data result;
+
+    if (is_read_only(env, histogram_buffer)) {
+        if (env->ExceptionCheck()) {
+            return result;
+        }
+        throw_illegal_argument(env, "histogram buffer cannot be read-only");
+        return result;
+    }
+
+    // Validate buffer capacity
+    jint remaining = get_buffer_remaining(env, histogram_buffer);
+    if (env->ExceptionCheck()) {
+        return result;
+    }
+    if (static_cast<std::size_t>(remaining) < required_elements) {
+        throw_illegal_argument(env,
+                               "histogram buffer has insufficient capacity");
+        return result;
+    }
+
+    if (is_direct_buffer(env, histogram_buffer)) {
+        if (env->ExceptionCheck()) {
+            return result;
+        }
+        void *direct = env->GetDirectBufferAddress(histogram_buffer);
+        if (direct != nullptr) {
+            jint const position = get_buffer_position(env, histogram_buffer);
+            if (env->ExceptionCheck()) {
+                return result;
+            }
+            result.ptr = static_cast<jint *>(direct) + position;
+            result.valid = true;
+            return result;
+        }
+    }
+
+    if (has_array(env, histogram_buffer)) {
+        if (env->ExceptionCheck()) {
+            return result;
+        }
+        jarray arr = get_buffer_array(env, histogram_buffer);
+        if (env->ExceptionCheck()) {
+            if (arr != nullptr) {
+                env->DeleteLocalRef(arr);
+            }
+            return result;
+        }
+        if (arr != nullptr) {
+            void *critical = env->GetPrimitiveArrayCritical(arr, nullptr);
+            if (critical != nullptr) {
+                jint const array_offset =
+                    get_array_offset(env, histogram_buffer);
+                jint const position =
+                    get_buffer_position(env, histogram_buffer);
+                if (env->ExceptionCheck()) {
+                    env->ReleasePrimitiveArrayCritical(arr, critical,
+                                                       JNI_ABORT);
+                    env->DeleteLocalRef(arr);
+                    return result;
+                }
+                result.ptr =
+                    static_cast<jint *>(critical) + array_offset + position;
+                result.backing_array = arr;
+                result.valid = true;
+                return result;
+            }
+            env->DeleteLocalRef(arr);
+        }
+    }
+
+    throw_illegal_argument(env,
+                           "histogram buffer must be direct or array-backed");
+    return result;
+}
+
+// Release buffer data - releases critical array and deletes local reference.
+void release_buffer_data(JNIEnv *env, buffer_data const &data, jint mode) {
+    if (data.backing_array != nullptr) {
+        env->ReleasePrimitiveArrayCritical(data.backing_array, data.ptr, mode);
+        env->DeleteLocalRef(data.backing_array);
+    }
+    // Direct buffers don't need cleanup
+}
+
+// Buffer-based histogram implementation template.
+// Handles both direct and array-backed buffers.
+//
+// Note on critical array access: This function may hold multiple critical
+// arrays simultaneously (image, mask, histogram) during histogram computation.
+// This is safe because:
+// 1. The histogram computation is CPU-bound and does not call back into Java
+// 2. No JNI calls are made while holding critical arrays
+// 3. The computation typically completes quickly
+// Per JNI specification, critical regions should be short and non-blocking,
+// which this satisfies for typical image sizes.
 template <typename PixelT>
 void histogram_buffer_impl(JNIEnv *env, jint sample_bits, jobject image_buffer,
                            jobject mask_buffer, jint height, jint width,
@@ -261,201 +509,69 @@ void histogram_buffer_impl(JNIEnv *env, jint sample_bits, jobject image_buffer,
         return;
     }
 
-    PixelT const *image_ptr = get_image_buffer_data<PixelT>(env, image_buffer);
-    if (image_ptr == nullptr) {
+    // Calculate required buffer capacities
+    std::size_t const h = static_cast<std::size_t>(height);
+    std::size_t const w = static_cast<std::size_t>(width);
+    std::size_t const img_stride = static_cast<std::size_t>(image_stride);
+    std::size_t const msk_stride = static_cast<std::size_t>(mask_stride);
+    std::size_t const n_comp = static_cast<std::size_t>(n_components);
+
+    std::size_t image_required =
+        (h > 0 && w > 0) ? ((h - 1) * img_stride + w) * n_comp : 0;
+    std::size_t mask_required =
+        (h > 0 && w > 0) ? (h - 1) * msk_stride + w : 0;
+    std::size_t hist_required =
+        n_hist_components * (static_cast<std::size_t>(1) << sample_bits);
+
+    // Get image data
+    buffer_data image_data =
+        get_image_buffer_data<PixelT>(env, image_buffer, image_required);
+    if (!image_data.valid) {
         return;
     }
 
-    std::uint8_t const *mask_ptr = nullptr;
+    // Get mask data (optional)
+    buffer_data mask_data;
     if (mask_buffer != nullptr) {
-        mask_ptr = get_mask_buffer_data(env, mask_buffer);
-        if (mask_ptr == nullptr) {
+        mask_data = get_mask_buffer_data(env, mask_buffer, mask_required);
+        if (!mask_data.valid) {
+            release_buffer_data(env, image_data, JNI_ABORT);
             return;
         }
     }
 
-    void *histogram_direct = env->GetDirectBufferAddress(histogram_buffer);
-    if (histogram_direct == nullptr) {
-        throw_illegal_argument(env, "histogram IntBuffer must be direct");
-        return;
-    }
-    jint const position = get_buffer_position(env, histogram_buffer);
-    auto *histogram_ptr = reinterpret_cast<std::uint32_t *>(
-        static_cast<char *>(histogram_direct) + position * sizeof(jint));
-
-    traits::call_ihist(
-        static_cast<std::size_t>(sample_bits), image_ptr, mask_ptr,
-        static_cast<std::size_t>(height), static_cast<std::size_t>(width),
-        static_cast<std::size_t>(image_stride),
-        static_cast<std::size_t>(mask_stride),
-        static_cast<std::size_t>(n_components), n_hist_components,
-        indices.data(), histogram_ptr, parallel != JNI_FALSE);
-}
-
-template <typename PixelT>
-void histogram_array_impl(
-    JNIEnv *env, jint sample_bits,
-    typename jni_pixel_traits<PixelT>::jni_array_type image, jint image_offset,
-    jbyteArray mask, jint mask_offset, jint height, jint width,
-    jint image_stride, jint mask_stride, jint n_components,
-    jintArray component_indices, jintArray histogram, jint histogram_offset,
-    jboolean parallel) {
-
-    using traits = jni_pixel_traits<PixelT>;
-
-    if (!validate_params<PixelT>(env, sample_bits, height, width, image_stride,
-                                 mask_stride, n_components,
-                                 component_indices)) {
-        return;
-    }
-
-    std::vector<std::size_t> indices =
-        to_size_t_vector(env, component_indices);
-    if (env->ExceptionCheck()) {
-        return;
-    }
-    std::size_t const n_hist_components = indices.size();
-
-    if (!validate_component_indices(env, indices,
-                                    static_cast<std::size_t>(n_components))) {
-        return;
-    }
-
-    if (image_offset < 0) {
-        throw_illegal_argument(env, "imageOffset cannot be negative");
-        return;
-    }
-    if (mask != nullptr && mask_offset < 0) {
-        throw_illegal_argument(env, "maskOffset cannot be negative");
-        return;
-    }
-    if (histogram_offset < 0) {
-        throw_illegal_argument(env, "histogramOffset cannot be negative");
-        return;
-    }
-
-    if (image == nullptr) {
-        throw_illegal_argument(env, "image cannot be null");
-        return;
-    }
-    jsize const image_len = env->GetArrayLength(image);
-    jlong const required_image_len =
-        (height > 0 && width > 0)
-            ? static_cast<jlong>(image_offset) +
-                  (static_cast<jlong>(height - 1) * image_stride +
-                   static_cast<jlong>(width)) *
-                      n_components
-            : static_cast<jlong>(image_offset);
-    if (image_len < required_image_len) {
-        throw_illegal_argument(env,
-                               "image array too small for given dimensions");
-        return;
-    }
-
-    if (mask != nullptr) {
-        jsize const mask_len = env->GetArrayLength(mask);
-        jlong const required_mask_len =
-            (height > 0 && width > 0)
-                ? static_cast<jlong>(mask_offset) +
-                      static_cast<jlong>(height - 1) * mask_stride +
-                      static_cast<jlong>(width)
-                : static_cast<jlong>(mask_offset);
-        if (mask_len < required_mask_len) {
-            throw_illegal_argument(
-                env, "mask array too small for given dimensions");
-            return;
+    // Get histogram data
+    buffer_data histogram_data =
+        get_histogram_buffer_data(env, histogram_buffer, hist_required);
+    if (!histogram_data.valid) {
+        if (mask_data.valid) {
+            release_buffer_data(env, mask_data, JNI_ABORT);
         }
-    }
-
-    if (histogram == nullptr) {
-        throw_illegal_argument(env, "histogram cannot be null");
-        return;
-    }
-    jsize const histogram_len = env->GetArrayLength(histogram);
-    jlong const required_histogram_len =
-        static_cast<jlong>(histogram_offset) +
-        static_cast<jlong>(n_hist_components) * (1L << sample_bits);
-    if (histogram_len < required_histogram_len) {
-        throw_illegal_argument(
-            env, "histogram array too small for given parameters");
+        release_buffer_data(env, image_data, JNI_ABORT);
         return;
     }
 
-    auto *image_ptr = traits::get_critical(env, image);
-    if (image_ptr == nullptr) {
-        return;
-    }
-
-    jbyte *mask_ptr = nullptr;
-    if (mask != nullptr) {
-        mask_ptr = static_cast<jbyte *>(
-            env->GetPrimitiveArrayCritical(mask, nullptr));
-        if (mask_ptr == nullptr) {
-            traits::release_critical(env, image, image_ptr, JNI_ABORT);
-            return;
-        }
-    }
-
-    jint *histogram_ptr = static_cast<jint *>(
-        env->GetPrimitiveArrayCritical(histogram, nullptr));
-    if (histogram_ptr == nullptr) {
-        if (mask_ptr != nullptr) {
-            env->ReleasePrimitiveArrayCritical(mask, mask_ptr, JNI_ABORT);
-        }
-        traits::release_critical(env, image, image_ptr, JNI_ABORT);
-        return;
-    }
-
+    // Call the histogram function
     traits::call_ihist(
         static_cast<std::size_t>(sample_bits),
-        reinterpret_cast<PixelT const *>(image_ptr + image_offset),
-        mask_ptr != nullptr
-            ? reinterpret_cast<std::uint8_t const *>(mask_ptr + mask_offset)
-            : nullptr,
-        static_cast<std::size_t>(height), static_cast<std::size_t>(width),
-        static_cast<std::size_t>(image_stride),
-        static_cast<std::size_t>(mask_stride),
-        static_cast<std::size_t>(n_components), n_hist_components,
-        indices.data(),
-        reinterpret_cast<std::uint32_t *>(histogram_ptr + histogram_offset),
+        static_cast<typename traits::pixel_type const *>(image_data.ptr),
+        mask_data.valid ? static_cast<std::uint8_t const *>(mask_data.ptr)
+                        : nullptr,
+        h, w, img_stride, msk_stride, n_comp, n_hist_components,
+        indices.data(), static_cast<std::uint32_t *>(histogram_data.ptr),
         parallel != JNI_FALSE);
 
-    env->ReleasePrimitiveArrayCritical(histogram, histogram_ptr, 0);
-    if (mask_ptr != nullptr) {
-        env->ReleasePrimitiveArrayCritical(mask, mask_ptr, JNI_ABORT);
+    // Release buffers - histogram with mode 0 to copy back changes
+    release_buffer_data(env, histogram_data, 0);
+    if (mask_data.valid) {
+        release_buffer_data(env, mask_data, JNI_ABORT);
     }
-    traits::release_critical(env, image, image_ptr, JNI_ABORT);
+    release_buffer_data(env, image_data, JNI_ABORT);
 }
 
 } // namespace
 
 extern "C" {
-
-JNIEXPORT void JNICALL
-Java_ihistj_IHistNative_histogram8__I_3BI_3BIIIIII_3I_3IIZ(
-    JNIEnv *env, jclass, jint sample_bits, jbyteArray image, jint image_offset,
-    jbyteArray mask, jint mask_offset, jint height, jint width,
-    jint image_stride, jint mask_stride, jint n_components,
-    jintArray component_indices, jintArray histogram, jint histogram_offset,
-    jboolean parallel) {
-    histogram_array_impl<std::uint8_t>(
-        env, sample_bits, image, image_offset, mask, mask_offset, height,
-        width, image_stride, mask_stride, n_components, component_indices,
-        histogram, histogram_offset, parallel);
-}
-
-JNIEXPORT void JNICALL
-Java_ihistj_IHistNative_histogram16__I_3SI_3BIIIIII_3I_3IIZ(
-    JNIEnv *env, jclass, jint sample_bits, jshortArray image,
-    jint image_offset, jbyteArray mask, jint mask_offset, jint height,
-    jint width, jint image_stride, jint mask_stride, jint n_components,
-    jintArray component_indices, jintArray histogram, jint histogram_offset,
-    jboolean parallel) {
-    histogram_array_impl<std::uint16_t>(
-        env, sample_bits, image, image_offset, mask, mask_offset, height,
-        width, image_stride, mask_stride, n_components, component_indices,
-        histogram, histogram_offset, parallel);
-}
 
 JNIEXPORT void JNICALL
 Java_ihistj_IHistNative_histogram8__ILjava_nio_ByteBuffer_2Ljava_nio_ByteBuffer_2IIIII_3ILjava_nio_IntBuffer_2Z(
