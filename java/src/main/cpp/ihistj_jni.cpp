@@ -16,6 +16,19 @@
 
 namespace {
 
+struct cached_ids {
+    jclass buffer_class;
+    jmethodID position;
+    jmethodID remaining;
+    jmethodID is_direct;
+    jmethodID has_array;
+    jmethodID array;
+    jmethodID array_offset;
+    jmethodID is_read_only;
+};
+
+cached_ids g_ids{};
+
 void throw_illegal_argument(JNIEnv *env, char const *message) {
     jclass clazz = env->FindClass("java/lang/IllegalArgumentException");
     if (clazz != nullptr) {
@@ -69,84 +82,34 @@ auto validate_component_indices(JNIEnv *env,
     return true;
 }
 
-// Buffer helper functions - call Java Buffer methods
-// These functions properly clean up local references and check for exceptions.
+// Buffer helper functions using cached method IDs.
 
 auto get_buffer_position(JNIEnv *env, jobject buffer) -> jint {
-    jclass buffer_class = env->GetObjectClass(buffer);
-    jmethodID position_method =
-        env->GetMethodID(buffer_class, "position", "()I");
-    env->DeleteLocalRef(buffer_class);
-    if (position_method == nullptr || env->ExceptionCheck()) {
-        return 0;
-    }
-    return env->CallIntMethod(buffer, position_method);
+    return env->CallIntMethod(buffer, g_ids.position);
 }
 
 auto is_direct_buffer(JNIEnv *env, jobject buffer) -> bool {
-    jclass buffer_class = env->GetObjectClass(buffer);
-    jmethodID is_direct_method =
-        env->GetMethodID(buffer_class, "isDirect", "()Z");
-    env->DeleteLocalRef(buffer_class);
-    if (is_direct_method == nullptr || env->ExceptionCheck()) {
-        return false;
-    }
-    return env->CallBooleanMethod(buffer, is_direct_method) != JNI_FALSE;
+    return env->CallBooleanMethod(buffer, g_ids.is_direct) != JNI_FALSE;
 }
 
 auto has_array(JNIEnv *env, jobject buffer) -> bool {
-    jclass buffer_class = env->GetObjectClass(buffer);
-    jmethodID has_array_method =
-        env->GetMethodID(buffer_class, "hasArray", "()Z");
-    env->DeleteLocalRef(buffer_class);
-    if (has_array_method == nullptr || env->ExceptionCheck()) {
-        return false;
-    }
-    return env->CallBooleanMethod(buffer, has_array_method) != JNI_FALSE;
+    return env->CallBooleanMethod(buffer, g_ids.has_array) != JNI_FALSE;
 }
 
 auto get_buffer_array(JNIEnv *env, jobject buffer) -> jarray {
-    jclass buffer_class = env->GetObjectClass(buffer);
-    jmethodID array_method =
-        env->GetMethodID(buffer_class, "array", "()Ljava/lang/Object;");
-    env->DeleteLocalRef(buffer_class);
-    if (array_method == nullptr || env->ExceptionCheck()) {
-        return nullptr;
-    }
-    return static_cast<jarray>(env->CallObjectMethod(buffer, array_method));
+    return static_cast<jarray>(env->CallObjectMethod(buffer, g_ids.array));
 }
 
 auto get_array_offset(JNIEnv *env, jobject buffer) -> jint {
-    jclass buffer_class = env->GetObjectClass(buffer);
-    jmethodID array_offset_method =
-        env->GetMethodID(buffer_class, "arrayOffset", "()I");
-    env->DeleteLocalRef(buffer_class);
-    if (array_offset_method == nullptr || env->ExceptionCheck()) {
-        return 0;
-    }
-    return env->CallIntMethod(buffer, array_offset_method);
+    return env->CallIntMethod(buffer, g_ids.array_offset);
 }
 
 auto is_read_only(JNIEnv *env, jobject buffer) -> bool {
-    jclass buffer_class = env->GetObjectClass(buffer);
-    jmethodID is_read_only_method =
-        env->GetMethodID(buffer_class, "isReadOnly", "()Z");
-    env->DeleteLocalRef(buffer_class);
-    if (is_read_only_method == nullptr || env->ExceptionCheck()) {
-        return false;
-    }
-    return env->CallBooleanMethod(buffer, is_read_only_method) != JNI_FALSE;
+    return env->CallBooleanMethod(buffer, g_ids.is_read_only) != JNI_FALSE;
 }
 
 auto get_buffer_remaining(JNIEnv *env, jobject buffer) -> jint {
-    jclass buffer_class = env->GetObjectClass(buffer);
-    jmethodID remaining_method =
-        env->GetMethodID(buffer_class, "remaining", "()I");
-    env->DeleteLocalRef(buffer_class);
-    if (remaining_method == nullptr || env->ExceptionCheck()) {
-        return 0;
-    }
-    return env->CallIntMethod(buffer, remaining_method);
+    return env->CallIntMethod(buffer, g_ids.remaining);
 }
 
 template <typename PixelT> struct jni_pixel_traits;
@@ -495,6 +458,57 @@ Java_ihistj_IHistNative_histogram16__ILjava_nio_ShortBuffer_2Ljava_nio_ByteBuffe
                                   height, width, image_stride, mask_stride,
                                   n_components, component_indices,
                                   histogram_buffer, parallel);
+}
+
+JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *) {
+    JNIEnv *env;
+    if (vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) !=
+        JNI_OK) {
+        return JNI_ERR;
+    }
+
+    jclass local_class = env->FindClass("java/nio/Buffer");
+    if (local_class == nullptr) {
+        return JNI_ERR;
+    }
+    g_ids.buffer_class = static_cast<jclass>(env->NewGlobalRef(local_class));
+    env->DeleteLocalRef(local_class);
+    if (g_ids.buffer_class == nullptr) {
+        return JNI_ERR;
+    }
+
+    g_ids.position = env->GetMethodID(g_ids.buffer_class, "position", "()I");
+    g_ids.remaining = env->GetMethodID(g_ids.buffer_class, "remaining", "()I");
+    g_ids.is_direct = env->GetMethodID(g_ids.buffer_class, "isDirect", "()Z");
+    g_ids.has_array = env->GetMethodID(g_ids.buffer_class, "hasArray", "()Z");
+    g_ids.array =
+        env->GetMethodID(g_ids.buffer_class, "array", "()Ljava/lang/Object;");
+    g_ids.array_offset =
+        env->GetMethodID(g_ids.buffer_class, "arrayOffset", "()I");
+    g_ids.is_read_only =
+        env->GetMethodID(g_ids.buffer_class, "isReadOnly", "()Z");
+
+    if (g_ids.position == nullptr || g_ids.remaining == nullptr ||
+        g_ids.is_direct == nullptr || g_ids.has_array == nullptr ||
+        g_ids.array == nullptr || g_ids.array_offset == nullptr ||
+        g_ids.is_read_only == nullptr) {
+        env->DeleteGlobalRef(g_ids.buffer_class);
+        g_ids.buffer_class = nullptr;
+        return JNI_ERR;
+    }
+
+    return JNI_VERSION_1_6;
+}
+
+JNIEXPORT void JNI_OnUnload(JavaVM *vm, void *) {
+    JNIEnv *env;
+    if (vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) ==
+        JNI_OK) {
+        if (g_ids.buffer_class != nullptr) {
+            env->DeleteGlobalRef(g_ids.buffer_class);
+            g_ids.buffer_class = nullptr;
+        }
+    }
 }
 
 } // extern "C"
