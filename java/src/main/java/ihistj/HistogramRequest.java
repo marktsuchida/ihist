@@ -287,10 +287,8 @@ public final class HistogramRequest {
      * @return this builder
      */
     public HistogramRequest mask(byte[] mask, int width, int height) {
-        if (mask == null) {
-            throw new IllegalArgumentException("mask cannot be null");
-        }
-        return mask(ByteBuffer.wrap(mask), width, height);
+        return mask(mask != null ? ByteBuffer.wrap(mask) : null, width,
+                    height);
     }
 
     /**
@@ -368,10 +366,7 @@ public final class HistogramRequest {
      * @return this builder
      */
     public HistogramRequest output(int[] histogram) {
-        if (histogram == null) {
-            throw new IllegalArgumentException("histogram cannot be null");
-        }
-        return output(IntBuffer.wrap(histogram));
+        return output(histogram != null ? IntBuffer.wrap(histogram) : null);
     }
 
     /**
