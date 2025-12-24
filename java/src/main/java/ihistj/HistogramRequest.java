@@ -430,59 +430,17 @@ public final class HistogramRequest {
         int[] indices = (componentIndices != null)
                             ? componentIndices
                             : defaultComponentIndices(nComponents);
-        int nHistComponents = indices.length;
 
-        int histSize = nHistComponents * (1 << effectiveBits);
+        int histSize = indices.length * (1 << effectiveBits);
 
-        // Create working buffer: duplicate of user's buffer or newly allocated
-        IntBuffer workBuffer;
-        int originalPos;
-        if (outputBuffer != null) {
-            // Validate capacity before duplicating
-            if (outputBuffer.remaining() < histSize) {
-                throw new IllegalArgumentException(
-                    "output IntBuffer has insufficient capacity: " +
-                    outputBuffer.remaining() + " < " + histSize);
-            }
-            // Use duplicate so we don't modify user's buffer position/limit
-            workBuffer = outputBuffer.duplicate();
-            originalPos = workBuffer.position();
-        } else {
-            workBuffer = IntBuffer.allocate(histSize);
-            originalPos = 0;
-        }
-
-        // Clear if not accumulating
-        if (!accumulate) {
-            clearBuffer(workBuffer, histSize);
-        }
-
-        // Prepare histogram buffer for JNI call
-        IntBuffer histBuf;
-        IntBuffer tempHistBuf = null;
-        boolean isViewBuffer =
-            !workBuffer.isDirect() && !workBuffer.hasArray();
-
-        if (isViewBuffer) {
-            // View buffer: need temp direct buffer for JNI
-            tempHistBuf = allocateDirectIntBuffer(histSize);
-            if (accumulate) {
-                // Copy existing values to temp buffer for accumulation
-                IntBuffer dup = workBuffer.duplicate();
-                for (int i = 0; i < histSize; i++) {
-                    tempHistBuf.put(dup.get());
-                }
-                tempHistBuf.flip();
-            }
-            histBuf = tempHistBuf;
-        } else {
-            histBuf = workBuffer;
-        }
+        IntBuffer[] prepared = prepareOutputBuffer(histSize, accumulate);
+        IntBuffer jniBuf = prepared[0];
+        IntBuffer returnBuf = prepared[1];
+        int originalPos = returnBuf.position();
 
         int imageOffset = (roiY * imageStride + roiX) * nComponents;
         int maskOffset = maskOffsetY * effectiveMaskStride + maskOffsetX;
 
-        // Prepare mask buffer
         ByteBuffer maskBuf = prepareMaskBuffer(maskOffset);
 
         if (is8Bit) {
@@ -490,30 +448,24 @@ public final class HistogramRequest {
             IHistNative.histogram8(effectiveBits, imageBuf, maskBuf,
                                    effectiveHeight, effectiveWidth,
                                    imageStride, effectiveMaskStride,
-                                   nComponents, indices, histBuf, parallel);
+                                   nComponents, indices, jniBuf, parallel);
         } else {
             ShortBuffer imageBuf = prepareImage16Buffer(imageOffset);
             IHistNative.histogram16(effectiveBits, imageBuf, maskBuf,
                                     effectiveHeight, effectiveWidth,
                                     imageStride, effectiveMaskStride,
-                                    nComponents, indices, histBuf, parallel);
+                                    nComponents, indices, jniBuf, parallel);
         }
 
-        // Copy back from temp buffer if used (view buffer case)
-        if (tempHistBuf != null) {
-            tempHistBuf.rewind();
-            IntBuffer dup = workBuffer.duplicate();
-            for (int i = 0; i < histSize; i++) {
-                dup.put(tempHistBuf.get());
-            }
+        if (jniBuf != returnBuf) {
+            jniBuf.rewind();
+            returnBuf.duplicate().put(jniBuf);
         }
 
-        // Set position and limit for the returned buffer
-        workBuffer.position(originalPos).limit(originalPos + histSize);
-        return workBuffer;
+        returnBuf.position(originalPos).limit(originalPos + histSize);
+        return returnBuf;
     }
 
-    // Clear buffer contents (for non-accumulate mode)
     private static void clearBuffer(IntBuffer buf, int size) {
         if (buf.hasArray()) {
             int offset = buf.arrayOffset() + buf.position();
@@ -524,6 +476,36 @@ public final class HistogramRequest {
                 dup.put(0);
             }
         }
+    }
+
+    // Returns [jniBuffer, returnBuffer] - usually same object, different only
+    // for view buffers (non-direct, non-array-backed) where we use a separate,
+    // temporary jniBuffer.
+    private IntBuffer[] prepareOutputBuffer(int histSize, boolean accumulate) {
+        if (outputBuffer == null) {
+            IntBuffer buf = IntBuffer.allocate(histSize);
+            return new IntBuffer[] {buf, buf};
+        }
+
+        IntBuffer returnBuf = outputBuffer.duplicate();
+        boolean isWritableBuffer =
+            outputBuffer.isDirect() || outputBuffer.hasArray();
+
+        if (isWritableBuffer) {
+            if (!accumulate) {
+                clearBuffer(returnBuf, histSize);
+            }
+            return new IntBuffer[] {returnBuf, returnBuf};
+        }
+
+        IntBuffer jniBuf = allocateDirectIntBuffer(histSize);
+        if (accumulate) {
+            IntBuffer src = returnBuf.duplicate();
+            src.limit(src.position() + histSize);
+            jniBuf.put(src);
+            jniBuf.flip();
+        }
+        return new IntBuffer[] {jniBuf, returnBuf};
     }
 
     private void validate() {
@@ -581,10 +563,17 @@ public final class HistogramRequest {
             }
         }
 
-        // Validate output buffer is not read-only
-        if (outputBuffer != null && outputBuffer.isReadOnly()) {
-            throw new IllegalArgumentException(
-                "output histogram buffer cannot be read-only");
+        if (outputBuffer != null) {
+            if (outputBuffer.isReadOnly()) {
+                throw new IllegalArgumentException(
+                    "output histogram buffer cannot be read-only");
+            }
+            int histSize = getHistSize();
+            if (outputBuffer.remaining() < histSize) {
+                throw new IllegalArgumentException(
+                    "output IntBuffer has insufficient capacity: " +
+                    outputBuffer.remaining() + " < " + histSize);
+            }
         }
     }
 
@@ -594,6 +583,13 @@ public final class HistogramRequest {
             indices[i] = i;
         }
         return indices;
+    }
+
+    private int getHistSize() {
+        int effectiveBits = (sampleBits < 0) ? (is8Bit ? 8 : 16) : sampleBits;
+        int nHistComponents =
+            (componentIndices != null) ? componentIndices.length : nComponents;
+        return nHistComponents * (1 << effectiveBits);
     }
 
     // Prepare 8-bit image buffer for JNI call
