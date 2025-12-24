@@ -449,5 +449,70 @@ class ValidationTest {
                                     .output(histogram)
                                     .compute());
         }
+
+        @Test
+        void maskTooSmallForRoi() {
+            byte[] image = new byte[100]; // 10x10 image
+            byte[] mask = new byte[25];   // 5x5 mask (too small for 10x10 ROI)
+
+            // Without explicit ROI, ROI defaults to full image (10x10)
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> HistogramRequest.forImage(image, 10, 10)
+                                    .mask(mask, 5, 5)
+                                    .compute());
+        }
+
+        @Test
+        void maskTooSmallForRoiWithOffset() {
+            byte[] image = new byte[100]; // 10x10 image
+            byte[] mask = new byte[100];  // 10x10 mask
+
+            // ROI is 5x5, maskOffset is (6,6), so 6+5=11 > 10
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> HistogramRequest.forImage(image, 10, 10)
+                                    .roi(0, 0, 5, 5)
+                                    .mask(mask, 10, 10)
+                                    .maskOffset(6, 6)
+                                    .compute());
+        }
+
+        @Test
+        void negativeMaskOffset() {
+            byte[] image = new byte[16]; // 4x4 image
+            byte[] mask = new byte[16];  // 4x4 mask
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> HistogramRequest.forImage(image, 4, 4)
+                                    .mask(mask, 4, 4)
+                                    .maskOffset(-1, 0)
+                                    .compute());
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> HistogramRequest.forImage(image, 4, 4)
+                                    .mask(mask, 4, 4)
+                                    .maskOffset(0, -1)
+                                    .compute());
+        }
+
+        @Test
+        void maskWithValidOffset() {
+            byte[] image = new byte[100]; // 10x10 image
+            byte[] mask = new byte[100];  // 10x10 mask
+            java.util.Arrays.fill(mask, (byte)1);
+
+            // ROI is 5x5 at (2,2), maskOffset is (3,3)
+            // 3+5=8 <= 10, so this should succeed
+            IntBuffer result = HistogramRequest.forImage(image, 10, 10)
+                                   .roi(2, 2, 5, 5)
+                                   .mask(mask, 10, 10)
+                                   .maskOffset(3, 3)
+                                   .compute();
+
+            assertNotNull(result);
+        }
     }
 }
