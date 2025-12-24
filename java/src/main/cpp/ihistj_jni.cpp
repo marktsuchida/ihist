@@ -46,7 +46,7 @@ auto to_size_t_vector(JNIEnv *env, jintArray arr) -> std::vector<std::size_t> {
     for (jsize i = 0; i < len; ++i) {
         if (elements[i] < 0) {
             env->ReleaseIntArrayElements(arr, elements, JNI_ABORT);
-            throw_illegal_argument(env, "Component index cannot be negative");
+            throw_illegal_argument(env, "component index cannot be negative");
             return {};
         }
         result[static_cast<std::size_t>(i)] =
@@ -231,18 +231,18 @@ auto validate_params(JNIEnv *env, jint sample_bits, jint height, jint width,
 }
 
 // RAII wrapper (unique_ptr-like semantics) for access to a Java buffer.
-class buffer_data {
+class buffer_access {
   public:
     // For direct buffers (no cleanup needed)
-    explicit buffer_data(void *data_ptr) : data_ptr_(data_ptr) {}
+    explicit buffer_access(void *data_ptr) : data_ptr_(data_ptr) {}
 
     // For array-backed buffers
-    buffer_data(JNIEnv *env, void *critical_ptr, void *data_ptr,
-                jarray backing_array, jint release_mode)
+    buffer_access(JNIEnv *env, void *critical_ptr, void *data_ptr,
+                  jarray backing_array, jint release_mode)
         : env_(env), critical_ptr_(critical_ptr), data_ptr_(data_ptr),
           backing_array_(backing_array), release_mode_(release_mode) {}
 
-    ~buffer_data() {
+    ~buffer_access() {
         if (backing_array_ != nullptr) {
             env_->ReleasePrimitiveArrayCritical(backing_array_, critical_ptr_,
                                                 release_mode_);
@@ -250,10 +250,10 @@ class buffer_data {
         }
     }
 
-    buffer_data(buffer_data const &) = delete;
-    buffer_data &operator=(buffer_data const &) = delete;
+    buffer_access(buffer_access const &) = delete;
+    buffer_access &operator=(buffer_access const &) = delete;
 
-    buffer_data(buffer_data &&other) noexcept
+    buffer_access(buffer_access &&other) noexcept
         : env_(other.env_), critical_ptr_(other.critical_ptr_),
           data_ptr_(other.data_ptr_), backing_array_(other.backing_array_),
           release_mode_(other.release_mode_) {
@@ -262,7 +262,7 @@ class buffer_data {
         other.data_ptr_ = nullptr;
     }
 
-    buffer_data &operator=(buffer_data &&other) noexcept {
+    buffer_access &operator=(buffer_access &&other) noexcept {
         if (this != &other) {
             if (backing_array_ != nullptr) {
                 env_->ReleasePrimitiveArrayCritical(
@@ -296,9 +296,9 @@ class buffer_data {
 //   ElementT: The element type for pointer arithmetic
 //   IsWritable: If true, checks for read-only and uses release mode 0
 template <typename ElementT, bool IsWritable = false>
-auto get_buffer_data(JNIEnv *env, jobject buffer,
-                     std::size_t required_elements, char const *buffer_name)
-    -> std::optional<buffer_data> {
+auto get_buffer_access(JNIEnv *env, jobject buffer,
+                       std::size_t required_elements, char const *buffer_name)
+    -> std::optional<buffer_access> {
     constexpr int release_mode = IsWritable ? 0 : JNI_ABORT;
 
     if constexpr (IsWritable) {
@@ -335,7 +335,7 @@ auto get_buffer_data(JNIEnv *env, jobject buffer,
                 return std::nullopt;
             }
             void *data_ptr = static_cast<ElementT *>(direct) + position;
-            return buffer_data(data_ptr);
+            return buffer_access(data_ptr);
         }
     }
 
@@ -363,7 +363,8 @@ auto get_buffer_data(JNIEnv *env, jobject buffer,
                 }
                 void *data_ptr = static_cast<ElementT *>(critical) +
                                  array_offset + position;
-                return buffer_data(env, critical, data_ptr, arr, release_mode);
+                return buffer_access(env, critical, data_ptr, arr,
+                                     release_mode);
             }
             env->DeleteLocalRef(arr);
         }
@@ -387,11 +388,11 @@ auto get_buffer_data(JNIEnv *env, jobject buffer,
 // Per JNI specification, critical regions should be short and non-blocking,
 // which this satisfies for typical image sizes.
 template <typename PixelT>
-void histogram_buffer_impl(JNIEnv *env, jint sample_bits, jobject image_buffer,
-                           jobject mask_buffer, jint height, jint width,
-                           jint image_stride, jint mask_stride,
-                           jint n_components, jintArray component_indices,
-                           jobject histogram_buffer, jboolean parallel) {
+void histogram_impl(JNIEnv *env, jint sample_bits, jobject image_buffer,
+                    jobject mask_buffer, jint height, jint width,
+                    jint image_stride, jint mask_stride, jint n_components,
+                    jintArray component_indices, jobject histogram_buffer,
+                    jboolean parallel) {
     using traits = jni_pixel_traits<PixelT>;
 
     if (!validate_params<PixelT>(env, sample_bits, height, width, image_stride,
@@ -435,24 +436,25 @@ void histogram_buffer_impl(JNIEnv *env, jint sample_bits, jobject image_buffer,
     std::size_t hist_required =
         n_hist_components * (static_cast<std::size_t>(1) << sample_bits);
 
-    std::optional<buffer_data> image_data =
-        get_buffer_data<typename traits::jni_element_type>(
+    std::optional<buffer_access> image_data =
+        get_buffer_access<typename traits::jni_element_type>(
             env, image_buffer, image_required, "image");
     if (!image_data) {
         return;
     }
 
-    std::optional<buffer_data> mask_data;
+    std::optional<buffer_access> mask_data;
     if (mask_buffer != nullptr) {
         mask_data =
-            get_buffer_data<jbyte>(env, mask_buffer, mask_required, "mask");
+            get_buffer_access<jbyte>(env, mask_buffer, mask_required, "mask");
         if (!mask_data) {
             return;
         }
     }
 
-    std::optional<buffer_data> histogram_data = get_buffer_data<jint, true>(
-        env, histogram_buffer, hist_required, "histogram");
+    std::optional<buffer_access> histogram_data =
+        get_buffer_access<jint, true>(env, histogram_buffer, hist_required,
+                                      "histogram");
     if (!histogram_data) {
         return;
     }
@@ -477,10 +479,10 @@ Java_ihistj_IHistNative_histogram8__ILjava_nio_ByteBuffer_2Ljava_nio_ByteBuffer_
     jobject mask_buffer, jint height, jint width, jint image_stride,
     jint mask_stride, jint n_components, jintArray component_indices,
     jobject histogram_buffer, jboolean parallel) {
-    histogram_buffer_impl<std::uint8_t>(
-        env, sample_bits, image_buffer, mask_buffer, height, width,
-        image_stride, mask_stride, n_components, component_indices,
-        histogram_buffer, parallel);
+    histogram_impl<std::uint8_t>(env, sample_bits, image_buffer, mask_buffer,
+                                 height, width, image_stride, mask_stride,
+                                 n_components, component_indices,
+                                 histogram_buffer, parallel);
 }
 
 JNIEXPORT void JNICALL
@@ -489,10 +491,10 @@ Java_ihistj_IHistNative_histogram16__ILjava_nio_ShortBuffer_2Ljava_nio_ByteBuffe
     jobject mask_buffer, jint height, jint width, jint image_stride,
     jint mask_stride, jint n_components, jintArray component_indices,
     jobject histogram_buffer, jboolean parallel) {
-    histogram_buffer_impl<std::uint16_t>(
-        env, sample_bits, image_buffer, mask_buffer, height, width,
-        image_stride, mask_stride, n_components, component_indices,
-        histogram_buffer, parallel);
+    histogram_impl<std::uint16_t>(env, sample_bits, image_buffer, mask_buffer,
+                                  height, width, image_stride, mask_stride,
+                                  n_components, component_indices,
+                                  histogram_buffer, parallel);
 }
 
 } // extern "C"
