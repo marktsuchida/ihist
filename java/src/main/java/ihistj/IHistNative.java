@@ -75,7 +75,7 @@ public final class IHistNative {
      *                        data); must be direct or array-backed
      * @param mask            per-pixel mask buffer (null to histogram all
      *                        pixels); must be direct or array-backed if
-     * provided
+     *                        provided
      * @param height          image height in pixels
      * @param width           image width in pixels
      * @param imageStride     row stride in pixels (must be &gt;= width)
@@ -87,9 +87,11 @@ public final class IHistNative {
      *                        accumulated; must be direct or array-backed and
      *                        not read-only
      * @param parallel        if true, allows multi-threaded execution
+     * @throws NullPointerException     if image, componentIndices, or
+     *                                  histogram is null
      * @throws IllegalArgumentException if parameters are invalid, buffers are
-     *         neither direct nor array-backed, or histogram buffer is
-     * read-only
+     *                                  neither direct nor array-backed, or
+     *                                  histogram buffer is read-only
      */
     public static native void
     histogram8(int sampleBits, ByteBuffer image, ByteBuffer mask, int height,
@@ -116,7 +118,7 @@ public final class IHistNative {
      *                        data); must be direct or array-backed
      * @param mask            per-pixel mask buffer (null to histogram all
      *                        pixels); must be direct or array-backed if
-     * provided
+     *                        provided
      * @param height          image height in pixels
      * @param width           image width in pixels
      * @param imageStride     row stride in pixels (must be &gt;= width)
@@ -128,9 +130,11 @@ public final class IHistNative {
      *                        accumulated; must be direct or array-backed and
      *                        not read-only
      * @param parallel        if true, allows multi-threaded execution
+     * @throws NullPointerException     if image, componentIndices, or
+     *                                  histogram is null
      * @throws IllegalArgumentException if parameters are invalid, buffers are
-     *         neither direct nor array-backed, or histogram buffer is
-     * read-only
+     *                                  neither direct nor array-backed, or
+     *                                  histogram buffer is read-only
      */
     public static native void
     histogram16(int sampleBits, ShortBuffer image, ByteBuffer mask, int height,

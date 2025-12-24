@@ -84,7 +84,7 @@ public final class HistogramRequest {
     private static void validateImageParams(Buffer image, int width,
                                             int height, int nComponents) {
         if (image == null) {
-            throw new IllegalArgumentException("image cannot be null");
+            throw new NullPointerException("image cannot be null");
         }
         if (width < 0 || height < 0) {
             throw new IllegalArgumentException(
@@ -110,6 +110,7 @@ public final class HistogramRequest {
      * @param width  image width in pixels
      * @param height image height in pixels
      * @return new HistogramRequest builder
+     * @throws NullPointerException     if image is null
      * @throws IllegalArgumentException if dimensions are invalid
      */
     public static HistogramRequest forImage(byte[] image, int width,
@@ -125,12 +126,13 @@ public final class HistogramRequest {
      * @param height      image height in pixels
      * @param nComponents number of interleaved components per pixel
      * @return new HistogramRequest builder
+     * @throws NullPointerException     if image is null
      * @throws IllegalArgumentException if dimensions are invalid
      */
     public static HistogramRequest forImage(byte[] image, int width,
                                             int height, int nComponents) {
         if (image == null) {
-            throw new IllegalArgumentException("image cannot be null");
+            throw new NullPointerException("image cannot be null");
         }
         return forImage(ByteBuffer.wrap(image), width, height, nComponents);
     }
@@ -142,6 +144,7 @@ public final class HistogramRequest {
      * @param width  image width in pixels
      * @param height image height in pixels
      * @return new HistogramRequest builder
+     * @throws NullPointerException     if image is null
      * @throws IllegalArgumentException if dimensions are invalid
      */
     public static HistogramRequest forImage(ByteBuffer image, int width,
@@ -157,6 +160,7 @@ public final class HistogramRequest {
      * @param height      image height in pixels
      * @param nComponents number of interleaved components per pixel
      * @return new HistogramRequest builder
+     * @throws NullPointerException     if image is null
      * @throws IllegalArgumentException if dimensions are invalid
      */
     public static HistogramRequest forImage(ByteBuffer image, int width,
@@ -178,6 +182,7 @@ public final class HistogramRequest {
      * @param width  image width in pixels
      * @param height image height in pixels
      * @return new HistogramRequest builder
+     * @throws NullPointerException     if image is null
      * @throws IllegalArgumentException if dimensions are invalid
      */
     public static HistogramRequest forImage(short[] image, int width,
@@ -193,12 +198,13 @@ public final class HistogramRequest {
      * @param height      image height in pixels
      * @param nComponents number of interleaved components per pixel
      * @return new HistogramRequest builder
+     * @throws NullPointerException     if image is null
      * @throws IllegalArgumentException if dimensions are invalid
      */
     public static HistogramRequest forImage(short[] image, int width,
                                             int height, int nComponents) {
         if (image == null) {
-            throw new IllegalArgumentException("image cannot be null");
+            throw new NullPointerException("image cannot be null");
         }
         return forImage(ShortBuffer.wrap(image), width, height, nComponents);
     }
@@ -210,6 +216,7 @@ public final class HistogramRequest {
      * @param width  image width in pixels
      * @param height image height in pixels
      * @return new HistogramRequest builder
+     * @throws NullPointerException     if image is null
      * @throws IllegalArgumentException if dimensions are invalid
      */
     public static HistogramRequest forImage(ShortBuffer image, int width,
@@ -225,6 +232,7 @@ public final class HistogramRequest {
      * @param height      image height in pixels
      * @param nComponents number of interleaved components per pixel
      * @return new HistogramRequest builder
+     * @throws NullPointerException     if image is null
      * @throws IllegalArgumentException if dimensions are invalid
      */
     public static HistogramRequest forImage(ShortBuffer image, int width,

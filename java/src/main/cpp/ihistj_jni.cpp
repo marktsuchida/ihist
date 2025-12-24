@@ -22,6 +22,14 @@ void throw_illegal_argument(JNIEnv *env, char const *message) {
     }
 }
 
+void throw_null_pointer(JNIEnv *env, char const *message) {
+    jclass clazz = env->FindClass("java/lang/NullPointerException");
+    if (clazz != nullptr) {
+        env->ThrowNew(clazz, message);
+        env->DeleteLocalRef(clazz);
+    }
+}
+
 // Convert Java int[] to vector<size_t>, checking for negative values
 auto to_size_t_vector(JNIEnv *env, jintArray arr) -> std::vector<std::size_t> {
     if (arr == nullptr) {
@@ -213,7 +221,7 @@ auto validate_params(JNIEnv *env, jint sample_bits, jint height, jint width,
         return false;
     }
     if (component_indices == nullptr) {
-        throw_illegal_argument(env, "componentIndices cannot be null");
+        throw_null_pointer(env, "componentIndices cannot be null");
         return false;
     }
     jsize const n_hist_components = env->GetArrayLength(component_indices);
@@ -501,11 +509,11 @@ void histogram_buffer_impl(JNIEnv *env, jint sample_bits, jobject image_buffer,
     }
 
     if (image_buffer == nullptr) {
-        throw_illegal_argument(env, "image buffer cannot be null");
+        throw_null_pointer(env, "image buffer cannot be null");
         return;
     }
     if (histogram_buffer == nullptr) {
-        throw_illegal_argument(env, "histogram buffer cannot be null");
+        throw_null_pointer(env, "histogram buffer cannot be null");
         return;
     }
 

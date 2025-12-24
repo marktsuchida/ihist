@@ -114,7 +114,7 @@ class ValidationTest {
             int[] histData = new int[256];
             IntBuffer histogram = IntBuffer.wrap(histData);
 
-            assertThrows(IllegalArgumentException.class,
+            assertThrows(NullPointerException.class,
                          ()
                              -> IHistNative.histogram8(8, image, null, 1, 3, 3,
                                                        3, 1, null, histogram,
@@ -174,7 +174,7 @@ class ValidationTest {
             IntBuffer histogram = IntBuffer.wrap(histData);
             int[] indices = {0};
 
-            assertThrows(IllegalArgumentException.class,
+            assertThrows(NullPointerException.class,
                          ()
                              -> IHistNative.histogram8(8, null, null, 1, 3, 3,
                                                        3, 1, indices,
@@ -187,7 +187,7 @@ class ValidationTest {
             ByteBuffer image = ByteBuffer.wrap(imageData);
             int[] indices = {0};
 
-            assertThrows(IllegalArgumentException.class,
+            assertThrows(NullPointerException.class,
                          ()
                              -> IHistNative.histogram8(8, image, null, 1, 3, 3,
                                                        3, 1, indices, null,
@@ -303,7 +303,7 @@ class ValidationTest {
         @Test
         void nullImage() {
             assertThrows(
-                IllegalArgumentException.class,
+                NullPointerException.class,
                 () -> HistogramRequest.forImage((byte[])null, 10, 10));
         }
 
