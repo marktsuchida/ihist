@@ -93,6 +93,12 @@ public final class HistogramRequest {
         if (nComponents < 1) {
             throw new IllegalArgumentException("nComponents must be >= 1");
         }
+        long requiredSize = (long)width * height * nComponents;
+        if (image.remaining() < requiredSize) {
+            throw new IllegalArgumentException(
+                "image buffer has insufficient capacity: " +
+                image.remaining() + " < " + requiredSize);
+        }
     }
 
     // ========== Factory methods ==========
@@ -300,6 +306,18 @@ public final class HistogramRequest {
      * @return this builder
      */
     public HistogramRequest mask(ByteBuffer mask, int width, int height) {
+        if (mask != null) {
+            if (width < 0 || height < 0) {
+                throw new IllegalArgumentException(
+                    "dimensions must be non-negative");
+            }
+            long requiredSize = (long)width * height;
+            if (mask.remaining() < requiredSize) {
+                throw new IllegalArgumentException(
+                    "mask buffer has insufficient capacity: " +
+                    mask.remaining() + " < " + requiredSize);
+            }
+        }
         this.maskBuffer = mask;
         this.maskWidth = width;
         this.maskHeight = height;
@@ -509,15 +527,6 @@ public final class HistogramRequest {
     }
 
     private void validate() {
-        if (imageWidth < 0 || imageHeight < 0) {
-            throw new IllegalArgumentException(
-                "Image dimensions must be non-negative");
-        }
-        if (nComponents < 1) {
-            throw new IllegalArgumentException(
-                "Number of components must be >= 1");
-        }
-
         int effectiveWidth = (roiWidth < 0) ? imageWidth : roiWidth;
         int effectiveHeight = (roiHeight < 0) ? imageHeight : roiHeight;
 
@@ -532,10 +541,6 @@ public final class HistogramRequest {
 
         // Validate mask dimensions if mask is set
         if (maskBuffer != null) {
-            if (maskWidth <= 0 || maskHeight <= 0) {
-                throw new IllegalArgumentException(
-                    "Mask dimensions must be positive");
-            }
             if (maskOffsetX < 0 || maskOffsetY < 0) {
                 throw new IllegalArgumentException(
                     "Mask offset cannot be negative");
