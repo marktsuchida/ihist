@@ -120,7 +120,7 @@ template <> struct jni_pixel_traits<std::uint8_t> {
     using pixel_type = std::uint8_t;
     static constexpr int max_sample_bits = 8;
     static constexpr char const *bit_error_msg =
-        "sampleBits must be in range [1, 8] for 8-bit";
+        "sampleBits must be in range [0, 8] for 8-bit";
 
     static void call_ihist(std::size_t sample_bits, pixel_type const *image,
                            std::uint8_t const *mask, std::size_t height,
@@ -141,7 +141,7 @@ template <> struct jni_pixel_traits<std::uint16_t> {
     using pixel_type = std::uint16_t;
     static constexpr int max_sample_bits = 16;
     static constexpr char const *bit_error_msg =
-        "sampleBits must be in range [1, 16] for 16-bit";
+        "sampleBits must be in range [0, 16] for 16-bit";
 
     static void call_ihist(std::size_t sample_bits, pixel_type const *image,
                            std::uint8_t const *mask, std::size_t height,
@@ -161,7 +161,7 @@ auto validate_params(JNIEnv *env, jint sample_bits, jint height, jint width,
                      jint image_stride, jint mask_stride, jint n_components,
                      jintArray component_indices) -> bool {
     using traits = jni_pixel_traits<PixelT>;
-    if (sample_bits < 1 || sample_bits > traits::max_sample_bits) {
+    if (sample_bits < 0 || sample_bits > traits::max_sample_bits) {
         throw_illegal_argument(env, traits::bit_error_msg);
         return false;
     }

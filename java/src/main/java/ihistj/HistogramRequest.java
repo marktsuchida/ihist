@@ -355,7 +355,7 @@ public final class HistogramRequest {
      * This determines the histogram size (2^bits bins per component).
      * Values outside the significant bit range are truncated.
      *
-     * @param bits 1-8 for 8-bit images, 1-16 for 16-bit images
+     * @param bits 0-8 for 8-bit images, 0-16 for 16-bit images
      * @return this builder
      */
     public HistogramRequest bits(int bits) {
@@ -556,9 +556,9 @@ public final class HistogramRequest {
 
         int effectiveBits = (sampleBits < 0) ? (is8Bit ? 8 : 16) : sampleBits;
         int maxBits = is8Bit ? 8 : 16;
-        if (effectiveBits < 1 || effectiveBits > maxBits) {
+        if (effectiveBits < 0 || effectiveBits > maxBits) {
             throw new IllegalArgumentException(
-                "sampleBits must be in range [1, " + maxBits + "]");
+                "sampleBits must be in range [0, " + maxBits + "]");
         }
 
         if (componentIndices != null) {

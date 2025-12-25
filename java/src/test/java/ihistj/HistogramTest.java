@@ -51,6 +51,16 @@ class HistogramTest {
             assertEquals(1, hist.get(2));
             assertEquals(1, hist.get(3));
         }
+
+        @Test
+        void withBits0() {
+            byte[] image = {0, 1, 0, 3, 0, 5, 6, 7};
+            IntBuffer hist =
+                HistogramRequest.forImage(image, 8, 1).bits(0).compute();
+
+            assertEquals(1, hist.remaining()); // 2^0 = 1 bin
+            assertEquals(3, hist.get(0));      // count of zero-valued pixels
+        }
     }
 
     @Nested

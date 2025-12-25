@@ -68,7 +68,7 @@ public final class IHistNative {
      *
      * <p>Buffer positions are used as the starting point for data access.
      *
-     * @param sampleBits      number of significant bits per sample (1-8);
+     * @param sampleBits      number of significant bits per sample (0-8);
      *                        determines histogram size (2^sampleBits bins per
      *                        component)
      * @param image           image pixel data buffer (position marks start of
@@ -111,7 +111,7 @@ public final class IHistNative {
      *
      * <p>Buffer positions are used as the starting point for data access.
      *
-     * @param sampleBits      number of significant bits per sample (1-16);
+     * @param sampleBits      number of significant bits per sample (0-16);
      *                        determines histogram size (2^sampleBits bins per
      *                        component)
      * @param image           image pixel data buffer (position marks start of

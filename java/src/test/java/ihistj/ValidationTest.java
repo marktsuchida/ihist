@@ -35,12 +35,6 @@ class ValidationTest {
 
             assertThrows(IllegalArgumentException.class,
                          ()
-                             -> IHistNative.histogram8(0, image, null, 1, 3, 3,
-                                                       3, 1, indices,
-                                                       histogram, false));
-
-            assertThrows(IllegalArgumentException.class,
-                         ()
                              -> IHistNative.histogram8(9, image, null, 1, 3, 3,
                                                        3, 1, indices,
                                                        histogram, false));
@@ -53,12 +47,6 @@ class ValidationTest {
             int[] histData = new int[65536];
             IntBuffer histogram = IntBuffer.wrap(histData);
             int[] indices = {0};
-
-            assertThrows(IllegalArgumentException.class,
-                         ()
-                             -> IHistNative.histogram16(0, image, null, 1, 3,
-                                                        3, 3, 1, indices,
-                                                        histogram, false));
 
             assertThrows(IllegalArgumentException.class,
                          ()
@@ -333,12 +321,6 @@ class ValidationTest {
             assertThrows(IllegalArgumentException.class,
                          ()
                              -> HistogramRequest.forImage(image, 4, 1)
-                                    .bits(0)
-                                    .compute());
-
-            assertThrows(IllegalArgumentException.class,
-                         ()
-                             -> HistogramRequest.forImage(image, 4, 1)
                                     .bits(9)
                                     .compute());
         }
@@ -346,12 +328,6 @@ class ValidationTest {
         @Test
         void invalidBits16() {
             short[] image = {0, 1, 2, 3};
-
-            assertThrows(IllegalArgumentException.class,
-                         ()
-                             -> HistogramRequest.forImage(image, 4, 1)
-                                    .bits(0)
-                                    .compute());
 
             assertThrows(IllegalArgumentException.class,
                          ()
@@ -581,9 +557,9 @@ class ValidationTest {
         void boundaryBitValues8() {
             byte[] image = {0, 1, 2, 3};
 
-            IntBuffer hist1 =
-                HistogramRequest.forImage(image, 4, 1).bits(1).compute();
-            assertEquals(2, hist1.remaining());
+            IntBuffer hist0 =
+                HistogramRequest.forImage(image, 4, 1).bits(0).compute();
+            assertEquals(1, hist0.remaining());
 
             IntBuffer hist8 =
                 HistogramRequest.forImage(image, 4, 1).bits(8).compute();
@@ -594,9 +570,9 @@ class ValidationTest {
         void boundaryBitValues16() {
             short[] image = {0, 1, 2, 3};
 
-            IntBuffer hist1 =
-                HistogramRequest.forImage(image, 4, 1).bits(1).compute();
-            assertEquals(2, hist1.remaining());
+            IntBuffer hist0 =
+                HistogramRequest.forImage(image, 4, 1).bits(0).compute();
+            assertEquals(1, hist0.remaining());
 
             IntBuffer hist16 =
                 HistogramRequest.forImage(image, 4, 1).bits(16).compute();
