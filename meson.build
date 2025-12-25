@@ -4,7 +4,7 @@
 
 project(
     'ihist',
-    'cpp',
+    'cpp', 'java',
     version: '0.1',
     meson_version: '>= 1.3.0',
     default_options: [

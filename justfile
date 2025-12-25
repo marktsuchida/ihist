@@ -210,9 +210,10 @@ cibuildwheel:
 
 # Build Java native library
 java-build:
-    meson setup --reconfigure builddir-jni -Djava-bindings=enabled \
+    uvx cjdk -j zulu:8 exec -- meson setup --reconfigure builddir-jni \
+        -Djava-bindings=enabled \
         -Dtests=disabled -Dbenchmarks=disabled
-    meson compile -C builddir-jni
+    uvx cjdk -j zulu:8 exec -- meson compile -C builddir-jni
 
 # Run Java tests (requires Maven)
 java-test: java-build
