@@ -110,21 +110,6 @@ class ValidationTest {
         }
 
         @Test
-        void emptyComponentIndices() {
-            byte[] imageData = {0, 1, 2};
-            ByteBuffer image = ByteBuffer.wrap(imageData);
-            int[] histData = new int[256];
-            IntBuffer histogram = IntBuffer.wrap(histData);
-            int[] indices = {};
-
-            assertThrows(IllegalArgumentException.class,
-                         ()
-                             -> IHistNative.histogram8(8, image, null, 1, 3, 3,
-                                                       3, 1, indices,
-                                                       histogram, false));
-        }
-
-        @Test
         void componentIndexOutOfRange() {
             byte[] imageData = {0, 1, 2,
                                 3, 4, 5}; // 2 pixels, 3 components each
@@ -541,16 +526,6 @@ class ValidationTest {
             for (int i = 0; i < 256; i++) {
                 assertEquals(0, hist2.get(i));
             }
-        }
-
-        @Test
-        void emptySelectComponents() {
-            byte[] image = new byte[12];
-            assertThrows(IllegalArgumentException.class,
-                         ()
-                             -> HistogramRequest.forImage(image, 4, 1, 3)
-                                    .selectComponents()
-                                    .compute());
         }
 
         @Test

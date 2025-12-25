@@ -283,6 +283,15 @@ class HistogramTest {
             assertEquals(1, hist.get(256 + 22));
             assertEquals(1, hist.get(256 + 23));
         }
+
+        @Test
+        void emptySelectComponents() {
+            byte[] image = new byte[12];
+            IntBuffer hist = HistogramRequest.forImage(image, 4, 1, 3)
+                                 .selectComponents()
+                                 .compute();
+            assertEquals(0, hist.remaining());
+        }
     }
 
     @Nested

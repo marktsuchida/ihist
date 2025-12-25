@@ -185,11 +185,6 @@ auto validate_params(JNIEnv *env, jint sample_bits, jint height, jint width,
         throw_null_pointer(env, "componentIndices cannot be null");
         return false;
     }
-    jsize const n_hist_components = env->GetArrayLength(component_indices);
-    if (n_hist_components < 1) {
-        throw_illegal_argument(env, "must histogram at least one component");
-        return false;
-    }
     return true;
 }
 
@@ -373,6 +368,10 @@ void histogram_impl(JNIEnv *env, jint sample_bits, jobject image_buffer,
 
     if (!validate_component_indices(env, indices,
                                     static_cast<std::size_t>(n_components))) {
+        return;
+    }
+
+    if (n_hist_components == 0) {
         return;
     }
 
