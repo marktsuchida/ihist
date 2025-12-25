@@ -528,5 +528,202 @@ class ValidationTest {
                 NullPointerException.class,
                 () -> HistogramRequest.forImage((ShortBuffer)null, 10, 10));
         }
+
+        @Test
+        void zeroDimensions() {
+            IntBuffer hist1 =
+                HistogramRequest.forImage(new byte[0], 0, 1).compute();
+            assertEquals(256, hist1.remaining());
+            for (int i = 0; i < 256; i++) {
+                assertEquals(0, hist1.get(i));
+            }
+
+            IntBuffer hist2 =
+                HistogramRequest.forImage(new byte[0], 1, 0).compute();
+            assertEquals(256, hist2.remaining());
+            for (int i = 0; i < 256; i++) {
+                assertEquals(0, hist2.get(i));
+            }
+        }
+
+        @Test
+        void zeroSizedRoi() {
+            byte[] image = new byte[100];
+
+            IntBuffer hist1 = HistogramRequest.forImage(image, 10, 10)
+                                  .roi(0, 0, 0, 5)
+                                  .compute();
+            assertEquals(256, hist1.remaining());
+            for (int i = 0; i < 256; i++) {
+                assertEquals(0, hist1.get(i));
+            }
+
+            IntBuffer hist2 = HistogramRequest.forImage(image, 10, 10)
+                                  .roi(0, 0, 5, 0)
+                                  .compute();
+            assertEquals(256, hist2.remaining());
+            for (int i = 0; i < 256; i++) {
+                assertEquals(0, hist2.get(i));
+            }
+        }
+
+        @Test
+        void emptySelectComponents() {
+            byte[] image = new byte[12];
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> HistogramRequest.forImage(image, 4, 1, 3)
+                                    .selectComponents()
+                                    .compute());
+        }
+
+        @Test
+        void boundaryBitValues8() {
+            byte[] image = {0, 1, 2, 3};
+
+            IntBuffer hist1 =
+                HistogramRequest.forImage(image, 4, 1).bits(1).compute();
+            assertEquals(2, hist1.remaining());
+
+            IntBuffer hist8 =
+                HistogramRequest.forImage(image, 4, 1).bits(8).compute();
+            assertEquals(256, hist8.remaining());
+        }
+
+        @Test
+        void boundaryBitValues16() {
+            short[] image = {0, 1, 2, 3};
+
+            IntBuffer hist1 =
+                HistogramRequest.forImage(image, 4, 1).bits(1).compute();
+            assertEquals(2, hist1.remaining());
+
+            IntBuffer hist16 =
+                HistogramRequest.forImage(image, 4, 1).bits(16).compute();
+            assertEquals(65536, hist16.remaining());
+        }
+
+        @Test
+        void multipleBitsCalls() {
+            byte[] image = {0, 1, 2, 3};
+            IntBuffer hist = HistogramRequest.forImage(image, 4, 1)
+                                 .bits(8)
+                                 .bits(4)
+                                 .compute();
+            assertEquals(16, hist.remaining());
+        }
+
+        @Test
+        void multipleRoiCalls() {
+            byte[] image = new byte[100];
+            for (int i = 0; i < 100; i++)
+                image[i] = (byte)i;
+
+            IntBuffer hist = HistogramRequest.forImage(image, 10, 10)
+                                 .roi(0, 0, 5, 5)
+                                 .roi(0, 0, 2, 2)
+                                 .compute();
+
+            int total = 0;
+            for (int i = 0; i < 256; i++) {
+                total += hist.get(i);
+            }
+            assertEquals(4, total);
+        }
+
+        @Test
+        void multipleSelectComponentsCalls() {
+            byte[] image = {10, 20, 30, 11, 21, 31}; // 2 pixels, 3 components
+            IntBuffer hist = HistogramRequest.forImage(image, 2, 1, 3)
+                                 .selectComponents(0, 1, 2)
+                                 .selectComponents(0)
+                                 .compute();
+            assertEquals(256, hist.remaining());
+            assertEquals(1, hist.get(10));
+            assertEquals(1, hist.get(11));
+        }
+
+        @Test
+        void multipleMaskCalls() {
+            byte[] image = {0, 1, 2, 3};
+            byte[] mask1 = {1, 1, 1, 1};
+            byte[] mask2 = {1, 0, 0, 0};
+
+            IntBuffer hist = HistogramRequest.forImage(image, 4, 1)
+                                 .mask(mask1, 4, 1)
+                                 .mask(mask2, 4, 1)
+                                 .compute();
+
+            int total = 0;
+            for (int i = 0; i < 256; i++) {
+                total += hist.get(i);
+            }
+            assertEquals(1, total);
+        }
+
+        @Test
+        void roiOverflow() {
+            byte[] image = new byte[100];
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> HistogramRequest.forImage(image, 10, 10)
+                                    .roi(Integer.MAX_VALUE, 0, 1, 1)
+                                    .compute());
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> HistogramRequest.forImage(image, 10, 10)
+                                    .roi(0, Integer.MAX_VALUE, 1, 1)
+                                    .compute());
+        }
+
+        @Test
+        void nonSequentialComponentIndices() {
+            byte[] image = {10, 20, 30, 11, 21, 31}; // 2 pixels, 3 components
+            IntBuffer hist = HistogramRequest.forImage(image, 2, 1, 3)
+                                 .selectComponents(2, 0, 1)
+                                 .compute();
+            assertEquals(3 * 256, hist.remaining());
+            assertEquals(1, hist.get(30));
+            assertEquals(1, hist.get(31));
+            assertEquals(1, hist.get(256 + 10));
+            assertEquals(1, hist.get(256 + 11));
+            assertEquals(1, hist.get(512 + 20));
+            assertEquals(1, hist.get(512 + 21));
+        }
+
+        @Test
+        void duplicateComponentIndices() {
+            byte[] image = {10, 20, 30, 11, 21, 31}; // 2 pixels, 3 components
+            IntBuffer hist = HistogramRequest.forImage(image, 2, 1, 3)
+                                 .selectComponents(0, 0)
+                                 .compute();
+            assertEquals(2 * 256, hist.remaining());
+            assertEquals(1, hist.get(10));
+            assertEquals(1, hist.get(11));
+            assertEquals(1, hist.get(256 + 10));
+            assertEquals(1, hist.get(256 + 11));
+        }
+
+        @Test
+        void zeroCapacityOutputBuffer() {
+            byte[] image = {0, 1, 2, 3};
+            IntBuffer output = IntBuffer.allocate(0);
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> HistogramRequest.forImage(image, 4, 1)
+                                    .output(output)
+                                    .compute());
+        }
+
+        @Test
+        void imageBufferTooSmall() {
+            byte[] image = new byte[10];
+
+            assertThrows(IllegalArgumentException.class,
+                         () -> HistogramRequest.forImage(image, 10, 10));
+        }
     }
 }
