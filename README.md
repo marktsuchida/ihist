@@ -56,7 +56,7 @@ Total pixel count must not exceed `2^32-1`.
 
 **`bits`** : *int, optional*
 Number of significant bits per sample. If not specified, defaults to full depth
-(8 for uint8, 16 for uint16). Valid range: `[1, 8]` for uint8, `[1, 16]` for
+(8 for uint8, 16 for uint16). Valid range: `[0, 8]` for uint8, `[0, 16]` for
 uint16.
 
 **`mask`** : *array_like, optional*

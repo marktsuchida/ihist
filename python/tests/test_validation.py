@@ -71,11 +71,19 @@ class TestBitsParameterValidation:
         hist = ihist.histogram(image, bits=2)
         assert hist.shape == (4,)
 
-    def test_bits_invalid_too_low(self):
-        """Test that bits < 1 raises error."""
-        image = np.array([0], dtype=np.uint8)
-        with pytest.raises(ValueError, match="bits must be in range"):
-            ihist.histogram(image, bits=0)
+    def test_bits_zero_uint8(self):
+        """Test bits=0 produces 1 bin for uint8; only value 0 is counted."""
+        image = np.array([0, 0, 0, 1, 127, 255], dtype=np.uint8)
+        hist = ihist.histogram(image, bits=0)
+        assert hist.shape == (1,)
+        assert hist[0] == 3
+
+    def test_bits_zero_uint16(self):
+        """Test bits=0 produces 1 bin for uint16; only value 0 is counted."""
+        image = np.array([0, 0, 1, 32767, 65535], dtype=np.uint16)
+        hist = ihist.histogram(image, bits=0)
+        assert hist.shape == (1,)
+        assert hist[0] == 2
 
     def test_bits_negative(self):
         """Test that negative bits raises error."""

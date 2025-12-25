@@ -241,9 +241,9 @@ nb::object histogram(nb::ndarray<nb::ro> image,
     std::size_t sample_bits = max_bits;
     if (!bits_obj.is_none()) {
         auto const bits_signed = nb::cast<std::int64_t>(bits_obj);
-        if (bits_signed < 1 ||
+        if (bits_signed < 0 ||
             static_cast<std::size_t>(bits_signed) > max_bits) {
-            throw std::invalid_argument("bits must be in range [1, " +
+            throw std::invalid_argument("bits must be in range [0, " +
                                         std::to_string(max_bits) + "], got " +
                                         std::to_string(bits_signed));
         }
@@ -418,8 +418,8 @@ NB_MODULE(_ihist_bindings, m) {
 
         bits : int, optional
             Number of significant bits per sample. If not specified, defaults
-            to full depth (8 for uint8, 16 for uint16). Valid range: [1, 8] for
-            uint8, [1, 16] for uint16.
+            to full depth (8 for uint8, 16 for uint16). Valid range: [0, 8] for
+            uint8, [0, 16] for uint16.
 
         mask : array_like, optional
             Per-pixel mask. Must be uint8, 2D, shape (H, W). Only pixels with
