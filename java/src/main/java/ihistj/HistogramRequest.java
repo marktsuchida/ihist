@@ -556,7 +556,7 @@ public final class HistogramRequest {
 
         int effectiveBits = (sampleBits < 0) ? (is8Bit ? 8 : 16) : sampleBits;
         int maxBits = is8Bit ? 8 : 16;
-        if (effectiveBits < 0 || effectiveBits > maxBits) {
+        if (effectiveBits > maxBits) {
             throw new IllegalArgumentException(
                 "sampleBits must be in range [0, " + maxBits + "]");
         }
