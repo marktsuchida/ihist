@@ -129,7 +129,7 @@ IntBuffer hist = HistogramRequest.forImage(image, 100, 100)
 
 ### Classes
 
-**`HistogramRequest`** - Builder for advanced use cases:
+**`HistogramRequest`** - Builder-style interface:
 
 ```java
 // Multi-component image (e.g., RGB)
@@ -143,6 +143,8 @@ IntBuffer hist = HistogramRequest.forImage(image, width, height, 3)
     .accumulate(true)               // Add to existing values
     .parallel(true)                 // Allow multi-threading
     .compute();
+
+// All methods except for forImage() and compute() are optional.
 
 // The returned IntBuffer has position/limit set to cover the histogram data.
 // If output(IntBuffer) was used, the returned buffer is a duplicate that shares
