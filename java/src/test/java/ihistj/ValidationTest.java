@@ -400,6 +400,21 @@ class ValidationTest {
         }
 
         @Test
+        void outputBufferTooSmallWithSelectComponents() {
+            byte[] image = {0, 1, 2, 3, 4, 5, 6, 7}; // 2 pixels, 4 components
+
+            // Select 2 components, need 2 * 256 = 512 ints
+            IntBuffer tooSmall = IntBuffer.allocate(256);
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> HistogramRequest.forImage(image, 2, 1, 4)
+                                    .selectComponents(0, 1)
+                                    .output(tooSmall)
+                                    .compute());
+        }
+
+        @Test
         void readOnlyHistogramBufferRejected() {
             byte[] image = {0, 1, 2, 3};
             IntBuffer histogram = IntBuffer.allocate(256).asReadOnlyBuffer();

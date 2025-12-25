@@ -576,7 +576,10 @@ public final class HistogramRequest {
                 throw new IllegalArgumentException(
                     "output histogram buffer cannot be read-only");
             }
-            int histSize = getHistSize();
+            int nHistComponents = (componentIndices != null)
+                                      ? componentIndices.length
+                                      : nComponents;
+            int histSize = nHistComponents * (1 << effectiveBits);
             if (outputBuffer.remaining() < histSize) {
                 throw new IllegalArgumentException(
                     "output IntBuffer has insufficient capacity: " +
@@ -591,13 +594,6 @@ public final class HistogramRequest {
             indices[i] = i;
         }
         return indices;
-    }
-
-    private int getHistSize() {
-        int effectiveBits = (sampleBits < 0) ? (is8Bit ? 8 : 16) : sampleBits;
-        int nHistComponents =
-            (componentIndices != null) ? componentIndices.length : nComponents;
-        return nHistComponents * (1 << effectiveBits);
     }
 
     // Prepare 8-bit image buffer for JNI call
