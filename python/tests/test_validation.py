@@ -77,6 +77,12 @@ class TestBitsParameterValidation:
         with pytest.raises(ValueError, match="bits must be in range"):
             ihist.histogram(image, bits=0)
 
+    def test_bits_negative(self):
+        """Test that negative bits raises error."""
+        image = np.array([0], dtype=np.uint8)
+        with pytest.raises(ValueError, match="bits must be in range"):
+            ihist.histogram(image, bits=-1)
+
     def test_bits_invalid_too_high_uint8(self):
         """Test that bits > 8 raises error for uint8."""
         image = np.array([0], dtype=np.uint8)
@@ -88,6 +94,53 @@ class TestBitsParameterValidation:
         image = np.array([0], dtype=np.uint16)
         with pytest.raises(ValueError, match="bits must be in range"):
             ihist.histogram(image, bits=17)
+
+    def test_bits_minimum_1_uint8(self):
+        """Test bits=1 produces 2 bins for uint8."""
+        image = np.array([0, 1, 0, 1], dtype=np.uint8)
+        hist = ihist.histogram(image, bits=1)
+        assert hist.shape == (2,)
+        assert hist[0] == 2
+        assert hist[1] == 2
+
+    def test_bits_minimum_1_uint16(self):
+        """Test bits=1 produces 2 bins for uint16."""
+        image = np.array([0, 1, 0, 1], dtype=np.uint16)
+        hist = ihist.histogram(image, bits=1)
+        assert hist.shape == (2,)
+        assert hist[0] == 2
+        assert hist[1] == 2
+
+    def test_values_beyond_bits_discarded_uint8(self):
+        """Test that values with bits beyond sample_bits are discarded."""
+        image = np.array([0, 1, 15, 16, 255], dtype=np.uint8)
+        hist = ihist.histogram(image, bits=4)
+        assert hist.shape == (16,)
+        assert hist[0] == 1
+        assert hist[1] == 1
+        assert hist[15] == 1
+        assert hist.sum() == 3
+
+    def test_values_beyond_bits_discarded_uint16(self):
+        """Test that uint16 values beyond 8 bits are discarded with bits=8."""
+        image = np.array([0, 255, 256, 1000, 65535], dtype=np.uint16)
+        hist = ihist.histogram(image, bits=8)
+        assert hist.shape == (256,)
+        assert hist[0] == 1
+        assert hist[255] == 1
+        assert hist.sum() == 2
+
+    def test_16bit_with_reduced_bits_common_case(self):
+        """Test uint16 with bits=8 (common use case for reducing histogram size)."""
+        image = np.zeros((10, 10), dtype=np.uint16)
+        image[0, 0] = 0
+        image[0, 1] = 127
+        image[0, 2] = 255
+        hist = ihist.histogram(image, bits=8)
+        assert hist.shape == (256,)
+        assert hist[0] == 98
+        assert hist[127] == 1
+        assert hist[255] == 1
 
 
 class TestMaskParameterValidation:
@@ -113,6 +166,22 @@ class TestMaskParameterValidation:
         mask = np.array([[1, 0, 0]], dtype=np.uint8)  # Shape (1, 3)
         with pytest.raises(ValueError, match="does not match image shape"):
             ihist.histogram(image, mask=mask)
+
+    def test_mask_all_zeros(self):
+        """Test that all-zero mask produces empty histogram."""
+        image = np.array([[10, 20], [30, 40]], dtype=np.uint8)
+        mask = np.zeros((2, 2), dtype=np.uint8)
+        hist = ihist.histogram(image, mask=mask)
+        assert hist.shape == (256,)
+        assert hist.sum() == 0
+
+    def test_mask_all_ones(self):
+        """Test that all-ones mask is equivalent to no mask."""
+        image = np.array([[10, 20], [30, 40]], dtype=np.uint8)
+        mask = np.ones((2, 2), dtype=np.uint8)
+        hist_masked = ihist.histogram(image, mask=mask)
+        hist_unmasked = ihist.histogram(image)
+        np.testing.assert_array_equal(hist_masked, hist_unmasked)
 
 
 class TestComponentsParameterValidation:
@@ -163,6 +232,47 @@ class TestComponentsParameterValidation:
         assert hist[0, 10] == 1  # First R
         assert hist[1, 10] == 1  # Second R (same as first)
         assert hist[2, 20] == 1  # G
+
+    def test_components_negative_index(self):
+        """Test that negative component index raises error."""
+        image = np.zeros((10, 10, 3), dtype=np.uint8)
+        with pytest.raises(
+            ValueError, match="Component index .* out of range"
+        ):
+            ihist.histogram(image, components=[-1])
+
+    def test_components_out_of_order(self):
+        """Test that out-of-order component indices work correctly."""
+        image = np.zeros((2, 2, 3), dtype=np.uint8)
+        image[:, :, 0] = 10  # R
+        image[:, :, 1] = 20  # G
+        image[:, :, 2] = 30  # B
+
+        hist = ihist.histogram(image, components=[2, 1, 0])
+
+        assert hist.shape == (3, 256)
+        assert hist[0, 30] == 4  # B (first in output)
+        assert hist[1, 20] == 4  # G (second in output)
+        assert hist[2, 10] == 4  # R (third in output)
+
+    def test_components_on_2d_image_valid(self):
+        """Test that components=[0] works on 2D image (single component)."""
+        image = np.array([[10, 20], [30, 40]], dtype=np.uint8)
+        hist = ihist.histogram(image, components=[0])
+
+        assert hist.shape == (1, 256)
+        assert hist[0, 10] == 1
+        assert hist[0, 20] == 1
+        assert hist[0, 30] == 1
+        assert hist[0, 40] == 1
+
+    def test_components_on_2d_image_invalid(self):
+        """Test that components=[1] on 2D image raises error."""
+        image = np.array([[10, 20], [30, 40]], dtype=np.uint8)
+        with pytest.raises(
+            ValueError, match="Component index .* out of range"
+        ):
+            ihist.histogram(image, components=[1])
 
 
 class TestOutParameterValidation:
@@ -242,6 +352,17 @@ class TestOutParameterValidation:
         mask = buf.view(np.uint8)[:100].reshape(10, 10)
         with pytest.raises(ValueError, match="overlaps with mask"):
             ihist.histogram(image, mask=mask, out=buf)
+
+    def test_out_with_reduced_bits(self):
+        """Test that out with reduced bits works correctly."""
+        image = np.array([0, 1, 2, 3, 4, 5, 6, 7], dtype=np.uint8)
+        out = np.zeros(16, dtype=np.uint32)
+        result = ihist.histogram(image, bits=4, out=out)
+
+        assert result is out
+        assert result.shape == (16,)
+        for i in range(8):
+            assert result[i] == 1
 
 
 class TestParameterCombinations:
@@ -349,6 +470,21 @@ class TestAccumulateParameter:
         # Both should give the same result
         np.testing.assert_array_equal(hist1, hist2)
 
+    def test_accumulate_multiple_calls(self):
+        """Test that multiple histogram calls accumulate correctly."""
+        image1 = np.array([0, 1, 2], dtype=np.uint8)
+        image2 = np.array([0, 0, 3], dtype=np.uint8)
+        out = np.zeros(256, dtype=np.uint32)
+
+        ihist.histogram(image1, out=out, accumulate=False)
+        ihist.histogram(image2, out=out, accumulate=True)
+
+        assert out[0] == 3  # 1 from image1 + 2 from image2
+        assert out[1] == 1  # 1 from image1
+        assert out[2] == 1  # 1 from image1
+        assert out[3] == 1  # 1 from image2
+        assert out.sum() == 6
+
 
 class TestEmptyInputs:
     """Test handling of empty inputs (zero-sized dimensions)."""
@@ -409,3 +545,28 @@ class TestEmptyInputs:
         hist = ihist.histogram(image, bits=12)
         assert hist.shape == (4096,)
         assert hist.sum() == 0
+
+
+class TestParallelParameter:
+    """Test parallel parameter behavior."""
+
+    def test_parallel_true_runs(self):
+        """Test that parallel=True (default) works."""
+        image = np.arange(100, dtype=np.uint8).reshape(10, 10)
+        hist = ihist.histogram(image, parallel=True)
+        assert hist.shape == (256,)
+        assert hist.sum() == 100
+
+    def test_parallel_false_runs(self):
+        """Test that parallel=False works."""
+        image = np.arange(100, dtype=np.uint8).reshape(10, 10)
+        hist = ihist.histogram(image, parallel=False)
+        assert hist.shape == (256,)
+        assert hist.sum() == 100
+
+    def test_parallel_produces_same_result(self):
+        """Test that parallel=True and parallel=False produce identical results."""
+        image = np.random.randint(0, 256, (100, 100), dtype=np.uint8)
+        hist_parallel = ihist.histogram(image, parallel=True)
+        hist_serial = ihist.histogram(image, parallel=False)
+        np.testing.assert_array_equal(hist_parallel, hist_serial)

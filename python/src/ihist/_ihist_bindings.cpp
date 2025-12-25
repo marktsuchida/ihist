@@ -240,12 +240,14 @@ nb::object histogram(nb::ndarray<nb::ro> image,
 
     std::size_t sample_bits = max_bits;
     if (!bits_obj.is_none()) {
-        sample_bits = nb::cast<std::size_t>(bits_obj);
-        if (sample_bits < 1 || sample_bits > max_bits) {
+        auto const bits_signed = nb::cast<std::int64_t>(bits_obj);
+        if (bits_signed < 1 ||
+            static_cast<std::size_t>(bits_signed) > max_bits) {
             throw std::invalid_argument("bits must be in range [1, " +
                                         std::to_string(max_bits) + "], got " +
-                                        std::to_string(sample_bits));
+                                        std::to_string(bits_signed));
         }
+        sample_bits = static_cast<std::size_t>(bits_signed);
     }
 
     std::size_t const n_hist_components =
@@ -257,18 +259,20 @@ nb::object histogram(nb::ndarray<nb::ro> image,
     std::iota(component_indices.begin(), component_indices.end(), 0);
     if (!components_obj.is_none()) {
         auto const components_seq = nb::cast<nb::sequence>(components_obj);
-        std::transform(component_indices.begin(), component_indices.end(),
-                       component_indices.begin(), [&](std::size_t i) {
-                           std::size_t const idx =
-                               nb::cast<std::size_t>(components_seq[i]);
-                           if (idx >= n_components) {
-                               throw std::invalid_argument(
-                                   "Component index " + std::to_string(idx) +
-                                   " out of range [0, " +
-                                   std::to_string(n_components) + ")");
-                           }
-                           return idx;
-                       });
+        std::transform(
+            component_indices.begin(), component_indices.end(),
+            component_indices.begin(), [&](std::size_t i) {
+                auto const idx_signed =
+                    nb::cast<std::int64_t>(components_seq[i]);
+                if (idx_signed < 0 ||
+                    static_cast<std::size_t>(idx_signed) >= n_components) {
+                    throw std::invalid_argument(
+                        "Component index " + std::to_string(idx_signed) +
+                        " out of range [0, " + std::to_string(n_components) +
+                        ")");
+                }
+                return static_cast<std::size_t>(idx_signed);
+            });
     }
 
     MaskView const msk = [&]() {
