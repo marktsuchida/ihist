@@ -166,7 +166,7 @@ auto validate_params(JNIEnv *env, jint sample_bits, jint height, jint width,
         return false;
     }
     if (height < 0 || width < 0) {
-        throw_illegal_argument(env, "height and width must be non-negative");
+        throw_illegal_argument(env, "height and width must be >= 0");
         return false;
     }
     if (image_stride < width) {
@@ -177,8 +177,8 @@ auto validate_params(JNIEnv *env, jint sample_bits, jint height, jint width,
         throw_illegal_argument(env, "maskStride must be >= width");
         return false;
     }
-    if (n_components < 1) {
-        throw_illegal_argument(env, "nComponents must be >= 1");
+    if (n_components < 0) {
+        throw_illegal_argument(env, "nComponents must be >= 0");
         return false;
     }
     if (component_indices == nullptr) {

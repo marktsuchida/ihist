@@ -90,8 +90,8 @@ public final class HistogramRequest {
             throw new IllegalArgumentException(
                 "dimensions must be non-negative");
         }
-        if (nComponents < 1) {
-            throw new IllegalArgumentException("nComponents must be >= 1");
+        if (nComponents < 0) {
+            throw new IllegalArgumentException("nComponents must be >= 0");
         }
         long requiredSize = (long)width * height * nComponents;
         if (image.remaining() < requiredSize) {

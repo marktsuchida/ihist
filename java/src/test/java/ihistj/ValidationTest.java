@@ -91,7 +91,7 @@ class ValidationTest {
             assertThrows(IllegalArgumentException.class,
                          ()
                              -> IHistNative.histogram8(8, image, null, 1, 3, 3,
-                                                       3, 0, indices,
+                                                       3, -1, indices,
                                                        histogram, false));
         }
 
@@ -311,7 +311,7 @@ class ValidationTest {
             byte[] image = {0, 1, 2, 3};
 
             assertThrows(IllegalArgumentException.class,
-                         () -> HistogramRequest.forImage(image, 4, 1, 0));
+                         () -> HistogramRequest.forImage(image, 4, 1, -1));
         }
 
         @Test
