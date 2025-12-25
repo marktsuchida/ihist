@@ -514,5 +514,19 @@ class ValidationTest {
 
             assertNotNull(result);
         }
+
+        @Test
+        void nullByteBuffer() {
+            assertThrows(
+                NullPointerException.class,
+                () -> HistogramRequest.forImage((ByteBuffer)null, 10, 10));
+        }
+
+        @Test
+        void nullShortBuffer() {
+            assertThrows(
+                NullPointerException.class,
+                () -> HistogramRequest.forImage((ShortBuffer)null, 10, 10));
+        }
     }
 }
