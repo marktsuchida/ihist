@@ -203,6 +203,18 @@ class IHistNativeTest {
         }
 
         @Test
+        void emptyComponentIndices() {
+            byte[] imageData = {0, 1, 2};
+            ByteBuffer image = ByteBuffer.wrap(imageData);
+            int[] histData = new int[256];
+            IntBuffer histogram = IntBuffer.wrap(histData);
+            int[] indices = {};
+
+            IHistNative.histogram8(8, image, null, 1, 3, 3, 3, 1, indices,
+                                   histogram, false);
+        }
+
+        @Test
         void emptyImage() {
             byte[] imageData = {};
             ByteBuffer image = ByteBuffer.wrap(imageData);
@@ -258,18 +270,6 @@ class IHistNativeTest {
             assertEquals(1, histData[127]);
             assertEquals(1, histData[128]); // -128 in Java = 128 unsigned
             assertEquals(1, histData[255]); // -1 in Java = 255 unsigned
-        }
-
-        @Test
-        void emptyComponentIndices() {
-            byte[] imageData = {0, 1, 2};
-            ByteBuffer image = ByteBuffer.wrap(imageData);
-            int[] histData = new int[256];
-            IntBuffer histogram = IntBuffer.wrap(histData);
-            int[] indices = {};
-
-            IHistNative.histogram8(8, image, null, 1, 3, 3, 3, 1, indices,
-                                   histogram, false);
         }
     }
 

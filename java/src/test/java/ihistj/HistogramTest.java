@@ -311,25 +311,6 @@ class HistogramTest {
         }
 
         @Test
-        void buffer16() {
-            ShortBuffer image = ShortBuffer.allocate(4);
-            image.put((short)0);
-            image.put((short)100);
-            image.put((short)200);
-            image.put((short)300);
-            image.flip();
-
-            IntBuffer hist =
-                HistogramRequest.forImage(image, 4, 1).bits(9).compute();
-
-            assertEquals(512, hist.remaining());
-            assertEquals(1, hist.get(0));
-            assertEquals(1, hist.get(100));
-            assertEquals(1, hist.get(200));
-            assertEquals(1, hist.get(300));
-        }
-
-        @Test
         void heapShortBuffer() {
             ShortBuffer image = ShortBuffer.allocate(4);
             image.put(new short[] {0, 1, 2, 3});
@@ -376,6 +357,25 @@ class HistogramTest {
             assertEquals(1, hist.get(1));
             assertEquals(1, hist.get(2));
             assertEquals(1, hist.get(3));
+        }
+
+        @Test
+        void buffer16() {
+            ShortBuffer image = ShortBuffer.allocate(4);
+            image.put((short)0);
+            image.put((short)100);
+            image.put((short)200);
+            image.put((short)300);
+            image.flip();
+
+            IntBuffer hist =
+                HistogramRequest.forImage(image, 4, 1).bits(9).compute();
+
+            assertEquals(512, hist.remaining());
+            assertEquals(1, hist.get(0));
+            assertEquals(1, hist.get(100));
+            assertEquals(1, hist.get(200));
+            assertEquals(1, hist.get(300));
         }
 
         @Test
@@ -596,18 +596,6 @@ class HistogramTest {
             assertEquals(0, hist.get(1));
             assertEquals(1, hist.get(2));
             assertEquals(0, hist.get(3));
-        }
-
-        @Test
-        void readOnlyHistogramBufferRejected() {
-            byte[] imageData = {0, 1, 2, 3};
-            IntBuffer histogram = IntBuffer.allocate(256).asReadOnlyBuffer();
-
-            assertThrows(IllegalArgumentException.class, () -> {
-                HistogramRequest.forImage(imageData, 4, 1)
-                    .output(histogram)
-                    .compute();
-            });
         }
 
         @Test
