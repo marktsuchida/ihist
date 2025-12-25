@@ -676,5 +676,87 @@ class ValidationTest {
             assertThrows(IllegalArgumentException.class,
                          () -> HistogramRequest.forImage(image, 10, 10));
         }
+
+        @Test
+        void maskWithNegativeWidth() {
+            byte[] image = new byte[16];
+            byte[] mask = new byte[16];
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> HistogramRequest.forImage(image, 4, 4)
+                                    .mask(mask, -1, 4));
+        }
+
+        @Test
+        void maskWithNegativeHeight() {
+            byte[] image = new byte[16];
+            byte[] mask = new byte[16];
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> HistogramRequest.forImage(image, 4, 4)
+                                    .mask(mask, 4, -1));
+        }
+
+        @Test
+        void maskBufferTooSmall() {
+            byte[] image = new byte[16];
+            byte[] mask = new byte[10];
+
+            assertThrows(
+                IllegalArgumentException.class,
+                () -> HistogramRequest.forImage(image, 4, 4).mask(mask, 5, 5));
+        }
+
+        @Test
+        void nullShortArrayImage() {
+            assertThrows(
+                NullPointerException.class,
+                () -> HistogramRequest.forImage((short[])null, 10, 10));
+        }
+
+        @Test
+        void nullMaskClearsMask() {
+            byte[] image = {0, 1, 2, 3};
+
+            IntBuffer hist = HistogramRequest.forImage(image, 4, 1)
+                                 .mask(new byte[] {1, 0, 0, 0}, 4, 1)
+                                 .mask((byte[])null, 0, 0)
+                                 .compute();
+
+            assertEquals(1, hist.get(0));
+            assertEquals(1, hist.get(1));
+            assertEquals(1, hist.get(2));
+            assertEquals(1, hist.get(3));
+        }
+
+        @Test
+        void nullOutputClearsOutput() {
+            byte[] image = {0, 1, 2, 3};
+            int[] output = new int[256];
+
+            IntBuffer hist = HistogramRequest.forImage(image, 4, 1)
+                                 .output(output)
+                                 .output((int[])null)
+                                 .compute();
+
+            assertNotNull(hist);
+            assertEquals(0, output[0]);
+        }
+
+        @Test
+        void maskOffsetYExceedsMaskHeight() {
+            byte[] image = new byte[100];
+            byte[] mask = new byte[100];
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> HistogramRequest.forImage(image, 10, 10)
+                                    .roi(0, 0, 5, 5)
+                                    .mask(mask, 10, 10)
+                                    .maskOffset(0, 6)
+                                    .compute());
+        }
     }
 }
