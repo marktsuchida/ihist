@@ -325,6 +325,11 @@ auto validate_params(JNIEnv *env, jint sample_bits, jint height, jint width,
         throw_illegal_argument(env, "height and width must be >= 0");
         return false;
     }
+    if (static_cast<std::int64_t>(width) * height > INT_MAX) {
+        throw_illegal_argument(
+            env, "width * height must not exceed Integer.MAX_VALUE");
+        return false;
+    }
     if (image_stride < width) {
         throw_illegal_argument(env, "imageStride must be >= width");
         return false;
