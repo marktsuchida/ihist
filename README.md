@@ -139,7 +139,7 @@ IntBuffer hist = HistogramRequest.forImage(image, width, height, 3)
     .mask(maskData, maskWidth, maskHeight)  // Per-pixel mask with dimensions
     .maskOffset(offsetX, offsetY)   // Mask offset for ROI alignment
     .bits(sampleBits)               // Significant bits per sample
-    .output(preallocatedBuffer)     // Pre-allocated output (int[] or IntBuffer)
+    .output(preallocatedBuffer)     // Pre-allocated output (size must be exact)
     .accumulate(true)               // Add to existing values
     .parallel(true)                 // Allow multi-threading
     .compute();
@@ -199,6 +199,13 @@ input types work.
 
 - **Accumulation**: Like the C API, histogram values are accumulated. Use
   `.accumulate(false)` (default) to zero the output first.
+
+- **Exact buffer sizes**: Buffer and array parameters must have exactly the
+  required size (not just at least the required size). For the image buffer,
+  this is `width * height * nComponents`; for the mask, `width * height`; for
+  the histogram output, `nHistComponents * 2^bits`. For buffers, the size that
+  must match is the value of `remaining()` (distance from `position()` to
+  `limit()`), not `capacity()`.
 
 - **Thread safety**: The histogram functions are thread-safe for independent
   calls. Multiple threads can compute histograms simultaneously.

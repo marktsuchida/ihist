@@ -43,7 +43,7 @@ abstract class HistogramTestBase {
     @Test
     void simpleGrayscale() {
         Buffer image = wrapImage(0, 1, 1, 2, 2, 2);
-        int[] histData = new int[histogramSize()];
+        int[] histData = new int[256];
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {0};
 
@@ -58,7 +58,7 @@ abstract class HistogramTestBase {
     @Test
     void withOffset() {
         Buffer image = wrapImageWithPrefix(2, 0, 1, 2);
-        int[] histData = new int[histogramSize()];
+        int[] histData = new int[256];
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {0};
 
@@ -93,7 +93,7 @@ abstract class HistogramTestBase {
         byte[] maskData = {99, 99, 1, 0, 1, 0};
         ByteBuffer mask = ByteBuffer.wrap(maskData);
         mask.position(2);
-        int[] histData = new int[histogramSize()];
+        int[] histData = new int[256];
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {0};
 
@@ -109,7 +109,7 @@ abstract class HistogramTestBase {
     @Test
     void emptyComponentIndices() {
         Buffer image = wrapImage(0, 1, 2);
-        int[] histData = new int[histogramSize()];
+        int[] histData = new int[0];
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {};
 
@@ -120,14 +120,14 @@ abstract class HistogramTestBase {
     @Test
     void emptyImage() {
         Buffer image = wrapImage();
-        int[] histData = new int[histogramSize()];
+        int[] histData = new int[256];
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {0};
 
         invokeHistogram(8, image, null, 0, 0, 0, 0, 1, indices, histogram,
                         false);
 
-        for (int i = 0; i < histogramSize(); i++) {
+        for (int i = 0; i < 256; i++) {
             assertEquals(0, histData[i]);
         }
     }
@@ -150,8 +150,9 @@ abstract class HistogramTestBase {
 
     @Test
     void strideHandlingMultiRow() {
-        Buffer image = wrapImage(0, 1, 99, 99, 2, 3, 99, 99);
-        int[] histData = new int[histogramSize()];
+        // height=2, width=2, stride=4: requires (2-1)*4+2 = 6 elements
+        Buffer image = wrapImage(0, 1, 99, 99, 2, 3);
+        int[] histData = new int[256];
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {0};
 
@@ -264,6 +265,7 @@ abstract class HistogramTestBase {
 
     @Test
     void exactBoundaryCapacity() {
+        // 2 rows, width=2, stride=3: need (2-1)*3+2 = 5 elements
         Buffer exact = allocateDirectImage(5);
         putToDirectImage(exact, 0, 1, 99, 2, 3);
         ((Buffer)exact).flip();
@@ -271,6 +273,10 @@ abstract class HistogramTestBase {
         Buffer tooSmall = allocateDirectImage(4);
         putToDirectImage(tooSmall, 0, 1, 99, 2);
         ((Buffer)tooSmall).flip();
+
+        Buffer tooLarge = allocateDirectImage(6);
+        putToDirectImage(tooLarge, 0, 1, 99, 2, 3, 99);
+        ((Buffer)tooLarge).flip();
 
         int[] histData = new int[256];
         IntBuffer histogram = IntBuffer.wrap(histData);
@@ -285,6 +291,11 @@ abstract class HistogramTestBase {
                      ()
                          -> invokeHistogram(8, tooSmall, null, 2, 2, 3, 3, 1,
                                             indices, histogram, false));
+
+        assertThrows(IllegalArgumentException.class,
+                     ()
+                         -> invokeHistogram(8, tooLarge, null, 2, 2, 3, 3, 1,
+                                            indices, histogram, false));
     }
 
     // Mixed buffer tests
@@ -295,7 +306,7 @@ abstract class HistogramTestBase {
         putToDirectImage(image, 0, 1, 2, 3);
         ((Buffer)image).flip();
 
-        int[] histData = new int[histogramSize()];
+        int[] histData = new int[256];
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {0};
 
@@ -335,7 +346,7 @@ abstract class HistogramTestBase {
         byte[] maskData = {1, 0, 1, 0};
         ByteBuffer mask = ByteBuffer.wrap(maskData);
 
-        int[] histData = new int[histogramSize()];
+        int[] histData = new int[256];
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {0};
 
@@ -357,7 +368,7 @@ abstract class HistogramTestBase {
             vals[i] = i % 256;
         }
         Buffer image = wrapImage(vals);
-        int[] histData = new int[histogramSize()];
+        int[] histData = new int[256];
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {0};
 
@@ -375,7 +386,7 @@ abstract class HistogramTestBase {
     void histogramAccumulation() {
         Buffer image1 = wrapImage(0, 1, 2);
         Buffer image2 = wrapImage(0, 0, 3);
-        int[] histData = new int[histogramSize()];
+        int[] histData = new int[256];
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {0};
 

@@ -94,10 +94,10 @@ public final class HistogramRequest {
             throw new IllegalArgumentException("nComponents must be >= 0");
         }
         long requiredSize = (long)width * height * nComponents;
-        if (image.remaining() < requiredSize) {
+        if (image.remaining() != requiredSize) {
             throw new IllegalArgumentException(
-                "image buffer has insufficient capacity: " +
-                image.remaining() + " < " + requiredSize);
+                "image buffer has incorrect size " + image.remaining() +
+                " (expected " + requiredSize + ")");
         }
     }
 
@@ -318,10 +318,10 @@ public final class HistogramRequest {
                     "dimensions must be non-negative");
             }
             long requiredSize = (long)width * height;
-            if (mask.remaining() < requiredSize) {
+            if (mask.remaining() != requiredSize) {
                 throw new IllegalArgumentException(
-                    "mask buffer has insufficient capacity: " +
-                    mask.remaining() + " < " + requiredSize);
+                    "mask buffer has incorrect size " + mask.remaining() +
+                    " (expected " + requiredSize + ")");
             }
         }
         this.maskBuffer = mask;
@@ -369,8 +369,8 @@ public final class HistogramRequest {
      * <p>
      * If not specified, a new array will be allocated.
      *
-     * @param histogram output array (size must be &gt;= nHistComponents *
-     *                  2^bits)
+     * @param histogram output array; size must equal exactly
+     *                  {@code nHistComponents * (1 << bits)}
      * @return this builder
      */
     public HistogramRequest output(int[] histogram) {
@@ -383,8 +383,9 @@ public final class HistogramRequest {
      * <p>
      * If not specified, a new array will be allocated.
      *
-     * @param histogram output buffer (remaining capacity must be sufficient);
-     *                  must not be read-only
+     * @param histogram output buffer; remaining size must equal exactly
+     *                  {@code nHistComponents * (1 << bits)}; must not be
+     *                  read-only
      * @return this builder
      */
     public HistogramRequest output(IntBuffer histogram) {
@@ -462,16 +463,28 @@ public final class HistogramRequest {
         int imageOffset = (roiY * imageStride + roiX) * nComponents;
         int maskOffset = maskOffsetY * effectiveMaskStride + maskOffsetX;
 
-        ByteBuffer maskBuf = prepareMaskBuffer(maskOffset);
+        int imageRequired =
+            (effectiveHeight > 0 && effectiveWidth > 0)
+                ? ((effectiveHeight - 1) * imageStride + effectiveWidth) *
+                      nComponents
+                : 0;
+        int maskRequired =
+            (effectiveHeight > 0 && effectiveWidth > 0)
+                ? (effectiveHeight - 1) * effectiveMaskStride + effectiveWidth
+                : 0;
+
+        ByteBuffer maskBuf = prepareMaskBuffer(maskOffset, maskRequired);
 
         if (is8Bit) {
-            ByteBuffer imageBuf = prepareImage8Buffer(imageOffset);
+            ByteBuffer imageBuf =
+                prepareImage8Buffer(imageOffset, imageRequired);
             IHistNative.histogram8(effectiveBits, imageBuf, maskBuf,
                                    effectiveHeight, effectiveWidth,
                                    imageStride, effectiveMaskStride,
                                    nComponents, indices, jniBuf, parallel);
         } else {
-            ShortBuffer imageBuf = prepareImage16Buffer(imageOffset);
+            ShortBuffer imageBuf =
+                prepareImage16Buffer(imageOffset, imageRequired);
             IHistNative.histogram16(effectiveBits, imageBuf, maskBuf,
                                     effectiveHeight, effectiveWidth,
                                     imageStride, effectiveMaskStride,
@@ -542,7 +555,6 @@ public final class HistogramRequest {
             throw new IllegalArgumentException("ROI exceeds image bounds");
         }
 
-        // Validate mask dimensions if mask is set
         if (maskBuffer != null) {
             if (maskOffsetX < 0 || maskOffsetY < 0) {
                 throw new IllegalArgumentException(
@@ -565,10 +577,10 @@ public final class HistogramRequest {
                                       ? componentIndices.length
                                       : nComponents;
             int histSize = nHistComponents * (1 << effectiveBits);
-            if (outputBuffer.remaining() < histSize) {
+            if (outputBuffer.remaining() != histSize) {
                 throw new IllegalArgumentException(
-                    "output IntBuffer has insufficient capacity: " +
-                    outputBuffer.remaining() + " < " + histSize);
+                    "output IntBuffer has incorrect size " +
+                    outputBuffer.remaining() + " (expected " + histSize + ")");
             }
         }
     }
@@ -581,66 +593,64 @@ public final class HistogramRequest {
         return indices;
     }
 
-    // Prepare 8-bit image buffer for JNI call
-    private ByteBuffer prepareImage8Buffer(int imageOffset) {
+    private ByteBuffer prepareImage8Buffer(int imageOffset, int requiredSize) {
         ByteBuffer buf = image8Buffer;
         if (buf.isDirect() || buf.hasArray()) {
-            // Supported by JNI; apply offset
             ByteBuffer sliced = buf.duplicate();
-            sliced.position(sliced.position() + imageOffset);
+            int newPos = sliced.position() + imageOffset;
+            sliced.position(newPos);
+            sliced.limit(newPos + requiredSize);
             return sliced;
         }
-        // Unsupported buffer type; copy to temp direct buffer
-        return copyToDirectByteBuffer(buf, imageOffset);
+        return copyToDirectByteBuffer(buf, imageOffset, requiredSize);
     }
 
-    // Prepare 16-bit image buffer for JNI call
-    private ShortBuffer prepareImage16Buffer(int imageOffset) {
+    private ShortBuffer prepareImage16Buffer(int imageOffset,
+                                             int requiredSize) {
         ShortBuffer buf = image16Buffer;
         if (buf.isDirect() || buf.hasArray()) {
-            // Supported by JNI; apply offset
             ShortBuffer sliced = buf.duplicate();
-            sliced.position(sliced.position() + imageOffset);
+            int newPos = sliced.position() + imageOffset;
+            sliced.position(newPos);
+            sliced.limit(newPos + requiredSize);
             return sliced;
         }
-        // Unsupported buffer type; copy to temp direct buffer
-        return copyToDirectShortBuffer(buf, imageOffset);
+        return copyToDirectShortBuffer(buf, imageOffset, requiredSize);
     }
 
-    // Prepare mask buffer for JNI call
-    private ByteBuffer prepareMaskBuffer(int maskOffset) {
+    private ByteBuffer prepareMaskBuffer(int maskOffset, int requiredSize) {
         if (maskBuffer == null) {
             return null;
         }
         if (maskBuffer.isDirect() || maskBuffer.hasArray()) {
-            // Supported by JNI; apply offset
             ByteBuffer sliced = maskBuffer.duplicate();
-            sliced.position(sliced.position() + maskOffset);
+            int newPos = sliced.position() + maskOffset;
+            sliced.position(newPos);
+            sliced.limit(newPos + requiredSize);
             return sliced;
         }
-        // Unsupported buffer type; copy to temp direct buffer
-        return copyToDirectByteBuffer(maskBuffer, maskOffset);
+        return copyToDirectByteBuffer(maskBuffer, maskOffset, requiredSize);
     }
 
-    // Copy ByteBuffer to direct buffer (for unsupported buffer types)
-    private static ByteBuffer copyToDirectByteBuffer(ByteBuffer src,
-                                                     int offset) {
+    private static ByteBuffer
+    copyToDirectByteBuffer(ByteBuffer src, int offset, int requiredSize) {
         ByteBuffer srcDup = src.duplicate();
-        srcDup.position(srcDup.position() + offset);
-        int remaining = srcDup.remaining();
-        ByteBuffer direct = ByteBuffer.allocateDirect(remaining);
+        int newPos = srcDup.position() + offset;
+        srcDup.position(newPos);
+        srcDup.limit(newPos + requiredSize);
+        ByteBuffer direct = ByteBuffer.allocateDirect(requiredSize);
         direct.put(srcDup);
         direct.flip();
         return direct;
     }
 
-    // Copy ShortBuffer to direct buffer (for unsupported buffer types)
-    private static ShortBuffer copyToDirectShortBuffer(ShortBuffer src,
-                                                       int offset) {
+    private static ShortBuffer
+    copyToDirectShortBuffer(ShortBuffer src, int offset, int requiredSize) {
         ShortBuffer srcDup = src.duplicate();
-        srcDup.position(srcDup.position() + offset);
-        int remaining = srcDup.remaining();
-        ByteBuffer bb = ByteBuffer.allocateDirect(remaining * 2)
+        int newPos = srcDup.position() + offset;
+        srcDup.position(newPos);
+        srcDup.limit(newPos + requiredSize);
+        ByteBuffer bb = ByteBuffer.allocateDirect(requiredSize * 2)
                             .order(ByteOrder.nativeOrder());
         ShortBuffer direct = bb.asShortBuffer();
         direct.put(srcDup);
@@ -648,7 +658,6 @@ public final class HistogramRequest {
         return direct;
     }
 
-    // Allocate direct IntBuffer
     private static IntBuffer allocateDirectIntBuffer(int size) {
         ByteBuffer bb =
             ByteBuffer.allocateDirect(size * 4).order(ByteOrder.nativeOrder());

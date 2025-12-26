@@ -358,6 +358,7 @@ class ValidationTest {
             // 2 rows, width=2, stride=3: need (2-1)*3+2 = 5 elements
             ByteBuffer exact = ByteBuffer.wrap(new byte[5]);
             ByteBuffer tooSmall = ByteBuffer.wrap(new byte[4]);
+            ByteBuffer tooLarge = ByteBuffer.wrap(new byte[6]);
             IntBuffer histogram = IntBuffer.wrap(new int[256]);
             int[] indices = {0};
 
@@ -369,6 +370,12 @@ class ValidationTest {
             assertThrows(IllegalArgumentException.class,
                          ()
                              -> IHistNative.histogram8(8, tooSmall, null, 2, 2,
+                                                       3, 3, 1, indices,
+                                                       histogram, false));
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> IHistNative.histogram8(8, tooLarge, null, 2, 2,
                                                        3, 3, 1, indices,
                                                        histogram, false));
         }
@@ -436,6 +443,14 @@ class ValidationTest {
         @Test
         void imageBufferTooSmall() {
             byte[] image = new byte[10];
+
+            assertThrows(IllegalArgumentException.class,
+                         () -> HistogramRequest.forImage(image, 10, 10));
+        }
+
+        @Test
+        void imageBufferTooLarge() {
+            byte[] image = new byte[101];
 
             assertThrows(IllegalArgumentException.class,
                          () -> HistogramRequest.forImage(image, 10, 10));
@@ -760,6 +775,16 @@ class ValidationTest {
         }
 
         @Test
+        void maskBufferTooLarge() {
+            byte[] image = new byte[16];
+            byte[] mask = new byte[26];
+
+            assertThrows(
+                IllegalArgumentException.class,
+                () -> HistogramRequest.forImage(image, 4, 4).mask(mask, 5, 5));
+        }
+
+        @Test
         void maskOffsetYExceedsMaskHeight() {
             byte[] image = new byte[100];
             byte[] mask = new byte[100];
@@ -837,6 +862,18 @@ class ValidationTest {
                              -> HistogramRequest.forImage(image, 2, 1, 4)
                                     .selectComponents(0, 1)
                                     .output(tooSmall)
+                                    .compute());
+        }
+
+        @Test
+        void outputBufferTooLarge() {
+            byte[] image = {0, 1, 2, 3};
+            IntBuffer tooLarge = IntBuffer.allocate(512);
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> HistogramRequest.forImage(image, 4, 1)
+                                    .output(tooLarge)
                                     .compute());
         }
 

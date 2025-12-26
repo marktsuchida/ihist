@@ -723,11 +723,11 @@ class HistogramTest {
         void outputBufferPositionPreserved() {
             byte[] imageData = {0, 1, 2, 3};
 
-            // Create a buffer and position it at offset 100
+            // Create a buffer with position at 100 and remaining = 256
             ByteBuffer histBuf = ByteBuffer.allocateDirect(512 * 4).order(
                 ByteOrder.nativeOrder());
             IntBuffer histogram = histBuf.asIntBuffer();
-            histogram.position(100);
+            histogram.position(100).limit(356); // remaining = 256
             int origPos = histogram.position();
             int origLimit = histogram.limit();
 
@@ -750,42 +750,14 @@ class HistogramTest {
         }
 
         @Test
-        void outputBufferLimitBeyondHistogramPreserved() {
+        void outputBufferWithOffsetPreserved() {
             byte[] imageData = {0, 1, 2, 3};
 
-            // Create a buffer with limit well beyond histogram size
-            ByteBuffer histBuf = ByteBuffer.allocateDirect(1024 * 4).order(
+            // Create a buffer positioned at 50 with remaining = 256
+            ByteBuffer histBuf = ByteBuffer.allocateDirect(512 * 4).order(
                 ByteOrder.nativeOrder());
             IntBuffer histogram = histBuf.asIntBuffer();
-            // Set limit to 1024 (well beyond 256-bin histogram)
-            histogram.limit(1024);
-            int origPos = histogram.position();
-            int origLimit = histogram.limit();
-
-            IntBuffer result = HistogramRequest.forImage(imageData, 4, 1)
-                                   .output(histogram)
-                                   .compute();
-
-            // Original buffer's position/limit must be unchanged
-            assertEquals(origPos, histogram.position());
-            assertEquals(origLimit, histogram.limit());
-
-            // Result buffer's limit should be at histogram end, not original
-            // limit
-            assertEquals(0, result.position());
-            assertEquals(256, result.limit());
-            assertEquals(256, result.remaining());
-        }
-
-        @Test
-        void outputBufferWithOffsetAndLargeLimitPreserved() {
-            byte[] imageData = {0, 1, 2, 3};
-
-            // Create a buffer positioned at 50 with limit at 800
-            ByteBuffer histBuf = ByteBuffer.allocateDirect(1024 * 4).order(
-                ByteOrder.nativeOrder());
-            IntBuffer histogram = histBuf.asIntBuffer();
-            histogram.position(50).limit(800);
+            histogram.position(50).limit(306); // remaining = 256
             int origPos = histogram.position();
             int origLimit = histogram.limit();
 

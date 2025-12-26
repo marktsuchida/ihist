@@ -367,7 +367,7 @@ class buffer_access {
 };
 
 // Get buffer data - handles both direct and array-backed buffers.
-// Validates buffer capacity against required size.
+// Validates buffer remaining size against required size.
 // Returns std::nullopt on failure (exception will have been thrown).
 // Template parameters:
 //   ElementT: The element type for pointer arithmetic
@@ -395,10 +395,12 @@ auto get_buffer_access(JNIEnv *env, jobject buffer,
     if (!remaining) {
         return {};
     }
-    if (static_cast<std::size_t>(*remaining) < required_elements) {
-        throw_illegal_argument(env, (std::string(buffer_name) +
-                                     " buffer has insufficient capacity")
-                                        .c_str());
+    if (static_cast<std::size_t>(*remaining) != required_elements) {
+        throw_illegal_argument(
+            env, (std::string(buffer_name) + " buffer has incorrect size " +
+                  std::to_string(*remaining) + " (expected " +
+                  std::to_string(required_elements) + ")")
+                     .c_str());
         return {};
     }
 
@@ -503,7 +505,6 @@ void histogram_impl(JNIEnv *env, jint sample_bits, jobject image_buffer,
         return;
     }
 
-    // Calculate required buffer capacities
     std::size_t const h = static_cast<std::size_t>(height);
     std::size_t const w = static_cast<std::size_t>(width);
     std::size_t const img_stride = static_cast<std::size_t>(image_stride);
