@@ -554,28 +554,13 @@ public final class HistogramRequest {
             }
         }
 
-        int effectiveBits = (sampleBits < 0) ? (is8Bit ? 8 : 16) : sampleBits;
-        int maxBits = is8Bit ? 8 : 16;
-        if (effectiveBits > maxBits) {
-            throw new IllegalArgumentException(
-                "sampleBits must be in range [0, " + maxBits + "]");
-        }
-
-        if (componentIndices != null) {
-            for (int idx : componentIndices) {
-                if (idx < 0 || idx >= nComponents) {
-                    throw new IllegalArgumentException(
-                        "Component index out of range [0, " + nComponents +
-                        ")");
-                }
-            }
-        }
-
         if (outputBuffer != null) {
             if (outputBuffer.isReadOnly()) {
                 throw new IllegalArgumentException(
                     "output histogram buffer cannot be read-only");
             }
+            int effectiveBits =
+                (sampleBits < 0) ? (is8Bit ? 8 : 16) : sampleBits;
             int nHistComponents = (componentIndices != null)
                                       ? componentIndices.length
                                       : nComponents;
