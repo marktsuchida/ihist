@@ -164,10 +164,12 @@ void throw_null_pointer(JNIEnv *env, char const *message) {
     }
 }
 
-// Convert Java int[] to vector<size_t>, checking for negative values
-auto to_size_t_vector(JNIEnv *env, jintArray arr) -> std::vector<std::size_t> {
+// Convert Java int[] to vector<size_t>, checking for negative values.
+// Returns nullopt if an exception was thrown.
+[[nodiscard]] auto to_size_t_vector(JNIEnv *env, jintArray arr)
+    -> std::optional<std::vector<std::size_t>> {
     if (arr == nullptr) {
-        return {};
+        return std::vector<std::size_t>{};
     }
     jsize const len = env->GetArrayLength(arr);
     std::vector<std::size_t> result(static_cast<std::size_t>(len));
@@ -202,33 +204,68 @@ auto validate_component_indices(JNIEnv *env,
 
 // Buffer helper functions using cached method IDs.
 
-auto get_buffer_position(JNIEnv *env, jobject buffer) -> jint {
-    return env->CallIntMethod(buffer, g_ids.position);
+[[nodiscard]] auto get_buffer_position(JNIEnv *env, jobject buffer)
+    -> std::optional<jint> {
+    jint result = env->CallIntMethod(buffer, g_ids.position);
+    if (env->ExceptionCheck()) {
+        return {};
+    }
+    return result;
 }
 
-auto is_direct_buffer(JNIEnv *env, jobject buffer) -> bool {
-    return env->CallBooleanMethod(buffer, g_ids.is_direct) != JNI_FALSE;
+[[nodiscard]] auto is_direct_buffer(JNIEnv *env, jobject buffer)
+    -> std::optional<bool> {
+    jboolean result = env->CallBooleanMethod(buffer, g_ids.is_direct);
+    if (env->ExceptionCheck()) {
+        return {};
+    }
+    return result != JNI_FALSE;
 }
 
-auto has_array(JNIEnv *env, jobject buffer) -> bool {
-    return env->CallBooleanMethod(buffer, g_ids.has_array) != JNI_FALSE;
+[[nodiscard]] auto has_array(JNIEnv *env, jobject buffer)
+    -> std::optional<bool> {
+    jboolean result = env->CallBooleanMethod(buffer, g_ids.has_array);
+    if (env->ExceptionCheck()) {
+        return {};
+    }
+    return result != JNI_FALSE;
 }
 
-auto get_buffer_array(JNIEnv *env, jobject buffer) -> local_ref<jarray> {
-    return local_ref<jarray>(
+[[nodiscard]] auto get_buffer_array(JNIEnv *env, jobject buffer)
+    -> std::optional<local_ref<jarray>> {
+    local_ref<jarray> result(
         env, static_cast<jarray>(env->CallObjectMethod(buffer, g_ids.array)));
+    if (env->ExceptionCheck()) {
+        return {};
+    }
+    return result;
 }
 
-auto get_array_offset(JNIEnv *env, jobject buffer) -> jint {
-    return env->CallIntMethod(buffer, g_ids.array_offset);
+[[nodiscard]] auto get_array_offset(JNIEnv *env, jobject buffer)
+    -> std::optional<jint> {
+    jint result = env->CallIntMethod(buffer, g_ids.array_offset);
+    if (env->ExceptionCheck()) {
+        return {};
+    }
+    return result;
 }
 
-auto is_read_only(JNIEnv *env, jobject buffer) -> bool {
-    return env->CallBooleanMethod(buffer, g_ids.is_read_only) != JNI_FALSE;
+[[nodiscard]] auto is_read_only(JNIEnv *env, jobject buffer)
+    -> std::optional<bool> {
+    jboolean result = env->CallBooleanMethod(buffer, g_ids.is_read_only);
+    if (env->ExceptionCheck()) {
+        return {};
+    }
+    return result != JNI_FALSE;
 }
 
-auto get_buffer_remaining(JNIEnv *env, jobject buffer) -> jint {
-    return env->CallIntMethod(buffer, g_ids.remaining);
+[[nodiscard]] auto get_buffer_remaining(JNIEnv *env, jobject buffer)
+    -> std::optional<jint> {
+    jint result = env->CallIntMethod(buffer, g_ids.remaining);
+    if (env->ExceptionCheck()) {
+        return {};
+    }
+    return result;
 }
 
 template <typename PixelT> struct jni_pixel_traits;
@@ -337,61 +374,70 @@ auto get_buffer_access(JNIEnv *env, jobject buffer,
     constexpr jint release_mode = IsWritable ? 0 : JNI_ABORT;
 
     if constexpr (IsWritable) {
-        if (is_read_only(env, buffer)) {
-            if (env->ExceptionCheck()) {
-                return std::nullopt;
-            }
+        auto read_only = is_read_only(env, buffer);
+        if (!read_only) {
+            return {};
+        }
+        if (*read_only) {
             throw_illegal_argument(
                 env, (std::string(buffer_name) + " buffer cannot be read-only")
                          .c_str());
-            return std::nullopt;
+            return {};
         }
     }
 
-    jint remaining = get_buffer_remaining(env, buffer);
-    if (env->ExceptionCheck()) {
-        return std::nullopt;
+    auto remaining = get_buffer_remaining(env, buffer);
+    if (!remaining) {
+        return {};
     }
-    if (static_cast<std::size_t>(remaining) < required_elements) {
+    if (static_cast<std::size_t>(*remaining) < required_elements) {
         throw_illegal_argument(env, (std::string(buffer_name) +
                                      " buffer has insufficient capacity")
                                         .c_str());
-        return std::nullopt;
+        return {};
     }
 
-    if (is_direct_buffer(env, buffer)) {
-        if (env->ExceptionCheck()) {
-            return std::nullopt;
-        }
+    auto is_direct = is_direct_buffer(env, buffer);
+    if (!is_direct) {
+        return {};
+    }
+    if (*is_direct) {
         void *direct = env->GetDirectBufferAddress(buffer);
+        if (env->ExceptionCheck()) {
+            return {};
+        }
         if (direct != nullptr) {
-            jint const position = get_buffer_position(env, buffer);
-            if (env->ExceptionCheck()) {
-                return std::nullopt;
+            auto position = get_buffer_position(env, buffer);
+            if (!position) {
+                return {};
             }
-            void *data_ptr = static_cast<ElementT *>(direct) + position;
+            void *data_ptr = static_cast<ElementT *>(direct) + *position;
             return buffer_access(data_ptr);
         }
     }
 
-    if (has_array(env, buffer)) {
-        if (env->ExceptionCheck()) {
-            return std::nullopt;
-        }
+    auto has_arr = has_array(env, buffer);
+    if (!has_arr) {
+        return {};
+    }
+    if (*has_arr) {
         auto arr = get_buffer_array(env, buffer);
-        if (env->ExceptionCheck()) {
-            return std::nullopt;
+        if (!arr) {
+            return {};
         }
-        if (arr) {
-            critical_array_access access(env, std::move(arr), release_mode);
+        if (*arr) {
+            critical_array_access access(env, std::move(*arr), release_mode);
             if (access) {
-                jint const array_offset = get_array_offset(env, buffer);
-                jint const position = get_buffer_position(env, buffer);
-                if (env->ExceptionCheck()) {
-                    return std::nullopt;
+                auto array_offset = get_array_offset(env, buffer);
+                if (!array_offset) {
+                    return {};
+                }
+                auto position = get_buffer_position(env, buffer);
+                if (!position) {
+                    return {};
                 }
                 void *data_ptr = static_cast<ElementT *>(access.get()) +
-                                 array_offset + position;
+                                 *array_offset + *position;
                 return buffer_access(std::move(access), data_ptr);
             }
         }
@@ -400,7 +446,7 @@ auto get_buffer_access(JNIEnv *env, jobject buffer,
     throw_illegal_argument(env, (std::string(buffer_name) +
                                  " buffer must be direct or array-backed")
                                     .c_str());
-    return std::nullopt;
+    return {};
 }
 
 // Buffer-based histogram implementation template.
@@ -428,14 +474,13 @@ void histogram_impl(JNIEnv *env, jint sample_bits, jobject image_buffer,
         return;
     }
 
-    std::vector<std::size_t> indices =
-        to_size_t_vector(env, component_indices);
-    if (env->ExceptionCheck()) {
+    auto indices = to_size_t_vector(env, component_indices);
+    if (!indices) {
         return;
     }
-    std::size_t const n_hist_components = indices.size();
+    std::size_t const n_hist_components = indices->size();
 
-    if (!validate_component_indices(env, indices,
+    if (!validate_component_indices(env, *indices,
                                     static_cast<std::size_t>(n_components))) {
         return;
     }
@@ -496,7 +541,7 @@ void histogram_impl(JNIEnv *env, jint sample_bits, jobject image_buffer,
         mask_data ? static_cast<std::uint8_t const *>(mask_data->ptr())
                   : nullptr,
         h, w, img_stride, msk_stride, n_comp, n_hist_components,
-        indices.data(), static_cast<std::uint32_t *>(histogram_data->ptr()),
+        indices->data(), static_cast<std::uint32_t *>(histogram_data->ptr()),
         parallel != JNI_FALSE);
 }
 
