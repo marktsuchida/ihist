@@ -11,6 +11,8 @@ exe_suffix := if os() == "windows" { ".exe" } else { "" }
 
 onetbb_version := '2022.3.0'
 
+cjdk_exec := 'uvx cjdk -j zulu:8 exec --'
+
 # On Windows, put DLLs on path so that tests and benchmarks can run.
 export PATH := if os() == "windows" {
     env("PWD") + '/dependencies/oneapi-tbb-' + onetbb_version +
@@ -163,7 +165,6 @@ py-install:
 
 # Build and install Python bindings for coverage
 py-cov-install:
-    rm -rf build  # Remove the meson-python build dir
     pip --require-virtualenv install meson-python numpy
     pip --require-virtualenv install -e . --no-build-isolation -v \
         -C build-dir=build-coverage \
@@ -178,7 +179,7 @@ py-test: py-install
 # Run Python tests with coverage (coverage/python.html)
 py-coverage: py-cov-install
     pip --require-virtualenv install pytest gcovr
-    find build-coverage/ -name '*.gcda' -exec rm -f {} \;
+    find build-coverage/ -name '*.gcda' -exec rm -f {} +
     pytest
     mkdir -p coverage
     gcovr build-coverage/ -f python/src/ihist/_ihist_bindings.cpp \
@@ -208,19 +209,35 @@ cibuildwheel:
     pip --require-virtualenv install cibuildwheel
     CIBW_ARCHS=native cibuildwheel
 
-# Build Java bindings
+# Build and test Java bindings (with coverage)
 java-build:
-    uvx cjdk -j zulu:8 exec -- meson setup --reconfigure builddir-jni \
+    {{cjdk_exec}} meson setup --reconfigure builddir-jni \
         -Djava-bindings=enabled \
         -Dtests=disabled -Dbenchmarks=disabled
-    uvx cjdk -j zulu:8 exec -- meson compile -C builddir-jni
-    cd java && uvx cjdk -j zulu:8 exec -- mvn package \
+    {{cjdk_exec}} meson compile -C builddir-jni
+    cd java && {{cjdk_exec}} mvn package \
         -Dnative.library.path=../builddir-jni/java
+
+# Test Java bindings with C++ coverage
+java-coverage:
+    {{cjdk_exec}} meson setup --reconfigure builddir-jni-cov \
+        -Djava-bindings=enabled -Db_coverage=true --buildtype=debugoptimized \
+        -Dtests=disabled -Dbenchmarks=disabled
+    {{cjdk_exec}} meson compile -C builddir-jni-cov
+    find builddir-jni-cov/ -name '*.gcda' -exec rm -f {} +
+    cd java && {{cjdk_exec}} mvn package \
+        -Dnative.library.path=../builddir-jni-cov/java
+    mkdir -p coverage
+    gcovr builddir-jni-cov/ -f java/src/main/cpp/ihistj_jni.cpp \
+        --html-details coverage/java.html
 
 # Clean Java build artifacts
 java-clean:
-    cd java && mvn clean 2>/dev/null || true
+    cd java && {{cjdk_exec}} mvn clean 2>/dev/null || true
     rm -rf java/target/
     if [ -d builddir-jni ]; then \
-        uvx cjdk -j zulu:8 exec -- meson compile --clean -C builddir-jni; \
+        {{cjdk_exec}} meson compile --clean -C builddir-jni; \
+    fi
+    if [ -d builddir-jni-cov ]; then \
+        {{cjdk_exec}} meson compile --clean -C builddir-jni-cov; \
     fi
