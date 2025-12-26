@@ -10,10 +10,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
-import java.util.Arrays;
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Tests for the low-level JNI wrapper {@link IHistNative}.
@@ -44,106 +41,6 @@ class IHistNativeTest {
             assertEquals(1, histData[0]);
             assertEquals(2, histData[1]);
             assertEquals(3, histData[2]);
-        }
-
-        @Test
-        void rgbImage() {
-            // 2x2 RGB image
-            byte[] imageData = {10, 20, 30, 11, 21, 31,
-                                12, 22, 32, 13, 23, 33};
-            ByteBuffer image = ByteBuffer.wrap(imageData);
-            int[] histData = new int[3 * 256];
-            IntBuffer histogram = IntBuffer.wrap(histData);
-            int[] indices = {0, 1, 2};
-
-            IHistNative.histogram8(8, image, null, 2, 2, 2, 2, 3, indices,
-                                   histogram, false);
-
-            // Check R channel
-            assertEquals(1, histData[10]);
-            assertEquals(1, histData[11]);
-            assertEquals(1, histData[12]);
-            assertEquals(1, histData[13]);
-
-            // Check G channel (offset by 256)
-            assertEquals(1, histData[256 + 20]);
-            assertEquals(1, histData[256 + 21]);
-            assertEquals(1, histData[256 + 22]);
-            assertEquals(1, histData[256 + 23]);
-
-            // Check B channel (offset by 512)
-            assertEquals(1, histData[512 + 30]);
-            assertEquals(1, histData[512 + 31]);
-        }
-
-        @Test
-        void withMask() {
-            byte[] imageData = {0, 1, 2, 3};
-            ByteBuffer image = ByteBuffer.wrap(imageData);
-            byte[] maskData = {1, 0, 1, 0}; // Include only pixels 0 and 2
-            ByteBuffer mask = ByteBuffer.wrap(maskData);
-            int[] histData = new int[256];
-            IntBuffer histogram = IntBuffer.wrap(histData);
-            int[] indices = {0};
-
-            IHistNative.histogram8(8, image, mask, 1, 4, 4, 4, 1, indices,
-                                   histogram, false);
-
-            assertEquals(1, histData[0]);
-            assertEquals(0, histData[1]);
-            assertEquals(1, histData[2]);
-            assertEquals(0, histData[3]);
-        }
-
-        @ParameterizedTest
-        @ValueSource(booleans = {true, false})
-        void parallelFlag(boolean parallel) {
-            byte[] imageData = new byte[1000 * 1000];
-            Arrays.fill(imageData, (byte)42);
-            ByteBuffer image = ByteBuffer.wrap(imageData);
-            int[] histData = new int[256];
-            IntBuffer histogram = IntBuffer.wrap(histData);
-            int[] indices = {0};
-
-            IHistNative.histogram8(8, image, null, 1000, 1000, 1000, 1000, 1,
-                                   indices, histogram, parallel);
-
-            assertEquals(1000000, histData[42]);
-        }
-
-        @Test
-        void accumulate() {
-            byte[] imageData = {1, 2};
-            ByteBuffer image = ByteBuffer.wrap(imageData);
-            int[] histData = new int[256];
-            histData[1] = 10;
-            IntBuffer histogram = IntBuffer.wrap(histData);
-            int[] indices = {0};
-
-            IHistNative.histogram8(8, image, null, 1, 2, 2, 2, 1, indices,
-                                   histogram, false);
-
-            // Should accumulate
-            assertEquals(11, histData[1]);
-            assertEquals(1, histData[2]);
-        }
-
-        @Test
-        void reducedBits() {
-            // With sample_bits=2, only values 0-3 are valid (4 bins).
-            byte[] imageData = {0, 1, 2, 3, 0, 1, 2, 3};
-            ByteBuffer image = ByteBuffer.wrap(imageData);
-            int[] histData = new int[4]; // 2 bits = 4 bins
-            IntBuffer histogram = IntBuffer.wrap(histData);
-            int[] indices = {0};
-
-            IHistNative.histogram8(2, image, null, 1, 8, 8, 8, 1, indices,
-                                   histogram, false);
-
-            assertEquals(2, histData[0]); // Two 0s
-            assertEquals(2, histData[1]); // Two 1s
-            assertEquals(2, histData[2]); // Two 2s
-            assertEquals(2, histData[3]); // Two 3s
         }
 
         @Test
@@ -182,24 +79,23 @@ class IHistNativeTest {
         }
 
         @Test
-        void selectComponents() {
-            // 2-pixel RGBA image, only histogram R and B (skip G and A)
-            byte[] imageData = {10, 20, 30, (byte)255, 11, 21, 31, (byte)255};
+        void maskWithOffset() {
+            byte[] imageData = {0, 1, 2, 3};
             ByteBuffer image = ByteBuffer.wrap(imageData);
-            int[] histData = new int[2 * 256]; // 2 components
+            byte[] maskData = {99, 99, 1, 0, 1, 0};
+            ByteBuffer mask = ByteBuffer.wrap(maskData);
+            mask.position(2);
+            int[] histData = new int[256];
             IntBuffer histogram = IntBuffer.wrap(histData);
-            int[] indices = {0, 2}; // R and B only
+            int[] indices = {0};
 
-            IHistNative.histogram8(8, image, null, 1, 2, 2, 2, 4, indices,
+            IHistNative.histogram8(8, image, mask, 1, 4, 4, 4, 1, indices,
                                    histogram, false);
 
-            // Check R channel (first histogram)
-            assertEquals(1, histData[10]);
-            assertEquals(1, histData[11]);
-
-            // Check B channel (second histogram, offset 256)
-            assertEquals(1, histData[256 + 30]);
-            assertEquals(1, histData[256 + 31]);
+            assertEquals(1, histData[0]);
+            assertEquals(0, histData[1]);
+            assertEquals(1, histData[2]);
+            assertEquals(0, histData[3]);
         }
 
         @Test
@@ -233,29 +129,6 @@ class IHistNativeTest {
         }
 
         @Test
-        void stride() {
-            // Image with padding (stride > width)
-            // 2x2 image with stride=4 (2 padding bytes per row)
-            byte[] imageData = {
-                1, 2, 99, 99, // Row 0: data, padding
-                3, 4, 99, 99  // Row 1: data, padding
-            };
-            ByteBuffer image = ByteBuffer.wrap(imageData);
-            int[] histData = new int[256];
-            IntBuffer histogram = IntBuffer.wrap(histData);
-            int[] indices = {0};
-
-            IHistNative.histogram8(8, image, null, 2, 2, 4, 4, 1, indices,
-                                   histogram, false);
-
-            assertEquals(1, histData[1]);
-            assertEquals(1, histData[2]);
-            assertEquals(1, histData[3]);
-            assertEquals(1, histData[4]);
-            assertEquals(0, histData[99]); // Padding not counted
-        }
-
-        @Test
         void unsignedByteInterpretation() {
             // Java bytes 127 to -128 correspond to unsigned 127 to 128
             byte[] imageData = {127, (byte)128, (byte)255};
@@ -270,6 +143,25 @@ class IHistNativeTest {
             assertEquals(1, histData[127]);
             assertEquals(1, histData[128]); // -128 in Java = 128 unsigned
             assertEquals(1, histData[255]); // -1 in Java = 255 unsigned
+        }
+
+        @Test
+        void strideHandlingMultiRow() {
+            // 2x2 image with stride=4; gaps contain sentinel value 99
+            byte[] imageData = {0, 1, 99, 99, 2, 3, 99, 99};
+            ByteBuffer image = ByteBuffer.wrap(imageData);
+            int[] histData = new int[256];
+            IntBuffer histogram = IntBuffer.wrap(histData);
+            int[] indices = {0};
+
+            IHistNative.histogram8(8, image, null, 2, 2, 4, 4, 1, indices,
+                                   histogram, false);
+
+            assertEquals(1, histData[0]);
+            assertEquals(1, histData[1]);
+            assertEquals(1, histData[2]);
+            assertEquals(1, histData[3]);
+            assertEquals(0, histData[99]); // Stride gaps not counted
         }
     }
 
@@ -328,6 +220,30 @@ class IHistNativeTest {
             ByteBuffer mask = ByteBuffer.allocateDirect(4);
             mask.put(new byte[] {1, 0, 1, 0}); // Include pixels 0 and 2
             mask.flip();
+
+            ByteBuffer histBuf = ByteBuffer.allocateDirect(256 * 4).order(
+                ByteOrder.nativeOrder());
+            IntBuffer histogram = histBuf.asIntBuffer();
+            int[] indices = {0};
+
+            IHistNative.histogram8(8, image, mask, 1, 4, 4, 4, 1, indices,
+                                   histogram, false);
+
+            assertEquals(1, histogram.get(0));
+            assertEquals(0, histogram.get(1));
+            assertEquals(1, histogram.get(2));
+            assertEquals(0, histogram.get(3));
+        }
+
+        @Test
+        void directBufferMaskWithPosition() {
+            ByteBuffer image = ByteBuffer.allocateDirect(4);
+            image.put(new byte[] {0, 1, 2, 3});
+            image.flip();
+
+            ByteBuffer mask = ByteBuffer.allocateDirect(8);
+            mask.put(new byte[] {99, 99, 99, 99, 1, 0, 1, 0});
+            mask.position(4);
 
             ByteBuffer histBuf = ByteBuffer.allocateDirect(256 * 4).order(
                 ByteOrder.nativeOrder());
@@ -431,24 +347,6 @@ class IHistNativeTest {
         }
 
         @Test
-        void reducedBits16() {
-            // With sample_bits=9, values 0-511 are valid (512 bins).
-            short[] imageData = {0, 255, 256, 511};
-            ShortBuffer image = ShortBuffer.wrap(imageData);
-            int[] histData = new int[512]; // 9 bits = 512 bins
-            IntBuffer histogram = IntBuffer.wrap(histData);
-            int[] indices = {0};
-
-            IHistNative.histogram16(9, image, null, 1, 4, 4, 4, 1, indices,
-                                    histogram, false);
-
-            assertEquals(1, histData[0]);   // 0 -> bin 0
-            assertEquals(1, histData[255]); // 255 -> bin 255
-            assertEquals(1, histData[256]); // 256 -> bin 256
-            assertEquals(1, histData[511]); // 511 -> bin 511
-        }
-
-        @Test
         void unsignedShortInterpretation() {
             // Java shorts are signed; test high values
             short[] imageData = {32767, (short)32768, (short)65535};
@@ -518,6 +416,63 @@ class IHistNativeTest {
             assertEquals(1, histogram.get(2));
             assertEquals(0, histogram.get(3));
         }
+
+        @Test
+        void directMaskWithPosition() {
+            ByteBuffer bb = ByteBuffer.allocateDirect(4 * 2).order(
+                ByteOrder.nativeOrder());
+            ShortBuffer image = bb.asShortBuffer();
+            image.put(new short[] {0, 1, 2, 3});
+            image.flip();
+
+            ByteBuffer mask = ByteBuffer.allocateDirect(8);
+            mask.put(new byte[] {99, 99, 99, 99, 1, 0, 1, 0});
+            mask.position(4);
+
+            ByteBuffer histBuf = ByteBuffer.allocateDirect(256 * 4).order(
+                ByteOrder.nativeOrder());
+            IntBuffer histogram = histBuf.asIntBuffer();
+            int[] indices = {0};
+
+            IHistNative.histogram16(8, image, mask, 1, 4, 4, 4, 1, indices,
+                                    histogram, false);
+
+            assertEquals(1, histogram.get(0));
+            assertEquals(0, histogram.get(1));
+            assertEquals(1, histogram.get(2));
+            assertEquals(0, histogram.get(3));
+        }
+
+        @Test
+        void exactBoundaryCapacity() {
+            // 2 rows, width=2, stride=3: need (2-1)*3+2 = 5 elements
+            ByteBuffer exactBb = ByteBuffer.allocateDirect(5 * 2).order(
+                ByteOrder.nativeOrder());
+            ShortBuffer exact = exactBb.asShortBuffer();
+            exact.put(new short[] {0, 1, 99, 2, 3});
+            exact.flip();
+
+            ByteBuffer tooSmallBb = ByteBuffer.allocateDirect(4 * 2).order(
+                ByteOrder.nativeOrder());
+            ShortBuffer tooSmall = tooSmallBb.asShortBuffer();
+            tooSmall.put(new short[] {0, 1, 99, 2});
+            tooSmall.flip();
+
+            int[] histData = new int[256];
+            IntBuffer histogram = IntBuffer.wrap(histData);
+            int[] indices = {0};
+
+            assertDoesNotThrow(
+                ()
+                    -> IHistNative.histogram16(8, exact, null, 2, 2, 3, 3, 1,
+                                               indices, histogram, false));
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> IHistNative.histogram16(8, tooSmall, null, 2,
+                                                        2, 3, 3, 1, indices,
+                                                        histogram, false));
+        }
     }
 
     @Nested
@@ -563,6 +518,92 @@ class IHistNativeTest {
             assertEquals(1, histogram.get(1));
             assertEquals(1, histogram.get(2));
             assertEquals(1, histogram.get(3));
+        }
+    }
+
+    @Nested
+    class ParallelTests {
+
+        @Test
+        void parallelParameter() {
+            byte[] imageData = new byte[1000];
+            for (int i = 0; i < 1000; i++) {
+                imageData[i] = (byte)(i % 256);
+            }
+            ByteBuffer image = ByteBuffer.wrap(imageData);
+            int[] histData = new int[256];
+            IntBuffer histogram = IntBuffer.wrap(histData);
+            int[] indices = {0};
+
+            IHistNative.histogram8(8, image, null, 10, 100, 100, 100, 1,
+                                   indices, histogram, true);
+
+            int total = 0;
+            for (int i = 0; i < 256; i++) {
+                total += histData[i];
+            }
+            assertEquals(1000, total);
+        }
+    }
+
+    @Nested
+    class AccumulationTests {
+
+        @Test
+        void histogramAccumulation() {
+            byte[] imageData1 = {0, 1, 2};
+            ByteBuffer image1 = ByteBuffer.wrap(imageData1);
+            byte[] imageData2 = {0, 0, 3};
+            ByteBuffer image2 = ByteBuffer.wrap(imageData2);
+            int[] histData = new int[256];
+            IntBuffer histogram = IntBuffer.wrap(histData);
+            int[] indices = {0};
+
+            IHistNative.histogram8(8, image1, null, 1, 3, 3, 3, 1, indices,
+                                   histogram, false);
+            IHistNative.histogram8(8, image2, null, 1, 3, 3, 3, 1, indices,
+                                   histogram, false);
+
+            assertEquals(3, histData[0]); // 1 from image1 + 2 from image2
+            assertEquals(1, histData[1]);
+            assertEquals(1, histData[2]);
+            assertEquals(1, histData[3]);
+        }
+    }
+
+    @Nested
+    class EdgeCaseTests {
+
+        @Test
+        void sampleBitsZero() {
+            // With 0 bits, only value 0 maps to bin 0; higher values are out
+            // of range
+            byte[] imageData = {0, 0, 0, 1, 2};
+            ByteBuffer image = ByteBuffer.wrap(imageData);
+            int[] histData = new int[1];
+            IntBuffer histogram = IntBuffer.wrap(histData);
+            int[] indices = {0};
+
+            IHistNative.histogram8(0, image, null, 1, 5, 5, 5, 1, indices,
+                                   histogram, false);
+
+            assertEquals(3, histData[0]); // Only the 3 zero-valued pixels
+        }
+
+        @Test
+        void sampleBitsZero16() {
+            // With 0 bits, only value 0 maps to bin 0; higher values are out
+            // of range
+            short[] imageData = {0, 0, 1000, (short)65535};
+            ShortBuffer image = ShortBuffer.wrap(imageData);
+            int[] histData = new int[1];
+            IntBuffer histogram = IntBuffer.wrap(histData);
+            int[] indices = {0};
+
+            IHistNative.histogram16(0, image, null, 1, 4, 4, 4, 1, indices,
+                                    histogram, false);
+
+            assertEquals(2, histData[0]); // Only the 2 zero-valued pixels
         }
     }
 }

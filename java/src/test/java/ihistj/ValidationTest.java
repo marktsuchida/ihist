@@ -268,6 +268,110 @@ class ValidationTest {
                                                        4, 1, indices, viewHist,
                                                        false));
         }
+
+        @Test
+        void insufficientImageBufferCapacity() {
+            ByteBuffer image = ByteBuffer.allocate(2);
+            IntBuffer histogram = IntBuffer.wrap(new int[256]);
+            int[] indices = {0};
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> IHistNative.histogram8(8, image, null, 1, 3, 3,
+                                                       3, 1, indices,
+                                                       histogram, false));
+        }
+
+        @Test
+        void insufficientHistogramBufferCapacity() {
+            ByteBuffer image = ByteBuffer.wrap(new byte[4]);
+            IntBuffer histogram = IntBuffer.wrap(new int[128]);
+            int[] indices = {0};
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> IHistNative.histogram8(8, image, null, 1, 4, 4,
+                                                       4, 1, indices,
+                                                       histogram, false));
+        }
+
+        @Test
+        void insufficientMaskBufferCapacity() {
+            ByteBuffer image = ByteBuffer.wrap(new byte[4]);
+            ByteBuffer mask = ByteBuffer.wrap(new byte[2]);
+            IntBuffer histogram = IntBuffer.wrap(new int[256]);
+            int[] indices = {0};
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> IHistNative.histogram8(8, image, mask, 1, 4, 4,
+                                                       4, 1, indices,
+                                                       histogram, false));
+        }
+
+        @Test
+        void negativeSampleBits8() {
+            ByteBuffer image = ByteBuffer.wrap(new byte[4]);
+            IntBuffer histogram = IntBuffer.wrap(new int[256]);
+            int[] indices = {0};
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> IHistNative.histogram8(-1, image, null, 1, 4,
+                                                       4, 4, 1, indices,
+                                                       histogram, false));
+        }
+
+        @Test
+        void negativeSampleBits16() {
+            ShortBuffer image = ShortBuffer.wrap(new short[4]);
+            IntBuffer histogram = IntBuffer.wrap(new int[256]);
+            int[] indices = {0};
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> IHistNative.histogram16(-1, image, null, 1, 4,
+                                                        4, 4, 1, indices,
+                                                        histogram, false));
+        }
+
+        @Test
+        void viewBufferImageRejected16() {
+            ByteBuffer bb = ByteBuffer.allocate(8);
+            ShortBuffer original = bb.asShortBuffer();
+            original.put(new short[] {0, 1, 2, 3});
+            original.flip();
+            ShortBuffer view = original.asReadOnlyBuffer();
+
+            IntBuffer histogram = IntBuffer.wrap(new int[256]);
+            int[] indices = {0};
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> IHistNative.histogram16(8, view, null, 1, 4, 4,
+                                                        4, 1, indices,
+                                                        histogram, false));
+        }
+
+        @Test
+        void exactlyBoundaryCapacity() {
+            // 2 rows, width=2, stride=3: need (2-1)*3+2 = 5 elements
+            ByteBuffer exact = ByteBuffer.wrap(new byte[5]);
+            ByteBuffer tooSmall = ByteBuffer.wrap(new byte[4]);
+            IntBuffer histogram = IntBuffer.wrap(new int[256]);
+            int[] indices = {0};
+
+            assertDoesNotThrow(
+                ()
+                    -> IHistNative.histogram8(8, exact, null, 2, 2, 3, 3, 1,
+                                              indices, histogram, false));
+
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> IHistNative.histogram8(8, tooSmall, null, 2, 2,
+                                                       3, 3, 1, indices,
+                                                       histogram, false));
+        }
     }
 
     @Nested
