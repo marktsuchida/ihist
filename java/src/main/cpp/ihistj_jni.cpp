@@ -16,6 +16,125 @@
 
 namespace {
 
+// RAII wrapper for JNI local references.
+template <typename T> class local_ref {
+    JNIEnv *env_ = nullptr;
+    T ref_ = nullptr;
+
+  public:
+    local_ref() = default;
+    local_ref(JNIEnv *env, T ref) : env_(env), ref_(ref) {}
+    ~local_ref() {
+        if (ref_ != nullptr) {
+            env_->DeleteLocalRef(ref_);
+        }
+    }
+
+    local_ref(local_ref const &) = delete;
+    local_ref &operator=(local_ref const &) = delete;
+
+    local_ref(local_ref &&other) noexcept
+        : env_(other.env_), ref_(other.ref_) {
+        other.env_ = nullptr;
+        other.ref_ = nullptr;
+    }
+
+    local_ref &operator=(local_ref &&other) noexcept {
+        if (this != &other) {
+            if (ref_ != nullptr) {
+                env_->DeleteLocalRef(ref_);
+            }
+            env_ = other.env_;
+            ref_ = other.ref_;
+            other.env_ = nullptr;
+            other.ref_ = nullptr;
+        }
+        return *this;
+    }
+
+    T get() const { return ref_; }
+    explicit operator bool() const { return ref_ != nullptr; }
+
+    T release() noexcept {
+        T r = ref_;
+        ref_ = nullptr;
+        return r;
+    }
+};
+
+// RAII wrapper for GetPrimitiveArrayCritical access.
+// Supports two modes:
+// - Non-owning: array ref managed by caller (e.g., parameter from Java)
+// - Owning: takes ownership of a local_ref<jarray>, deletes after release
+class critical_array_access {
+    JNIEnv *env_ = nullptr;
+    jarray array_ = nullptr;
+    std::optional<local_ref<jarray>> owned_array_;
+    void *critical_ptr_ = nullptr;
+    jint release_mode_ = JNI_ABORT;
+
+  public:
+    critical_array_access() = default;
+
+    // Non-owning: array ref managed by caller.
+    critical_array_access(JNIEnv *env, jarray array, jint mode = JNI_ABORT)
+        : env_(env), array_(array), release_mode_(mode) {
+        if (array_ != nullptr) {
+            critical_ptr_ = env_->GetPrimitiveArrayCritical(array_, nullptr);
+        }
+    }
+
+    // Owning: takes ownership of local ref.
+    critical_array_access(JNIEnv *env, local_ref<jarray> &&array, jint mode)
+        : env_(env), array_(array.get()), owned_array_(std::move(array)),
+          release_mode_(mode) {
+        if (array_ != nullptr) {
+            critical_ptr_ = env_->GetPrimitiveArrayCritical(array_, nullptr);
+        }
+    }
+
+    ~critical_array_access() {
+        if (critical_ptr_ != nullptr) {
+            env_->ReleasePrimitiveArrayCritical(array_, critical_ptr_,
+                                                release_mode_);
+        }
+    }
+
+    critical_array_access(critical_array_access const &) = delete;
+    critical_array_access &operator=(critical_array_access const &) = delete;
+
+    critical_array_access(critical_array_access &&other) noexcept
+        : env_(other.env_), array_(other.array_),
+          owned_array_(std::move(other.owned_array_)),
+          critical_ptr_(other.critical_ptr_),
+          release_mode_(other.release_mode_) {
+        other.env_ = nullptr;
+        other.array_ = nullptr;
+        other.critical_ptr_ = nullptr;
+    }
+
+    critical_array_access &operator=(critical_array_access &&other) noexcept {
+        if (this != &other) {
+            if (critical_ptr_ != nullptr) {
+                env_->ReleasePrimitiveArrayCritical(array_, critical_ptr_,
+                                                    release_mode_);
+            }
+            env_ = other.env_;
+            array_ = other.array_;
+            owned_array_ = std::move(other.owned_array_);
+            critical_ptr_ = other.critical_ptr_;
+            release_mode_ = other.release_mode_;
+            other.env_ = nullptr;
+            other.array_ = nullptr;
+            other.critical_ptr_ = nullptr;
+        }
+        return *this;
+    }
+
+    void *get() const { return critical_ptr_; }
+    explicit operator bool() const { return critical_ptr_ != nullptr; }
+};
+
 struct cached_ids {
     jclass buffer_class;
     jmethodID position;
@@ -30,18 +149,18 @@ struct cached_ids {
 cached_ids g_ids{};
 
 void throw_illegal_argument(JNIEnv *env, char const *message) {
-    jclass clazz = env->FindClass("java/lang/IllegalArgumentException");
-    if (clazz != nullptr) {
-        env->ThrowNew(clazz, message);
-        env->DeleteLocalRef(clazz);
+    local_ref<jclass> clazz(
+        env, env->FindClass("java/lang/IllegalArgumentException"));
+    if (clazz) {
+        env->ThrowNew(clazz.get(), message);
     }
 }
 
 void throw_null_pointer(JNIEnv *env, char const *message) {
-    jclass clazz = env->FindClass("java/lang/NullPointerException");
-    if (clazz != nullptr) {
-        env->ThrowNew(clazz, message);
-        env->DeleteLocalRef(clazz);
+    local_ref<jclass> clazz(env,
+                            env->FindClass("java/lang/NullPointerException"));
+    if (clazz) {
+        env->ThrowNew(clazz.get(), message);
     }
 }
 
@@ -52,20 +171,19 @@ auto to_size_t_vector(JNIEnv *env, jintArray arr) -> std::vector<std::size_t> {
     }
     jsize const len = env->GetArrayLength(arr);
     std::vector<std::size_t> result(static_cast<std::size_t>(len));
-    jint *elements = env->GetIntArrayElements(arr, nullptr);
-    if (elements == nullptr) {
+    critical_array_access access(env, arr);
+    if (!access) {
         return {};
     }
+    auto *elements = static_cast<jint const *>(access.get());
     for (jsize i = 0; i < len; ++i) {
         if (elements[i] < 0) {
-            env->ReleaseIntArrayElements(arr, elements, JNI_ABORT);
             throw_illegal_argument(env, "component index cannot be negative");
             return {};
         }
         result[static_cast<std::size_t>(i)] =
             static_cast<std::size_t>(elements[i]);
     }
-    env->ReleaseIntArrayElements(arr, elements, JNI_ABORT);
     return result;
 }
 
@@ -96,8 +214,9 @@ auto has_array(JNIEnv *env, jobject buffer) -> bool {
     return env->CallBooleanMethod(buffer, g_ids.has_array) != JNI_FALSE;
 }
 
-auto get_buffer_array(JNIEnv *env, jobject buffer) -> jarray {
-    return static_cast<jarray>(env->CallObjectMethod(buffer, g_ids.array));
+auto get_buffer_array(JNIEnv *env, jobject buffer) -> local_ref<jarray> {
+    return local_ref<jarray>(
+        env, static_cast<jarray>(env->CallObjectMethod(buffer, g_ids.array)));
 }
 
 auto get_array_offset(JNIEnv *env, jobject buffer) -> jint {
@@ -188,63 +307,21 @@ auto validate_params(JNIEnv *env, jint sample_bits, jint height, jint width,
     return true;
 }
 
-// RAII wrapper (unique_ptr-like semantics) for access to a Java buffer.
+// RAII wrapper for access to a Java buffer.
+// Composes critical_array_access for array-backed buffers.
 class buffer_access {
+    std::optional<critical_array_access> critical_;
+    void *data_ptr_ = nullptr;
+
   public:
     // For direct buffers (no cleanup needed)
     explicit buffer_access(void *data_ptr) : data_ptr_(data_ptr) {}
 
     // For array-backed buffers
-    buffer_access(JNIEnv *env, void *critical_ptr, void *data_ptr,
-                  jarray backing_array, jint release_mode)
-        : env_(env), critical_ptr_(critical_ptr), data_ptr_(data_ptr),
-          backing_array_(backing_array), release_mode_(release_mode) {}
-
-    ~buffer_access() {
-        if (backing_array_ != nullptr) {
-            env_->ReleasePrimitiveArrayCritical(backing_array_, critical_ptr_,
-                                                release_mode_);
-            env_->DeleteLocalRef(backing_array_);
-        }
-    }
-
-    buffer_access(buffer_access const &) = delete;
-    buffer_access &operator=(buffer_access const &) = delete;
-
-    buffer_access(buffer_access &&other) noexcept
-        : env_(other.env_), critical_ptr_(other.critical_ptr_),
-          data_ptr_(other.data_ptr_), backing_array_(other.backing_array_),
-          release_mode_(other.release_mode_) {
-        other.backing_array_ = nullptr;
-        other.critical_ptr_ = nullptr;
-        other.data_ptr_ = nullptr;
-    }
-
-    buffer_access &operator=(buffer_access &&other) noexcept {
-        if (this != &other) {
-            if (backing_array_ != nullptr) {
-                env_->ReleasePrimitiveArrayCritical(
-                    backing_array_, critical_ptr_, release_mode_);
-                env_->DeleteLocalRef(backing_array_);
-            }
-            env_ = other.env_;
-            critical_ptr_ = other.critical_ptr_;
-            data_ptr_ = other.data_ptr_;
-            backing_array_ = other.backing_array_;
-            release_mode_ = other.release_mode_;
-            other.backing_array_ = nullptr;
-        }
-        return *this;
-    }
+    buffer_access(critical_array_access &&critical, void *data_ptr)
+        : critical_(std::move(critical)), data_ptr_(data_ptr) {}
 
     void *ptr() const { return data_ptr_; }
-
-  private:
-    JNIEnv *env_ = nullptr;
-    void *critical_ptr_ = nullptr; // Original pointer for release
-    void *data_ptr_ = nullptr;     // Offset-adjusted pointer for use
-    jarray backing_array_ = nullptr;
-    jint release_mode_ = JNI_ABORT;
 };
 
 // Get buffer data - handles both direct and array-backed buffers.
@@ -257,7 +334,7 @@ template <typename ElementT, bool IsWritable = false>
 auto get_buffer_access(JNIEnv *env, jobject buffer,
                        std::size_t required_elements, char const *buffer_name)
     -> std::optional<buffer_access> {
-    constexpr int release_mode = IsWritable ? 0 : JNI_ABORT;
+    constexpr jint release_mode = IsWritable ? 0 : JNI_ABORT;
 
     if constexpr (IsWritable) {
         if (is_read_only(env, buffer)) {
@@ -301,30 +378,22 @@ auto get_buffer_access(JNIEnv *env, jobject buffer,
         if (env->ExceptionCheck()) {
             return std::nullopt;
         }
-        jarray arr = get_buffer_array(env, buffer);
+        auto arr = get_buffer_array(env, buffer);
         if (env->ExceptionCheck()) {
-            if (arr != nullptr) {
-                env->DeleteLocalRef(arr);
-            }
             return std::nullopt;
         }
-        if (arr != nullptr) {
-            void *critical = env->GetPrimitiveArrayCritical(arr, nullptr);
-            if (critical != nullptr) {
+        if (arr) {
+            critical_array_access access(env, std::move(arr), release_mode);
+            if (access) {
                 jint const array_offset = get_array_offset(env, buffer);
                 jint const position = get_buffer_position(env, buffer);
                 if (env->ExceptionCheck()) {
-                    env->ReleasePrimitiveArrayCritical(arr, critical,
-                                                       JNI_ABORT);
-                    env->DeleteLocalRef(arr);
                     return std::nullopt;
                 }
-                void *data_ptr = static_cast<ElementT *>(critical) +
+                void *data_ptr = static_cast<ElementT *>(access.get()) +
                                  array_offset + position;
-                return buffer_access(env, critical, data_ptr, arr,
-                                     release_mode);
+                return buffer_access(std::move(access), data_ptr);
             }
-            env->DeleteLocalRef(arr);
         }
     }
 
@@ -466,12 +535,12 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *) {
         return JNI_ERR;
     }
 
-    jclass local_class = env->FindClass("java/nio/Buffer");
-    if (local_class == nullptr) {
+    local_ref<jclass> local_class(env, env->FindClass("java/nio/Buffer"));
+    if (!local_class) {
         return JNI_ERR;
     }
-    g_ids.buffer_class = static_cast<jclass>(env->NewGlobalRef(local_class));
-    env->DeleteLocalRef(local_class);
+    g_ids.buffer_class =
+        static_cast<jclass>(env->NewGlobalRef(local_class.release()));
     if (g_ids.buffer_class == nullptr) {
         return JNI_ERR;
     }
