@@ -13,5 +13,6 @@ __pycache__/
 /wheelhouse/
 
 /java/target/
+.flattened-pom.xml
 
 /coverage/

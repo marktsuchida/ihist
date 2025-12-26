@@ -208,19 +208,19 @@ cibuildwheel:
     pip --require-virtualenv install cibuildwheel
     CIBW_ARCHS=native cibuildwheel
 
-# Build Java native library
+# Build Java bindings
 java-build:
     uvx cjdk -j zulu:8 exec -- meson setup --reconfigure builddir-jni \
         -Djava-bindings=enabled \
         -Dtests=disabled -Dbenchmarks=disabled
     uvx cjdk -j zulu:8 exec -- meson compile -C builddir-jni
-
-# Run Java tests (requires Maven)
-java-test: java-build
-    cd java && uvx cjdk -j zulu:8 exec -- \
-        mvn test -Dnative.library.path=../builddir-jni/java
+    cd java && uvx cjdk -j zulu:8 exec -- mvn package \
+        -Dnative.library.path=../builddir-jni/java
 
 # Clean Java build artifacts
 java-clean:
     cd java && mvn clean 2>/dev/null || true
     rm -rf java/target/
+    if [ -d builddir-jni ]; then \
+        uvx cjdk -j zulu:8 exec -- meson compile --clean -C builddir-jni; \
+    fi
