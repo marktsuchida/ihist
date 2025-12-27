@@ -615,4 +615,124 @@ TEMPLATE_LIST_TEST_CASE("mask with non-1 values includes pixels correctly", "",
     CHECK(hist == expected);
 }
 
+TEMPLATE_LIST_TEST_CASE("image stride larger than width handles padding", "",
+                        test_traits_list) {
+    using traits = TestType;
+    using T = typename traits::value_type;
+
+    constexpr auto BITS = 8 * sizeof(T);
+    constexpr auto NBINS = 1 << BITS;
+
+    constexpr std::size_t width = 10;
+    constexpr std::size_t height = 5;
+    constexpr std::size_t padding = 6;
+    constexpr std::size_t stride = width + padding;
+
+    T const value_valid = 1;
+    T const value_padding = 200;
+
+    std::vector<T> data(stride * height, value_padding);
+    for (std::size_t y = 0; y < height; ++y) {
+        std::fill_n(data.begin() + y * stride, width, value_valid);
+    }
+
+    std::vector<std::uint32_t> hist(NBINS);
+    std::vector<std::uint32_t> expected(NBINS);
+    expected[value_valid] = width * height;
+
+    SECTION("nomask") {
+        constexpr auto *histxy_func =
+            traits::template histxy_func<false, BITS, 0, 1, 0>;
+        histxy_func(data.data(), nullptr, height, width, stride, stride,
+                    hist.data(), 1);
+        CHECK(hist == expected);
+    }
+
+    SECTION("mask") {
+        std::vector<std::uint8_t> mask(stride * height, 0);
+        for (std::size_t y = 0; y < height; ++y) {
+            std::fill_n(mask.begin() + y * stride, width, 1);
+        }
+        constexpr auto *histxy_func =
+            traits::template histxy_func<true, BITS, 0, 1, 0>;
+        histxy_func(data.data(), mask.data(), height, width, stride, stride,
+                    hist.data(), 1);
+        CHECK(hist == expected);
+    }
+}
+
+TEMPLATE_LIST_TEST_CASE("different image and mask strides", "",
+                        test_traits_list) {
+    using traits = TestType;
+    using T = typename traits::value_type;
+
+    constexpr auto BITS = 8 * sizeof(T);
+    constexpr auto NBINS = 1 << BITS;
+
+    constexpr std::size_t width = 8;
+    constexpr std::size_t height = 4;
+
+    T const value = 42;
+    std::size_t masked_count = 0;
+    for (std::size_t y = 0; y < height; ++y) {
+        for (std::size_t x = 0; x < width; x += 2) {
+            ++masked_count;
+        }
+    }
+
+    SECTION("mask stride larger than image stride") {
+        constexpr std::size_t image_stride = width + 4;
+        constexpr std::size_t mask_stride = width + 8;
+
+        std::vector<T> data(image_stride * height);
+        for (std::size_t y = 0; y < height; ++y) {
+            std::fill_n(data.begin() + y * image_stride, width, value);
+        }
+
+        std::vector<std::uint8_t> mask(mask_stride * height, 0);
+        for (std::size_t y = 0; y < height; ++y) {
+            for (std::size_t x = 0; x < width; x += 2) {
+                mask[y * mask_stride + x] = 1;
+            }
+        }
+
+        std::vector<std::uint32_t> hist(NBINS);
+        std::vector<std::uint32_t> expected(NBINS);
+        expected[value] = masked_count;
+
+        constexpr auto *histxy_func =
+            traits::template histxy_func<true, BITS, 0, 1, 0>;
+        histxy_func(data.data(), mask.data(), height, width, image_stride,
+                    mask_stride, hist.data(), 1);
+        CHECK(hist == expected);
+    }
+
+    SECTION("mask stride smaller than image stride") {
+        constexpr std::size_t image_stride = width + 8;
+        constexpr std::size_t mask_stride = width + 2;
+
+        std::vector<T> data(image_stride * height);
+        for (std::size_t y = 0; y < height; ++y) {
+            std::fill_n(data.begin() + y * image_stride, width, value);
+        }
+
+        std::vector<std::uint8_t> mask(mask_stride * height, 0);
+        for (std::size_t y = 0; y < height; ++y) {
+            for (std::size_t x = 0; x < width; x += 2) {
+                mask[y * mask_stride + x] = 1;
+            }
+        }
+
+        std::vector<std::uint32_t> hist(NBINS);
+        std::vector<std::uint32_t> expected(NBINS);
+        expected[value] = masked_count;
+
+        constexpr auto *histxy_func =
+            traits::template histxy_func<true, BITS, 0, 1, 0>;
+        histxy_func(data.data(), mask.data(), height, width, image_stride,
+                    mask_stride, hist.data(), 1);
+        CHECK(hist == expected);
+    }
+}
+
 } // namespace ihist

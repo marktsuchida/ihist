@@ -277,3 +277,65 @@ TEMPLATE_LIST_TEST_CASE("C API non-contiguous component indices", "",
     }
     CHECK(hist == ref);
 }
+
+TEST_CASE("C API sample_bits discards out-of-range values for uint8") {
+    constexpr std::size_t sample_bits = 4;
+    constexpr std::size_t nbins = 1 << sample_bits;
+    constexpr std::size_t test_width = 10;
+    constexpr std::size_t test_height = 10;
+    constexpr std::size_t test_size = test_width * test_height;
+
+    std::vector<u8> data(test_size);
+    for (std::size_t i = 0; i < test_size; ++i) {
+        data[i] = static_cast<u8>(i % 256);
+    }
+
+    std::vector<u32> hist(nbins, 0);
+    std::vector<u32> expected(nbins, 0);
+    for (std::size_t i = 0; i < test_size; ++i) {
+        u8 val = data[i];
+        if (val < nbins) {
+            ++expected[val];
+        }
+    }
+
+    constexpr std::size_t indices[] = {0};
+    bool const parallel = GENERATE(false, true);
+    CAPTURE(parallel);
+
+    ihist_hist8_2d(sample_bits, data.data(), nullptr, test_height, test_width,
+                   test_width, test_width, 1, 1, indices, hist.data(),
+                   parallel);
+    CHECK(hist == expected);
+}
+
+TEST_CASE("C API sample_bits discards out-of-range values for uint16") {
+    constexpr std::size_t sample_bits = 10;
+    constexpr std::size_t nbins = 1 << sample_bits;
+    constexpr std::size_t test_width = 64;
+    constexpr std::size_t test_height = 64;
+    constexpr std::size_t test_size = test_width * test_height;
+
+    std::vector<u16> data(test_size);
+    for (std::size_t i = 0; i < test_size; ++i) {
+        data[i] = static_cast<u16>(i * 17 % 65536);
+    }
+
+    std::vector<u32> hist(nbins, 0);
+    std::vector<u32> expected(nbins, 0);
+    for (std::size_t i = 0; i < test_size; ++i) {
+        u16 val = data[i];
+        if (val < nbins) {
+            ++expected[val];
+        }
+    }
+
+    constexpr std::size_t indices[] = {0};
+    bool const parallel = GENERATE(false, true);
+    CAPTURE(parallel);
+
+    ihist_hist16_2d(sample_bits, data.data(), nullptr, test_height, test_width,
+                    test_width, test_width, 1, 1, indices, hist.data(),
+                    parallel);
+    CHECK(hist == expected);
+}

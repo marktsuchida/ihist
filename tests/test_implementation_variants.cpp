@@ -327,6 +327,50 @@ TEMPLATE_LIST_TEST_CASE(
     }
 }
 
+TEMPLATE_LIST_TEST_CASE("large input near parallelization threshold", "",
+                        test_traits_list) {
+    using traits = TestType;
+    using T = typename traits::value_type;
+
+    constexpr auto BITS = 8 * sizeof(T);
+    constexpr auto NBINS = 1 << BITS;
+
+    constexpr std::size_t width = 1024;
+    constexpr std::size_t height = 1024;
+    constexpr std::size_t size = width * height;
+
+    auto const data = test_data<T>(size);
+    auto const mask = test_data<std::uint8_t, 1>(size);
+
+    SECTION("nomask") {
+        std::vector<std::uint32_t> ref(NBINS);
+        constexpr auto *ref_func = histxy_unoptimized_st<T>;
+        ref_func(data.data(), nullptr, height, width, width, width, ref.data(),
+                 1);
+
+        std::vector<std::uint32_t> hist(NBINS);
+        constexpr auto *histxy_func =
+            traits::template histxy_func<false, BITS, 0, 1, 0>;
+        histxy_func(data.data(), nullptr, height, width, width, width,
+                    hist.data(), 1);
+        CHECK(hist == ref);
+    }
+
+    SECTION("mask") {
+        std::vector<std::uint32_t> ref(NBINS);
+        constexpr auto *ref_func = histxy_unoptimized_st<T, true>;
+        ref_func(data.data(), mask.data(), height, width, width, width,
+                 ref.data(), 1);
+
+        std::vector<std::uint32_t> hist(NBINS);
+        constexpr auto *histxy_func =
+            traits::template histxy_func<true, BITS, 0, 1, 0>;
+        histxy_func(data.data(), mask.data(), height, width, width, width,
+                    hist.data(), 1);
+        CHECK(hist == ref);
+    }
+}
+
 TEMPLATE_LIST_TEST_CASE("dynamic histogram variants match reference", "",
                         dynamic_test_traits_list) {
     using traits = TestType;
@@ -413,6 +457,97 @@ TEMPLATE_LIST_TEST_CASE("dynamic histogram variants match reference", "",
                 width, width, 2, 2, indices, hist.data());
             CHECK(hist == ref);
         }
+    }
+}
+
+TEMPLATE_LIST_TEST_CASE("dynamic histogram single component matches reference",
+                        "", dynamic_test_traits_list) {
+    using traits = TestType;
+    using T = typename traits::value_type;
+
+    constexpr std::size_t index = 0;
+    constexpr std::size_t width = 65;
+    constexpr std::size_t height = 63;
+    constexpr std::size_t size = width * height;
+
+    constexpr auto BITS = 8 * sizeof(T);
+    constexpr auto NBINS = 1 << BITS;
+
+    auto const data = test_data<T>(size);
+    auto const mask = test_data<std::uint8_t, 1>(size);
+
+    SECTION("nomask") {
+        std::vector<std::uint32_t> ref(NBINS);
+        constexpr auto *ref_func =
+            histxy_unoptimized_st<T, false, BITS, 0, 1, 0>;
+        ref_func(data.data(), nullptr, height, width, width, width, ref.data(),
+                 1);
+
+        std::vector<std::uint32_t> hist(NBINS);
+        traits::template histxy_dynamic<false, BITS, 0>(
+            data.data(), nullptr, height, width, width, width, 1, 1, &index,
+            hist.data());
+        CHECK(hist == ref);
+    }
+
+    SECTION("mask") {
+        std::vector<std::uint32_t> ref(NBINS);
+        constexpr auto *ref_func =
+            histxy_unoptimized_st<T, true, BITS, 0, 1, 0>;
+        ref_func(data.data(), mask.data(), height, width, width, width,
+                 ref.data(), 1);
+
+        std::vector<std::uint32_t> hist(NBINS);
+        traits::template histxy_dynamic<true, BITS, 0>(
+            data.data(), mask.data(), height, width, width, width, 1, 1,
+            &index, hist.data());
+        CHECK(hist == ref);
+    }
+}
+
+TEMPLATE_LIST_TEST_CASE(
+    "dynamic histogram all components selected matches reference", "",
+    dynamic_test_traits_list) {
+    using traits = TestType;
+    using T = typename traits::value_type;
+
+    constexpr std::size_t indices[] = {0, 1, 2};
+    constexpr std::size_t width = 65;
+    constexpr std::size_t height = 63;
+    constexpr std::size_t size = width * height;
+
+    constexpr auto BITS = 8 * sizeof(T);
+    constexpr auto NBINS = 1 << BITS;
+
+    auto const data = test_data<T>(3 * size);
+    auto const mask = test_data<std::uint8_t, 1>(size);
+
+    SECTION("nomask") {
+        std::vector<std::uint32_t> ref(3 * NBINS);
+        constexpr auto *ref_func =
+            histxy_unoptimized_st<T, false, BITS, 0, 3, 0, 1, 2>;
+        ref_func(data.data(), nullptr, height, width, width, width, ref.data(),
+                 1);
+
+        std::vector<std::uint32_t> hist(3 * NBINS);
+        traits::template histxy_dynamic<false, BITS, 0>(
+            data.data(), nullptr, height, width, width, width, 3, 3, indices,
+            hist.data());
+        CHECK(hist == ref);
+    }
+
+    SECTION("mask") {
+        std::vector<std::uint32_t> ref(3 * NBINS);
+        constexpr auto *ref_func =
+            histxy_unoptimized_st<T, true, BITS, 0, 3, 0, 1, 2>;
+        ref_func(data.data(), mask.data(), height, width, width, width,
+                 ref.data(), 1);
+
+        std::vector<std::uint32_t> hist(3 * NBINS);
+        traits::template histxy_dynamic<true, BITS, 0>(
+            data.data(), mask.data(), height, width, width, width, 3, 3,
+            indices, hist.data());
+        CHECK(hist == ref);
     }
 }
 
