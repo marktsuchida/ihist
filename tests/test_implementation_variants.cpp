@@ -18,16 +18,12 @@
 
 namespace ihist {
 
-// This test trusts our reference (unoptimized) implementation (tested well in
-// constant-input and all-values tests) and makes sure the optimized
-// implementations produce the same result on large-ish input data.
-
-TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
+TEMPLATE_LIST_TEST_CASE(
+    "optimized implementations match unoptimized reference", "",
+    test_traits_list) {
     using traits = TestType;
     using T = typename traits::value_type;
 
-    // Test two cases: (1) full bits of T and (2) half-width with quarter
-    // shift.
     constexpr auto FULL_BITS = 8 * sizeof(T);
     constexpr auto FULL_NBINS = 1 << FULL_BITS;
     constexpr auto FULL_SHIFT = 0;
@@ -331,7 +327,8 @@ TEMPLATE_LIST_TEST_CASE("random-input", "", test_traits_list) {
     }
 }
 
-TEMPLATE_LIST_TEST_CASE("dynamic-random-input", "", dynamic_test_traits_list) {
+TEMPLATE_LIST_TEST_CASE("dynamic histogram variants match reference", "",
+                        dynamic_test_traits_list) {
     using traits = TestType;
     using T = typename traits::value_type;
 

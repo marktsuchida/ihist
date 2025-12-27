@@ -3,13 +3,13 @@
 # SPDX-License-Identifier: MIT
 
 test_srcs = files(
-    'all_values.cpp',
-    'api.cpp',
-    'constant_input.cpp',
-    'core_count.cpp',
-    'empty_input.cpp',
-    'internal_utils.cpp',
-    'random_input.cpp',
+    'test_accumulation.cpp',
+    'test_bin_mapping.cpp',
+    'test_components.cpp',
+    'test_core_count.cpp',
+    'test_edge_cases.cpp',
+    'test_implementation_variants.cpp',
+    'test_region_selection.cpp',
 )
 
 test_exe = executable(

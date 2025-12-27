@@ -18,15 +18,43 @@
 
 namespace ihist {
 
-// This mainly tests that the value-to-bin mapping is correct. For correct ROI
-// and mask handling, see the constant-input tests.
+namespace internal {
 
-TEMPLATE_LIST_TEST_CASE("all-values", "", test_traits_list) {
+TEST_CASE("bin_index full-width bits") {
+    STATIC_CHECK(bin_index<std::uint8_t>(0) == 0);
+    STATIC_CHECK(bin_index<std::uint8_t>(255) == 255);
+    STATIC_CHECK(bin_index(std::uint8_t(255)) == 255);
+    STATIC_CHECK(bin_index<std::uint16_t>(0) == 0);
+    STATIC_CHECK(bin_index<std::uint16_t>(65535) == 65535);
+    STATIC_CHECK(bin_index(std::uint16_t(65535)) == 65535);
+}
+
+TEST_CASE("bin_index fewer than full bits maps out-of-range to overflow bin") {
+    STATIC_CHECK(bin_index<std::uint16_t, 12>(0x0fff) == 0x0fff);
+    STATIC_CHECK(bin_index<std::uint16_t, 12>(0xffff) == 0x1000);
+}
+
+TEST_CASE("bin_index with LoBit offset extracts mid-range bits") {
+    STATIC_CHECK(bin_index<std::uint16_t, 12, 4>(0xfff0) == 0x0fff);
+    STATIC_CHECK(bin_index<std::uint16_t, 12, 4>(0xffff) == 0x0fff);
+}
+
+TEST_CASE("bin_index mid-bits extraction") {
+    STATIC_CHECK(bin_index<std::uint16_t, 8, 4>(0x0000) == 0);
+    STATIC_CHECK(bin_index<std::uint16_t, 8, 4>(0x0010) == 1);
+    STATIC_CHECK(bin_index<std::uint16_t, 8, 4>(0x0ff0) == 0xff);
+    STATIC_CHECK(bin_index<std::uint16_t, 8, 4>(0x1000) == 256);
+    STATIC_CHECK(bin_index<std::uint16_t, 8, 4>(0x1010) == 256);
+    STATIC_CHECK(bin_index<std::uint16_t, 8, 4>(0xffff) == 256);
+}
+
+} // namespace internal
+
+TEMPLATE_LIST_TEST_CASE("full-range input maps each value to correct bin", "",
+                        test_traits_list) {
     using traits = TestType;
     using T = typename traits::value_type;
 
-    // Test two cases: (1) full bits of T and (2) half-width with quarter
-    // shift. In both cases the input has full range of T.
     constexpr auto FULL_BITS = 8 * sizeof(T);
     constexpr auto FULL_NBINS = 1 << FULL_BITS;
     constexpr auto FULL_SHIFT = 0;
@@ -55,7 +83,7 @@ TEMPLATE_LIST_TEST_CASE("all-values", "", test_traits_list) {
 
     SECTION("1d") {
         SECTION("mono") {
-            SECTION("fullbits") {
+            SECTION("fullbits - each bin gets exactly 1 count") {
                 std::vector<std::uint32_t> hist(FULL_NBINS);
                 std::vector<std::uint32_t> const expected(FULL_NBINS, 1);
                 constexpr auto *hist_func =
@@ -64,7 +92,7 @@ TEMPLATE_LIST_TEST_CASE("all-values", "", test_traits_list) {
                 hist_func(data.data(), nullptr, size, hist.data(), 1);
                 CHECK(hist == expected);
             }
-            SECTION("halfbits") {
+            SECTION("halfbits with shift - bins accumulate multiple values") {
                 std::vector<std::uint32_t> hist(HALF_NBINS);
                 std::vector<std::uint32_t> const expected(HALF_NBINS,
                                                           1 << HALF_SHIFT);
@@ -148,7 +176,8 @@ TEMPLATE_LIST_TEST_CASE("all-values", "", test_traits_list) {
     }
 }
 
-TEMPLATE_LIST_TEST_CASE("dynamic-all-values", "", dynamic_test_traits_list) {
+TEMPLATE_LIST_TEST_CASE("dynamic histogram full-range input", "",
+                        dynamic_test_traits_list) {
     using traits = TestType;
     using T = typename traits::value_type;
 
@@ -193,6 +222,49 @@ TEMPLATE_LIST_TEST_CASE("dynamic-all-values", "", dynamic_test_traits_list) {
             hist.data());
         CHECK(hist == expected);
     }
+}
+
+TEST_CASE("out-of-range values are discarded") {
+    constexpr unsigned BITS = 4;
+    constexpr std::size_t NBINS = 1 << BITS;
+
+    std::vector<std::uint8_t> data = {
+        0,   // bin 0
+        15,  // bin 15 (max in-range)
+        16,  // out-of-range (first value above max)
+        255, // out-of-range (max uint8)
+    };
+
+    std::vector<std::uint32_t> hist(NBINS);
+    std::vector<std::uint32_t> expected(NBINS);
+    expected[0] = 1;
+    expected[15] = 1;
+
+    hist_unoptimized_st<std::uint8_t, false, BITS, 0, 1, 0>(
+        data.data(), nullptr, data.size(), hist.data(), 1);
+    CHECK(hist == expected);
+}
+
+TEST_CASE("out-of-range values with bit shift are discarded") {
+    constexpr unsigned BITS = 4;
+    constexpr unsigned LOBIT = 2;
+    constexpr std::size_t NBINS = 1 << BITS;
+
+    std::vector<std::uint8_t> data = {
+        0b00000000, // bin 0 (bits 5:2 = 0000)
+        0b00111100, // bin 15 (bits 5:2 = 1111)
+        0b01000000, // out-of-range (bit 6 set)
+        0b11111111, // out-of-range (bits above 5 set)
+    };
+
+    std::vector<std::uint32_t> hist(NBINS);
+    std::vector<std::uint32_t> expected(NBINS);
+    expected[0] = 1;
+    expected[15] = 1;
+
+    hist_unoptimized_st<std::uint8_t, false, BITS, LOBIT, 1, 0>(
+        data.data(), nullptr, data.size(), hist.data(), 1);
+    CHECK(hist == expected);
 }
 
 } // namespace ihist
