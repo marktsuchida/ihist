@@ -101,6 +101,35 @@ class TestBufferProtocol:
         assert result[0] == 1
         assert result[1] == 1
 
+    def test_memoryview_output(self):
+        """Test that memoryview works as output."""
+        image = np.array([0, 1, 2], dtype=np.uint8)
+        arr = array.array("I", [0] * 256)  # 'I' is unsigned int (uint32)
+        out = memoryview(arr)
+
+        result = ihist.histogram(image, out=out)
+
+        assert result is out
+        assert arr[0] == 1
+        assert arr[1] == 1
+        assert arr[2] == 1
+
+    def test_memoryview_output_2d(self):
+        """Test that memoryview works as 2D output."""
+        image = np.array(
+            [[[0, 1], [2, 3]]], dtype=np.uint8
+        )  # 1x2 with 2 components
+        arr = array.array("I", [0] * 512)  # 2 * 256
+        out = memoryview(arr).cast("B").cast("I", (2, 256))
+
+        result = ihist.histogram(image, out=out)
+
+        assert result is out
+        assert arr[0] == 1  # Component 0, bin 0
+        assert arr[2] == 1  # Component 0, bin 2
+        assert arr[256 + 1] == 1  # Component 1, bin 1
+        assert arr[256 + 3] == 1  # Component 1, bin 3
+
 
 class TestReturnTypes:
     """Test return type behavior."""

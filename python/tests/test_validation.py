@@ -191,6 +191,38 @@ class TestMaskParameterValidation:
         hist_unmasked = ihist.histogram(image)
         np.testing.assert_array_equal(hist_masked, hist_unmasked)
 
+    def test_mask_3d_raises_error(self):
+        """Test that 3D mask raises error."""
+        image = np.array([[0, 1], [2, 3]], dtype=np.uint8)
+        mask = np.ones((2, 2, 1), dtype=np.uint8)
+        with pytest.raises(ValueError, match="Mask must be 2D"):
+            ihist.histogram(image, mask=mask)
+
+    def test_mask_with_1d_image(self):
+        """Test that mask works with 1D image using shape (1, W)."""
+        image = np.array([10, 20, 30, 40], dtype=np.uint8)
+        mask = np.array([[1, 0, 1, 0]], dtype=np.uint8)
+        hist = ihist.histogram(image, mask=mask)
+        assert hist[10] == 1
+        assert hist[30] == 1
+        assert hist[20] == 0
+        assert hist[40] == 0
+        assert hist.sum() == 2
+
+    def test_mask_shape_mismatch_1d_image(self):
+        """Test that mask shape mismatch with 1D image raises error."""
+        image = np.array([10, 20, 30, 40], dtype=np.uint8)
+        mask = np.array([[1, 0, 1]], dtype=np.uint8)
+        with pytest.raises(ValueError, match="does not match image shape"):
+            ihist.histogram(image, mask=mask)
+
+    def test_mask_shape_mismatch_3d_image(self):
+        """Test that mask shape mismatch with 3D image raises error."""
+        image = np.zeros((10, 8, 3), dtype=np.uint8)
+        mask = np.ones((10, 10), dtype=np.uint8)
+        with pytest.raises(ValueError, match="does not match image shape"):
+            ihist.histogram(image, mask=mask)
+
 
 class TestComponentsParameterValidation:
     """Test validation of components parameter."""
@@ -281,6 +313,12 @@ class TestComponentsParameterValidation:
             ValueError, match="Component index .* out of range"
         ):
             ihist.histogram(image, components=[1])
+
+    def test_components_non_sequence_raises_error(self):
+        """Test that non-sequence components raises error."""
+        image = np.zeros((10, 10, 3), dtype=np.uint8)
+        with pytest.raises((TypeError, RuntimeError)):
+            ihist.histogram(image, components=1)
 
 
 class TestOutParameterValidation:
