@@ -8,7 +8,7 @@
 
 #include "ihist.hpp"
 
-#include "test_data.hpp"
+#include "gen_data.hpp"
 
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
