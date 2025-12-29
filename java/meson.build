@@ -22,7 +22,7 @@ elif host_machine.system() == 'darwin'
     # bindings.
 endif
 
-ihistj_lib = shared_library(
+shared_library(
     'ihistj',
     'src/main/cpp/ihistj_jni.cpp',
     jni_header,
