@@ -60,8 +60,13 @@ Number of significant bits per sample. If not specified, defaults to full depth
 uint16.
 
 **`mask`** : *array_like, optional*
-Per-pixel mask. Must be uint8, 2D, shape `(H, W)`. Only pixels with non-zero
-mask values are included. If not specified, all pixels are included.
+Per-pixel mask. Must be uint8. Shape must match image dimensions:
+
+- For 1D images `(W,)`: mask must be 1D, shape `(W,)`
+- For 2D/3D images: mask must be 2D, shape `(H, W)`
+
+Only pixels with non-zero mask values are included. If not specified, all
+pixels are included.
 
 **`components`** : *sequence of int, optional*
 Indices of components to histogram. If not specified, all components are

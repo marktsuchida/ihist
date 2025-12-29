@@ -162,10 +162,12 @@ class TestMaskParameterValidation:
             ihist.histogram(image, mask=mask)
 
     def test_mask_wrong_ndim(self):
-        """Test that non-2D mask raises error."""
+        """Test that 1D mask with 2D image raises error."""
         image = np.array([[0, 1]], dtype=np.uint8)
         mask = np.array([1, 0], dtype=np.uint8)  # 1D
-        with pytest.raises(ValueError, match="Mask must be 2D"):
+        with pytest.raises(
+            ValueError, match="Mask must be 2D when image is 2D or 3D"
+        ):
             ihist.histogram(image, mask=mask)
 
     def test_mask_wrong_shape(self):
@@ -195,13 +197,15 @@ class TestMaskParameterValidation:
         """Test that 3D mask raises error."""
         image = np.array([[0, 1], [2, 3]], dtype=np.uint8)
         mask = np.ones((2, 2, 1), dtype=np.uint8)
-        with pytest.raises(ValueError, match="Mask must be 2D"):
+        with pytest.raises(
+            ValueError, match="Mask must be 2D when image is 2D or 3D"
+        ):
             ihist.histogram(image, mask=mask)
 
     def test_mask_with_1d_image(self):
-        """Test that mask works with 1D image using shape (1, W)."""
+        """Test that 1D mask works with 1D image."""
         image = np.array([10, 20, 30, 40], dtype=np.uint8)
-        mask = np.array([[1, 0, 1, 0]], dtype=np.uint8)
+        mask = np.array([1, 0, 1, 0], dtype=np.uint8)
         hist = ihist.histogram(image, mask=mask)
         assert hist[10] == 1
         assert hist[30] == 1
@@ -210,10 +214,19 @@ class TestMaskParameterValidation:
         assert hist.sum() == 2
 
     def test_mask_shape_mismatch_1d_image(self):
-        """Test that mask shape mismatch with 1D image raises error."""
+        """Test that 1D mask length mismatch with 1D image raises error."""
         image = np.array([10, 20, 30, 40], dtype=np.uint8)
-        mask = np.array([[1, 0, 1]], dtype=np.uint8)
-        with pytest.raises(ValueError, match="does not match image shape"):
+        mask = np.array([1, 0, 1], dtype=np.uint8)
+        with pytest.raises(ValueError, match="does not match image width"):
+            ihist.histogram(image, mask=mask)
+
+    def test_mask_2d_with_1d_image_raises_error(self):
+        """Test that 2D mask with 1D image raises error."""
+        image = np.array([10, 20, 30, 40], dtype=np.uint8)
+        mask = np.array([[1, 0, 1, 0]], dtype=np.uint8)
+        with pytest.raises(
+            ValueError, match="Mask must be 1D when image is 1D"
+        ):
             ihist.histogram(image, mask=mask)
 
     def test_mask_shape_mismatch_3d_image(self):

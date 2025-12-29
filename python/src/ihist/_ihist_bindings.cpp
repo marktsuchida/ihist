@@ -128,8 +128,13 @@ class MaskView {
     explicit MaskView(std::size_t effective_width)
         : data_(nullptr), stride_(effective_width) {}
 
-    // Construct from a mask array. The mask must have the same contiguous axis
-    // as the image (axis 1 if not transposed, axis 0 if transposed).
+    // Construct from a 1D mask array (for 1D images).
+    MaskView(nb::ndarray<nb::ro> &mask, std::size_t width)
+        : data_(static_cast<std::uint8_t const *>(mask.data())),
+          stride_(width) {}
+
+    // Construct from a 2D mask array. The mask must have the same contiguous
+    // axis as the image (axis 1 if not transposed, axis 0 if transposed).
     MaskView(nb::ndarray<nb::ro> &mask, std::size_t orig_height,
              std::size_t orig_width, bool image_transposed)
         : data_(nullptr),
@@ -283,20 +288,33 @@ nb::object histogram(nb::ndarray<nb::ro> image,
         if (mask.dtype() != nb::dtype<std::uint8_t>()) {
             throw std::invalid_argument("Mask must have dtype uint8");
         }
-        if (mask.ndim() != 2) {
-            throw std::invalid_argument("Mask must be 2D, got " +
-                                        std::to_string(mask.ndim()) + "D");
+        if (ndim == 1) {
+            if (mask.ndim() != 1) {
+                throw std::invalid_argument(
+                    "Mask must be 1D when image is 1D, got " +
+                    std::to_string(mask.ndim()) + "D");
+            }
+            if (mask.shape(0) != width) {
+                throw std::invalid_argument(
+                    "Mask length " + std::to_string(mask.shape(0)) +
+                    " does not match image width " + std::to_string(width));
+            }
+            return MaskView(mask, width);
+        } else {
+            if (mask.ndim() != 2) {
+                throw std::invalid_argument(
+                    "Mask must be 2D when image is 2D or 3D, got " +
+                    std::to_string(mask.ndim()) + "D");
+            }
+            if (mask.shape(0) != height || mask.shape(1) != width) {
+                throw std::invalid_argument(
+                    "Mask shape " + std::to_string(mask.shape(0)) + "x" +
+                    std::to_string(mask.shape(1)) +
+                    " does not match image shape " + std::to_string(height) +
+                    "x" + std::to_string(width));
+            }
+            return MaskView(mask, height, width, img.transposed());
         }
-        // Validate against original image shape (before any transposition)
-        if (mask.shape(0) != height || mask.shape(1) != width) {
-            throw std::invalid_argument(
-                "Mask shape " + std::to_string(mask.shape(0)) + "x" +
-                std::to_string(mask.shape(1)) +
-                " does not match image shape " + std::to_string(height) + "x" +
-                std::to_string(width));
-        }
-
-        return MaskView(mask, height, width, img.transposed());
     }();
 
     std::size_t const n_bins = 1uLL << sample_bits;
@@ -422,9 +440,11 @@ NB_MODULE(_ihist_bindings, m) {
             uint8, [0, 16] for uint16.
 
         mask : array_like, optional
-            Per-pixel mask. Must be uint8, 2D, shape (H, W). Only pixels with
-            non-zero mask values are included. If not specified, all pixels are
-            included.
+            Per-pixel mask. Must be uint8. Shape must match image dimensions:
+            - For 1D images: mask must be 1D with shape (W,)
+            - For 2D/3D images: mask must be 2D with shape (H, W)
+            Only pixels with non-zero mask values are included. If not
+            specified, all pixels are included.
 
         components : sequence of int, optional
             Indices of components to histogram. If not specified, all
