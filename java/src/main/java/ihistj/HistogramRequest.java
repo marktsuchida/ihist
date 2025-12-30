@@ -398,7 +398,8 @@ public final class HistogramRequest {
      *
      * <p>
      * If false (default), the output buffer is zeroed before computing.
-     * If true, histogram counts are added to existing values.
+     * If true, histogram counts are added to existing values. No effect if
+     * {@code output()} is not given.
      *
      * @param accumulate true to add to existing values
      * @return this builder

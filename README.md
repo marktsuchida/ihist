@@ -89,7 +89,7 @@ If not specified, a new array is allocated and returned.
 **`accumulate`** : *bool, optional*
 If `False` (default), the output buffer is zeroed before computing the
 histogram. If `True`, histogram values are accumulated into the existing buffer
-values.
+values. No effect if `out` is not given.
 
 **`parallel`** : *bool, optional*
 If `True` (default), allows automatic multi-threaded execution for large images.

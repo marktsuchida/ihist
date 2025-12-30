@@ -461,7 +461,7 @@ NB_MODULE(_ihist_bindings, m) {
         accumulate : bool, optional
             If False (default), the output buffer is zeroed before computing
             the histogram. If True, histogram values are accumulated into the
-            existing buffer values.
+            existing buffer values. No effect if 'out' is not given.
 
         parallel : bool, optional
             If True (default), allows automatic multi-threaded execution for
