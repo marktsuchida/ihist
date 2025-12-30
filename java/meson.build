@@ -7,6 +7,7 @@ jni_dep = dependency('jni', version: '>= 1.8.0', modules: ['jvm'])
 
 jni_header = java_mod.native_headers(
     'src/main/java/ihistj/IHistNative.java',
+    'src/main/java/ihistj/NativeLibraryLoader.java',
     package: 'ihistj',
     classes: ['IHistNative'],
 )

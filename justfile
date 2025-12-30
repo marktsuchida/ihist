@@ -216,7 +216,13 @@ java-build:
         -Dtests=disabled -Dbenchmarks=disabled
     {{cjdk_exec}} meson compile -C builddir-jni
     cd java && {{cjdk_exec}} mvn package \
+        -Dihistj.debug=true \
         -Dnative.library.path=../builddir-jni/java
+
+# Test native library loading from JAR
+java-test-jar-loading: java-build
+    cd java/target && {{cjdk_exec}} java -Dihistj.debug=true \
+        -cp "$(printf '%s:' ihistj-*.jar)" ihistj.IHistNative
 
 # Test Java bindings with C++ coverage
 java-coverage:
