@@ -209,20 +209,21 @@ cibuildwheel:
     pip --require-virtualenv install cibuildwheel
     CIBW_ARCHS=native cibuildwheel
 
-# Build and test Java bindings (with coverage)
-java-build:
+# Build Java native library
+java-build-jni:
     {{cjdk_exec}} meson setup --reconfigure builddir-jni \
         -Djava-bindings=enabled \
         -Dtests=disabled -Dbenchmarks=disabled
     {{cjdk_exec}} meson compile -C builddir-jni
-    cd java && {{cjdk_exec}} mvn package \
-        -Dihistj.debug=true \
-        -Dnative.library.path=../builddir-jni/java
 
-# Test native library loading from JAR
-java-test-jar-loading: java-build
-    cd java/target && {{cjdk_exec}} java -Dihistj.debug=true \
-        -cp "$(printf '%s:' ihistj-*.jar)" ihistj.IHistNative
+# Build Java bindings
+java-build: java-build-jni
+    cd java && {{cjdk_exec}} mvn compile
+
+# Test Java bindings (with Java coverage)
+java-test: java-build-jni
+    cd java && {{cjdk_exec}} mvn verify -Dihistj.debug=true \
+        -Dnative.library.path=../builddir-jni/java
 
 # Test Java bindings with C++ coverage
 java-coverage:

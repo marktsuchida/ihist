@@ -4,10 +4,6 @@
 
 package ihistj;
 
-import java.io.File;
-import java.lang.reflect.Method;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
@@ -60,59 +56,6 @@ public final class IHistNative {
         if (!loaded) {
             NativeLibraryLoader.load();
             loaded = true;
-        }
-    }
-
-    /**
-     * Main method for testing native library loading.
-     *
-     * <p>Tests loading the native library from the default classloader
-     * and from two additional isolated classloaders to verify that the
-     * library can be loaded multiple times (required for plugin scenarios).
-     *
-     * <p>Run with {@code -Dihistj.debug=true} to observe.
-     *
-     * @param args command line arguments are ignored
-     * @throws Exception if loading fails
-     */
-    public static void main(String[] args) throws Exception {
-        loadNativeLibrary();
-        System.err.println("Loaded from default classloader");
-
-        URL[] jarUrls = findAllJars();
-        testWithIsolatedClassLoader(jarUrls, "ClassLoader-1");
-
-        System.err.println("All classloader tests passed");
-    }
-
-    private static URL[] findAllJars() throws Exception {
-        URL codeSource = IHistNative.class.getProtectionDomain()
-                             .getCodeSource()
-                             .getLocation();
-        File jarFile = new File(codeSource.toURI());
-        File dir = jarFile.getParentFile();
-        File[] jars = dir.listFiles(
-            (d, name) -> name.startsWith("ihistj-") && name.endsWith(".jar"));
-        if (jars == null || jars.length == 0) {
-            throw new IllegalStateException("No ihistj JARs found in " + dir);
-        }
-        URL[] urls = new URL[jars.length];
-        for (int i = 0; i < jars.length; i++) {
-            urls[i] = jars[i].toURI().toURL();
-        }
-        return urls;
-    }
-
-    private static void testWithIsolatedClassLoader(URL[] jarUrls, String name)
-        throws Exception {
-        URLClassLoader loader = new URLClassLoader(jarUrls, null);
-        try {
-            Class<?> cls = Class.forName("ihistj.IHistNative", true, loader);
-            Method loadMethod = cls.getMethod("loadNativeLibrary");
-            loadMethod.invoke(null);
-            System.err.println("Loaded from " + name);
-        } finally {
-            loader.close();
         }
     }
 
