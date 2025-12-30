@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-#include "ihistj_IHistNative.h"
+#include "io_github_marktsuchida_ihist_IHistNative.h"
 
 namespace {
 
@@ -564,7 +564,7 @@ void histogram_impl(JNIEnv *env, jint sample_bits, jobject image_buffer,
 extern "C" {
 
 JNIEXPORT void JNICALL
-Java_ihistj_IHistNative_histogram8__ILjava_nio_ByteBuffer_2Ljava_nio_ByteBuffer_2IIIII_3ILjava_nio_IntBuffer_2Z(
+Java_io_github_marktsuchida_ihist_IHistNative_histogram8__ILjava_nio_ByteBuffer_2Ljava_nio_ByteBuffer_2IIIII_3ILjava_nio_IntBuffer_2Z(
     JNIEnv *env, jclass, jint sample_bits, jobject image_buffer,
     jobject mask_buffer, jint height, jint width, jint image_stride,
     jint mask_stride, jint n_components, jintArray component_indices,
@@ -576,7 +576,7 @@ Java_ihistj_IHistNative_histogram8__ILjava_nio_ByteBuffer_2Ljava_nio_ByteBuffer_
 }
 
 JNIEXPORT void JNICALL
-Java_ihistj_IHistNative_histogram16__ILjava_nio_ShortBuffer_2Ljava_nio_ByteBuffer_2IIIII_3ILjava_nio_IntBuffer_2Z(
+Java_io_github_marktsuchida_ihist_IHistNative_histogram16__ILjava_nio_ShortBuffer_2Ljava_nio_ByteBuffer_2IIIII_3ILjava_nio_IntBuffer_2Z(
     JNIEnv *env, jclass, jint sample_bits, jobject image_buffer,
     jobject mask_buffer, jint height, jint width, jint image_stride,
     jint mask_stride, jint n_components, jintArray component_indices,

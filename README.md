@@ -111,7 +111,7 @@ Histogram(s) as uint32 array.
 ### Quick Start
 
 ```java
-import ihistj.HistogramRequest;
+import io.github.marktsuchida.ihist.HistogramRequest;
 import java.nio.IntBuffer;
 
 // Grayscale image

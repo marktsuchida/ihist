@@ -2,7 +2,7 @@
 // Copyright 2025 Board of Regents of the University of Wisconsin System
 // SPDX-License-Identifier: MIT
 
-package ihistj;
+package io.github.marktsuchida.ihist;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -18,7 +18,7 @@ import java.util.Locale;
 final class NativeLibraryLoader {
 
     private static final String LIBRARY_NAME = "ihistj";
-    private static final boolean DEBUG = Boolean.getBoolean("ihistj.debug");
+    private static final boolean DEBUG = Boolean.getBoolean("ihist.debug");
 
     private NativeLibraryLoader() {}
 
@@ -183,21 +183,21 @@ final class NativeLibraryLoader {
     }
 
     private static File createUnixTempDirectory() throws IOException {
-        String tmpdir = System.getProperty("ihistj.tmpdir");
+        String tmpdir = System.getProperty("ihist.tmpdir");
         if (tmpdir != null) {
             return Files
-                .createTempDirectory(new File(tmpdir).toPath(), "ihistj-")
+                .createTempDirectory(new File(tmpdir).toPath(), "ihist-")
                 .toFile();
         }
-        return Files.createTempDirectory("ihistj-").toFile();
+        return Files.createTempDirectory("ihist-").toFile();
     }
 
     private static File getWindowsNativesDirectory() throws IOException {
-        String tmpdir = System.getProperty("ihistj.tmpdir");
+        String tmpdir = System.getProperty("ihist.tmpdir");
         if (tmpdir == null) {
             tmpdir = System.getProperty("java.io.tmpdir");
         }
-        File nativesDir = new File(tmpdir, "ihistj-natives");
+        File nativesDir = new File(tmpdir, "ihist-natives");
         if (!nativesDir.isDirectory() && !nativesDir.mkdirs()) {
             throw new IOException("Failed to create natives directory: " +
                                   nativesDir.getAbsolutePath());
@@ -263,7 +263,7 @@ final class NativeLibraryLoader {
 
     private static void debug(String msg) {
         if (DEBUG) {
-            System.err.println("[ihistj] " + msg);
+            System.err.println("[ihist] " + msg);
         }
     }
 }

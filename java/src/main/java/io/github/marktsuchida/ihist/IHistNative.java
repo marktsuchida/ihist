@@ -2,7 +2,7 @@
 // Copyright 2025 Board of Regents of the University of Wisconsin System
 // SPDX-License-Identifier: MIT
 
-package ihistj;
+package io.github.marktsuchida.ihist;
 
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;

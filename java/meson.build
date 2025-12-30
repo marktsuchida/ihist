@@ -6,9 +6,9 @@ java_mod = import('java')
 jni_dep = dependency('jni', version: '>= 1.8.0', modules: ['jvm'])
 
 jni_header = java_mod.native_headers(
-    'src/main/java/ihistj/IHistNative.java',
-    'src/main/java/ihistj/NativeLibraryLoader.java',
-    package: 'ihistj',
+    'src/main/java/io/github/marktsuchida/ihist/IHistNative.java',
+    'src/main/java/io/github/marktsuchida/ihist/NativeLibraryLoader.java',
+    package: 'io.github.marktsuchida.ihist',
     classes: ['IHistNative'],
 )
 

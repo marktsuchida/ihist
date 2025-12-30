@@ -231,7 +231,7 @@ java-build: java-build-jni
 
 # Test Java bindings (with Java coverage)
 java-test: java-build-jni
-    cd java && {{cjdk_exec}} mvn verify -Dihistj.debug=true \
+    cd java && {{cjdk_exec}} mvn verify -Dihist.debug=true \
         -Dnative.library.path=../builddir-jni/java
 
 # Test Java bindings with C++ coverage

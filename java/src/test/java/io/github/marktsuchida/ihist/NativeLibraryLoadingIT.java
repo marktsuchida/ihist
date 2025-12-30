@@ -2,7 +2,7 @@
 // Copyright 2025 Board of Regents of the University of Wisconsin System
 // SPDX-License-Identifier: MIT
 
-package ihistj;
+package io.github.marktsuchida.ihist;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -40,7 +40,8 @@ class NativeLibraryLoadingIT {
     void loadFromIsolatedClassLoader() throws Exception {
         URL[] jarUrls = findAllJars();
         try (URLClassLoader loader = new URLClassLoader(jarUrls, null)) {
-            Class<?> cls = Class.forName("ihistj.IHistNative", true, loader);
+            Class<?> cls = Class.forName(
+                "io.github.marktsuchida.ihist.IHistNative", true, loader);
             Method loadMethod = cls.getMethod("loadNativeLibrary");
             assertDoesNotThrow(() -> loadMethod.invoke(null));
 
@@ -65,9 +66,9 @@ class NativeLibraryLoadingIT {
         File jarFile = new File(codeSource.toURI());
         File dir = jarFile.getParentFile();
         File[] jars = dir.listFiles(
-            (d, name) -> name.startsWith("ihistj-") && name.endsWith(".jar"));
+            (d, name) -> name.startsWith("ihist-") && name.endsWith(".jar"));
         if (jars == null || jars.length == 0) {
-            throw new IllegalStateException("No ihistj JARs found in " + dir);
+            throw new IllegalStateException("No ihist JARs found in " + dir);
         }
         URL[] urls = new URL[jars.length];
         for (int i = 0; i < jars.length; i++) {
