@@ -199,20 +199,29 @@ py-build:
 cibuildwheel:
     #!/usr/bin/env bash
     set -euxo pipefail
-    # Use same default as scripts/build_static_tbb.sh
     export TBB_PREFIX="$PWD/dependencies/oneTBB-Release"
     export PKG_CONFIG_PATH="$TBB_PREFIX/lib/pkgconfig"
     UNAME=$(uname -s)
     if [[ "$UNAME" == MINGW* || "$UNAME" == MSYS* ]]; then
         export CXX=clang-cl
     fi
+    scripts/build_static_tbb.sh
     pip --require-virtualenv install cibuildwheel
     CIBW_ARCHS=native cibuildwheel
 
 # Build Java native library
 java-build-jni:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    export TBB_PREFIX="$PWD/dependencies/oneTBB-Release"
+    export PKG_CONFIG_PATH="$TBB_PREFIX/lib/pkgconfig"
+    UNAME=$(uname -s)
+    if [[ "$UNAME" == MINGW* || "$UNAME" == MSYS* ]]; then
+        export CXX=clang-cl
+    fi
+    scripts/build_static_tbb.sh
     {{cjdk_exec}} meson setup --reconfigure builddir-jni \
-        -Djava-bindings=enabled \
+        --default-library=static -Djava-bindings=enabled \
         -Dtests=disabled -Dbenchmarks=disabled
     {{cjdk_exec}} meson compile -C builddir-jni
 

@@ -12,15 +12,17 @@ jni_header = java_mod.native_headers(
     classes: ['IHistNative'],
 )
 
-# Hide symbols from statically linked dependencies (e.g., TBB)
+# Hide symbols from statically linked dependencies (e.g., TBB). TBB uses
+# visibility("default") on its API, which overrides -fvisibility=hidden.
 symbol_hide_link_args = []
 symbol_hide_link_depends = []
 
 if host_machine.system() == 'linux'
     symbol_hide_link_args += ['-Wl,--exclude-libs,ALL']
 elif host_machine.system() == 'darwin'
-    # TODO For macOS, we could use an exported symbols list like Python
-    # bindings.
+    symbols_file = meson.current_source_dir() / 'symbols-macos.txt'
+    symbol_hide_link_args += ['-Wl,-exported_symbols_list,' + symbols_file]
+    symbol_hide_link_depends += [files('symbols-macos.txt')]
 endif
 
 shared_library(
@@ -33,6 +35,8 @@ shared_library(
     ],
     link_args: symbol_hide_link_args,
     link_depends: symbol_hide_link_depends,
-    gnu_symbol_visibility: 'hidden',
+    gnu_symbol_visibility: 'inlineshidden',
     install: false,
 )
+
+# Java build is continued by Maven.
