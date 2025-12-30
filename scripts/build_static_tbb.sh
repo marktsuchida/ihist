@@ -65,6 +65,7 @@ cmake "${cmake_generator[@]}" "${cmake_osx_arch[@]}" -S . -B build \
     -DCMAKE_INSTALL_PREFIX="$install_prefix" \
     -DCMAKE_INSTALL_LIBDIR=lib \
     -DCMAKE_BUILD_TYPE="$cmake_build_type" \
+    -DCMAKE_INSTALL_MESSAGE=LAZY \
     -DBUILD_SHARED_LIBS=OFF \
     -DTBB_TEST=OFF \
     -DTBBMALLOC_BUILD=OFF \
