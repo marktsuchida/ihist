@@ -47,7 +47,7 @@ abstract class HistogramTestBase {
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {0};
 
-        invokeHistogram(8, image, null, 1, 6, 6, 6, 1, indices, histogram,
+        invokeHistogram(8, image, null, 1, 6, 6, 0, 1, indices, histogram,
                         false);
 
         assertEquals(1, histData[0]);
@@ -62,7 +62,7 @@ abstract class HistogramTestBase {
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {0};
 
-        invokeHistogram(8, image, null, 1, 3, 3, 3, 1, indices, histogram,
+        invokeHistogram(8, image, null, 1, 3, 3, 0, 1, indices, histogram,
                         false);
 
         assertEquals(1, histData[0]);
@@ -78,7 +78,7 @@ abstract class HistogramTestBase {
         histogram.position(256);
         int[] indices = {0};
 
-        invokeHistogram(8, image, null, 1, 3, 3, 3, 1, indices, histogram,
+        invokeHistogram(8, image, null, 1, 3, 3, 0, 1, indices, histogram,
                         false);
 
         assertEquals(0, histData[0]);
@@ -113,7 +113,7 @@ abstract class HistogramTestBase {
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {};
 
-        invokeHistogram(8, image, null, 1, 3, 3, 3, 1, indices, histogram,
+        invokeHistogram(8, image, null, 1, 3, 3, 0, 1, indices, histogram,
                         false);
     }
 
@@ -141,7 +141,7 @@ abstract class HistogramTestBase {
         int[] indices = {0};
 
         invokeHistogram(histogramSize() == 256 ? 8 : 16, image, null, 1, 3, 3,
-                        3, 1, indices, histogram, false);
+                        0, 1, indices, histogram, false);
 
         assertEquals(1, histData[boundaries[0]]);
         assertEquals(1, histData[boundaries[1]]);
@@ -156,7 +156,7 @@ abstract class HistogramTestBase {
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {0};
 
-        invokeHistogram(8, image, null, 2, 2, 4, 4, 1, indices, histogram,
+        invokeHistogram(8, image, null, 2, 2, 4, 0, 1, indices, histogram,
                         false);
 
         assertEquals(1, histData[0]);
@@ -183,8 +183,8 @@ abstract class HistogramTestBase {
         IntBuffer histogram = histBuf.asIntBuffer();
         int[] indices = {0};
 
-        invokeHistogram(8, image, null, 1, 256, 256, 256, 1, indices,
-                        histogram, false);
+        invokeHistogram(8, image, null, 1, 256, 256, 0, 1, indices, histogram,
+                        false);
 
         for (int i = 0; i < 256; i++) {
             assertEquals(1, histogram.get(i));
@@ -207,8 +207,8 @@ abstract class HistogramTestBase {
         IntBuffer histogram = histBuf.asIntBuffer();
         int[] indices = {0};
 
-        invokeHistogram(8, image, null, 1, 256, 256, 256, 1, indices,
-                        histogram, false);
+        invokeHistogram(8, image, null, 1, 256, 256, 0, 1, indices, histogram,
+                        false);
 
         for (int i = 0; i < 256; i++) {
             assertEquals(1, histogram.get(i));
@@ -283,18 +283,18 @@ abstract class HistogramTestBase {
         int[] indices = {0};
 
         assertDoesNotThrow(()
-                               -> invokeHistogram(8, exact, null, 2, 2, 3, 3,
+                               -> invokeHistogram(8, exact, null, 2, 2, 3, 0,
                                                   1, indices, histogram,
                                                   false));
 
         assertThrows(IllegalArgumentException.class,
                      ()
-                         -> invokeHistogram(8, tooSmall, null, 2, 2, 3, 3, 1,
+                         -> invokeHistogram(8, tooSmall, null, 2, 2, 3, 0, 1,
                                             indices, histogram, false));
 
         assertThrows(IllegalArgumentException.class,
                      ()
-                         -> invokeHistogram(8, tooLarge, null, 2, 2, 3, 3, 1,
+                         -> invokeHistogram(8, tooLarge, null, 2, 2, 3, 0, 1,
                                             indices, histogram, false));
     }
 
@@ -310,7 +310,7 @@ abstract class HistogramTestBase {
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {0};
 
-        invokeHistogram(8, image, null, 1, 4, 4, 4, 1, indices, histogram,
+        invokeHistogram(8, image, null, 1, 4, 4, 0, 1, indices, histogram,
                         false);
 
         assertEquals(1, histData[0]);
@@ -328,7 +328,7 @@ abstract class HistogramTestBase {
         IntBuffer histogram = histBuf.asIntBuffer();
         int[] indices = {0};
 
-        invokeHistogram(8, image, null, 1, 4, 4, 4, 1, indices, histogram,
+        invokeHistogram(8, image, null, 1, 4, 4, 0, 1, indices, histogram,
                         false);
 
         assertEquals(1, histogram.get(0));
@@ -372,8 +372,8 @@ abstract class HistogramTestBase {
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {0};
 
-        invokeHistogram(8, image, null, 10, 100, 100, 100, 1, indices,
-                        histogram, true);
+        invokeHistogram(8, image, null, 10, 100, 100, 0, 1, indices, histogram,
+                        true);
 
         int total = 0;
         for (int i = 0; i < 256; i++) {
@@ -390,9 +390,9 @@ abstract class HistogramTestBase {
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {0};
 
-        invokeHistogram(8, image1, null, 1, 3, 3, 3, 1, indices, histogram,
+        invokeHistogram(8, image1, null, 1, 3, 3, 0, 1, indices, histogram,
                         false);
-        invokeHistogram(8, image2, null, 1, 3, 3, 3, 1, indices, histogram,
+        invokeHistogram(8, image2, null, 1, 3, 3, 0, 1, indices, histogram,
                         false);
 
         assertEquals(3, histData[0]);
@@ -410,7 +410,7 @@ abstract class HistogramTestBase {
         IntBuffer histogram = IntBuffer.wrap(histData);
         int[] indices = {0};
 
-        invokeHistogram(0, image, null, 1, 5, 5, 5, 1, indices, histogram,
+        invokeHistogram(0, image, null, 1, 5, 5, 0, 1, indices, histogram,
                         false);
 
         assertEquals(3, histData[0]);

@@ -447,7 +447,7 @@ public final class HistogramRequest {
 
         int effectiveWidth = (roiWidth < 0) ? imageWidth : roiWidth;
         int effectiveHeight = (roiHeight < 0) ? imageHeight : roiHeight;
-        int effectiveMaskStride = (maskWidth > 0) ? maskWidth : effectiveWidth;
+        int effectiveMaskStride = (maskBuffer != null) ? maskWidth : 0;
         int effectiveBits = (sampleBits < 0) ? (is8Bit ? 8 : 16) : sampleBits;
 
         int[] indices = (componentIndices != null)

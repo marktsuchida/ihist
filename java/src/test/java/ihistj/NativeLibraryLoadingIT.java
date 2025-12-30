@@ -31,7 +31,7 @@ class NativeLibraryLoadingIT {
         ByteBuffer image = ByteBuffer.allocateDirect(1);
         image.put((byte)42).flip();
         IntBuffer histogram = IntBuffer.allocate(256);
-        IHistNative.histogram8(8, image, null, 1, 1, 1, 1, 1, new int[] {0},
+        IHistNative.histogram8(8, image, null, 1, 1, 1, 0, 1, new int[] {0},
                                histogram, false);
         assertEquals(1, histogram.get(42));
     }
@@ -52,7 +52,7 @@ class NativeLibraryLoadingIT {
                 "histogram8", int.class, ByteBuffer.class, ByteBuffer.class,
                 int.class, int.class, int.class, int.class, int.class,
                 int[].class, IntBuffer.class, boolean.class);
-            hist8.invoke(null, 8, image, null, 1, 1, 1, 1, 1, new int[] {0},
+            hist8.invoke(null, 8, image, null, 1, 1, 1, 0, 1, new int[] {0},
                          histogram, false);
             assertEquals(1, histogram.get(42));
         }

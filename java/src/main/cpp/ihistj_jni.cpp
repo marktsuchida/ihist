@@ -314,8 +314,8 @@ template <> struct jni_pixel_traits<std::uint16_t> {
 
 template <typename PixelT>
 auto validate_params(JNIEnv *env, jint sample_bits, jint height, jint width,
-                     jint image_stride, jint mask_stride, jint n_components,
-                     jintArray component_indices) -> bool {
+                     jint image_stride, jint mask_stride, bool has_mask,
+                     jint n_components, jintArray component_indices) -> bool {
     using traits = jni_pixel_traits<PixelT>;
     if (sample_bits < 0 || sample_bits > traits::max_sample_bits) {
         throw_illegal_argument(env, traits::bit_error_msg);
@@ -334,9 +334,17 @@ auto validate_params(JNIEnv *env, jint sample_bits, jint height, jint width,
         throw_illegal_argument(env, "imageStride must be >= width");
         return false;
     }
-    if (mask_stride < width) {
-        throw_illegal_argument(env, "maskStride must be >= width");
-        return false;
+    if (has_mask) {
+        if (mask_stride < width) {
+            throw_illegal_argument(env, "maskStride must be >= width");
+            return false;
+        }
+    } else {
+        if (mask_stride != 0) {
+            throw_illegal_argument(env,
+                                   "maskStride must be 0 when mask is null");
+            return false;
+        }
     }
     if (n_components < 0) {
         throw_illegal_argument(env, "nComponents must be >= 0");
@@ -476,8 +484,8 @@ void histogram_impl(JNIEnv *env, jint sample_bits, jobject image_buffer,
     using traits = jni_pixel_traits<PixelT>;
 
     if (!validate_params<PixelT>(env, sample_bits, height, width, image_stride,
-                                 mask_stride, n_components,
-                                 component_indices)) {
+                                 mask_stride, mask_buffer != nullptr,
+                                 n_components, component_indices)) {
         return;
     }
 

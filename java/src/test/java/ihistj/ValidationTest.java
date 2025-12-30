@@ -34,7 +34,7 @@ class ValidationTest {
             assertThrows(NullPointerException.class,
                          ()
                              -> IHistNative.histogram8(8, null, null, 1, 3, 3,
-                                                       3, 1, indices,
+                                                       0, 1, indices,
                                                        histogram, false));
         }
 
@@ -47,7 +47,7 @@ class ValidationTest {
             assertThrows(NullPointerException.class,
                          ()
                              -> IHistNative.histogram8(8, image, null, 1, 3, 3,
-                                                       3, 1, indices, null,
+                                                       0, 1, indices, null,
                                                        false));
         }
 
@@ -61,7 +61,7 @@ class ValidationTest {
             assertThrows(NullPointerException.class,
                          ()
                              -> IHistNative.histogram8(8, image, null, 1, 3, 3,
-                                                       3, 1, null, histogram,
+                                                       0, 1, null, histogram,
                                                        false));
         }
 
@@ -100,6 +100,17 @@ class ValidationTest {
                              -> IHistNative.histogram8(8, image, null, 1, 3, 2,
                                                        3, 1, indices,
                                                        histogram, false));
+
+            // maskStride must be 0 when mask is null
+            assertThrows(IllegalArgumentException.class,
+                         ()
+                             -> IHistNative.histogram8(8, image, null, 1, 3, 3,
+                                                       1, 1, indices,
+                                                       histogram, false));
+            assertDoesNotThrow(
+                ()
+                    -> IHistNative.histogram8(8, image, null, 1, 3, 3, 0, 1,
+                                              indices, histogram, false));
 
             // maskStride < width
             byte[] maskData = {1, 1, 1};
@@ -364,19 +375,19 @@ class ValidationTest {
 
             assertDoesNotThrow(
                 ()
-                    -> IHistNative.histogram8(8, exact, null, 2, 2, 3, 3, 1,
+                    -> IHistNative.histogram8(8, exact, null, 2, 2, 3, 0, 1,
                                               indices, histogram, false));
 
             assertThrows(IllegalArgumentException.class,
                          ()
                              -> IHistNative.histogram8(8, tooSmall, null, 2, 2,
-                                                       3, 3, 1, indices,
+                                                       3, 0, 1, indices,
                                                        histogram, false));
 
             assertThrows(IllegalArgumentException.class,
                          ()
                              -> IHistNative.histogram8(8, tooLarge, null, 2, 2,
-                                                       3, 3, 1, indices,
+                                                       3, 0, 1, indices,
                                                        histogram, false));
         }
     }
