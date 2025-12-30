@@ -25,9 +25,10 @@ import java.nio.ShortBuffer;
  *
  * <p><b>Buffer requirements:</b> These methods accept both direct buffers and
  * array-backed buffers (such as those created by {@code ByteBuffer.wrap()}).
- * View buffers and other buffer types that are neither direct nor array-backed
- * are not supported and will throw {@code IllegalArgumentException}. Use
- * {@link HistogramRequest} if you need to work with such buffers.
+ * Array-backed buffers only work if their {@code hasArray()} method returns
+ * {@code true}; this means read-only heap buffers do not work, nor do short
+ * buffers obtained from a heap byte buffer via {@code asShortBuffer()}.
+ * Use {@link HistogramRequest} if you need to work with such buffers.
  */
 public final class IHistNative {
 
@@ -67,29 +68,35 @@ public final class IHistNative {
      * array-backed buffers, the backing array is accessed directly using
      * JNI critical array access, also providing zero-copy performance.
      *
-     * <p>View buffers and read-only heap buffers are not supported. Use
+     * <p>Buffers that are not direct but return false for {@code hasArray()}
+     * are not supported. These include read-only heap buffers. Use
      * {@link HistogramRequest} for automatic handling of such buffers.
      *
-     * <p>Buffer positions are used as the starting point for data access.
+     * <p>The portion of the buffers between their position and limit are used,
+     * and this size (the 'remaining' size) must equal the required size (from
+     * height, width, and stride for image and mask; from {@code sampleBits}
+     * and length of {@code componentIndices} for histogram).
      *
      * @param sampleBits      number of significant bits per sample (0-8);
      *                        determines histogram size (2^sampleBits bins per
-     *                        component)
+     *                        component); if less than 8, out-of-range samples
+     *                        are not counted
      * @param image           image pixel data buffer (position marks start of
-     *                        data); must be direct or array-backed
+     *                        data); must be direct or hasArray() == true
      * @param mask            per-pixel mask buffer (null to histogram all
-     *                        pixels); must be direct or array-backed if
+     *                        pixels); must be direct or hasArray() == true if
      *                        provided
      * @param height          image height in pixels
      * @param width           image width in pixels
      * @param imageStride     row stride in pixels (must be &gt;= width)
-     * @param maskStride      mask row stride in pixels (must be &gt;= width)
+     * @param maskStride      mask row stride in pixels (must be &gt;= width,
+     *                        or == 0 when mask == null)
      * @param nComponents     number of interleaved components per pixel
      * @param componentIndices indices of components to histogram (each must be
      *                         &lt; nComponents)
      * @param histogram       output buffer for histogram data; values are
-     *                        accumulated; must be direct or array-backed and
-     *                        not read-only
+     *                        accumulated; must be writable and direct or
+     *                        hasArray() == true
      * @param parallel        if true, allows multi-threaded execution
      * @throws NullPointerException     if image, componentIndices, or
      *                                  histogram is null
@@ -110,29 +117,37 @@ public final class IHistNative {
      * array-backed buffers, the backing array is accessed directly using
      * JNI critical array access, also providing zero-copy performance.
      *
-     * <p>View buffers and read-only heap buffers are not supported. Use
-     * {@link HistogramRequest} for automatic handling of such buffers.
+     * <p>Buffers that are not direct but return false for {@code hasArray()}
+     * are not supported. These include read-only heap buffers and short
+     * buffers that are views of heap byte buffers (via {@code
+     * asShortBuffer()}. Use {@link HistogramRequest} for automatic handling of
+     * such buffers.
      *
-     * <p>Buffer positions are used as the starting point for data access.
+     * <p>The portion of the buffers between their position and limit are used,
+     * and this size (the 'remaining' size) must equal the required size (from
+     * height, width, and stride for image and mask; from {@code sampleBits}
+     * and length of {@code componentIndices} for histogram).
      *
      * @param sampleBits      number of significant bits per sample (0-16);
      *                        determines histogram size (2^sampleBits bins per
-     *                        component)
+     *                        component); if less than 16, out-of-range samples
+     *                        are not counted
      * @param image           image pixel data buffer (position marks start of
-     *                        data); must be direct or array-backed
+     *                        data); must be direct or hasArray() == true
      * @param mask            per-pixel mask buffer (null to histogram all
-     *                        pixels); must be direct or array-backed if
+     *                        pixels); must be direct or hasArray() == true if
      *                        provided
      * @param height          image height in pixels
      * @param width           image width in pixels
      * @param imageStride     row stride in pixels (must be &gt;= width)
-     * @param maskStride      mask row stride in pixels (must be &gt;= width)
+     * @param maskStride      mask row stride in pixels (must be &gt;= width,
+     *                        or == 0 when mask == null)
      * @param nComponents     number of interleaved components per pixel
      * @param componentIndices indices of components to histogram (each must be
      *                         &lt; nComponents)
      * @param histogram       output buffer for histogram data; values are
-     *                        accumulated; must be direct or array-backed and
-     *                        not read-only
+     *                        accumulated; must be writable and direct or
+     *                        hasArray() == true
      * @param parallel        if true, allows multi-threaded execution
      * @throws NullPointerException     if image, componentIndices, or
      *                                  histogram is null

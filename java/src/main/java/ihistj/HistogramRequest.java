@@ -23,25 +23,29 @@ import java.util.Arrays;
  *
  * <pre>{@code
  * // Simple grayscale histogram
+ * // imageData is a byte or short array or buffer, size (width * height)
  * IntBuffer histogram = HistogramRequest.forImage(imageData, width, height)
  *         .compute();
  * // Access counts: histogram.get(i) for bin i
  *
  * // RGB histogram with ROI and mask
+ * // imageData is a byte or short array or buffer, size (width * height * 3)
+ * // maskData is a byte array or buffer, size 10000
  * IntBuffer histogram = HistogramRequest.forImage(imageData, width, height, 3)
  *         .roi(10, 10, 100, 100)
  *         .mask(maskData, 100, 100)
  *         .bits(8)
- *         .parallel(true)
+ *         .parallel(false)
  *         .compute();
+ * // histogram has size 768 (= 256 * 3)
  * }</pre>
  *
  * <p><b>Buffer type support:</b> This class accepts arrays, direct buffers,
- * array-backed buffers, and view buffers. Arrays and array-backed buffers are
- * handled with zero-copy via JNI. Direct buffers are also zero-copy. View
- * buffers and other non-standard buffer types are automatically copied to
- * temporary direct buffers (this incurs a copy overhead but ensures all buffer
- * types work).
+ * heap buffers, and view buffers. Arrays and array-backed buffers ({@code
+ * hasArray() == true}) are handled with zero-copy via JNI. Direct buffers are
+ * also zero-copy. Other buffer types are automatically copied to temporary
+ * direct buffers (this incurs a copy overhead but ensures all buffer types
+ * work).
  */
 public final class HistogramRequest {
 
@@ -336,7 +340,7 @@ public final class HistogramRequest {
      * <p>
      * The mask offset specifies where in the mask the ROI data begins.
      * The ROI pixels will be read from
-     * mask[(offsetY + y) * maskWidth + (offsetX + x)].
+     * {@code mask[(offsetY + y) * maskWidth + (offsetX + x)]}.
      *
      * @param x mask X offset for ROI alignment
      * @param y mask Y offset for ROI alignment
@@ -353,7 +357,8 @@ public final class HistogramRequest {
      *
      * <p>
      * This determines the histogram size (2^bits bins per component).
-     * Values outside the significant bit range are truncated.
+     * Values outside the significant bit range are not counted in the
+     * histogram.
      *
      * @param bits 0-8 for 8-bit images, 0-16 for 16-bit images
      * @return this builder
@@ -367,7 +372,7 @@ public final class HistogramRequest {
      * Set a pre-allocated output histogram array.
      *
      * <p>
-     * If not specified, a new array will be allocated.
+     * If not specified, a new heap buffer will be allocated.
      *
      * @param histogram output array; size must equal exactly
      *                  {@code nHistComponents * (1 << bits)}
@@ -381,7 +386,7 @@ public final class HistogramRequest {
      * Set a pre-allocated output histogram buffer.
      *
      * <p>
-     * If not specified, a new array will be allocated.
+     * If not specified, a new heap buffer will be allocated.
      *
      * @param histogram output buffer; remaining size must equal exactly
      *                  {@code nHistComponents * (1 << bits)}; must not be
