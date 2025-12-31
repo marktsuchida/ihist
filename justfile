@@ -11,10 +11,10 @@ help:
     @echo On Windows, Git Bash is required.
 
 exe_suffix := if os() == "windows" { ".exe" } else { "" }
+mvn := if os() == "windows" { "mvn.cmd" } else { "mvn" }
+cjdk_exec := 'uvx cjdk -j zulu:8 exec --'
 
 onetbb_version := '2022.3.0'
-
-cjdk_exec := 'uvx cjdk -j zulu:8 exec --'
 
 # On Windows, put DLLs on path so that tests and benchmarks can run.
 export PATH := if os() == "windows" {
@@ -242,14 +242,14 @@ java-build: java-build-jni
     #!/usr/bin/env bash
     set -euxo pipefail
     VERSION=$(just _java_version builddir-jni)
-    {{cjdk_exec}} mvn -f java/pom.xml compile -Drevision="$VERSION-SNAPSHOT"
+    {{cjdk_exec}} {{mvn}} -f java/pom.xml compile -Drevision="$VERSION-SNAPSHOT"
 
 # Test Java bindings (with Java coverage)
 java-test: java-build-jni
     #!/usr/bin/env bash
     set -euxo pipefail
     VERSION=$(just _java_version builddir-jni)
-    {{cjdk_exec}} mvn -f java/pom.xml verify -Dihist.debug=true \
+    {{cjdk_exec}} {{mvn}} -f java/pom.xml verify -Dihist.debug=true \
         -Dnative.library.path=../builddir-jni/java \
         -Drevision="$VERSION-SNAPSHOT"
 
@@ -263,7 +263,7 @@ java-coverage:
     {{cjdk_exec}} uvx meson compile -C builddir-jni-cov
     find builddir-jni-cov/ -name '*.gcda' -exec rm -f {} +
     VERSION=$(just _java_version builddir-jni-cov)
-    {{cjdk_exec}} mvn -f java/pom.xml package \
+    {{cjdk_exec}} {{mvn}} -f java/pom.xml package \
         -Dnative.library.path=../builddir-jni-cov/java \
         -Drevision="$VERSION-SNAPSHOT"
     mkdir -p coverage
@@ -272,7 +272,7 @@ java-coverage:
 
 # Clean Java build artifacts
 java-clean:
-    {{cjdk_exec}} mvn -f java/pom.xml clean || true
+    {{cjdk_exec}} {{mvn}} -f java/pom.xml clean || true
     if [ -d builddir-jni ]; then \
         {{cjdk_exec}} uvx meson compile --clean -C builddir-jni; \
     fi
