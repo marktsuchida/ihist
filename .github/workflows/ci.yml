@@ -89,15 +89,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
-      - name: Install tools
-        run: |
-          uv tool install meson
-          uv tool install ninja
       - name: Build and test without TBB
         run: |
-          meson setup builddir -Dtbb=disabled
-          meson compile -C builddir
-          meson test -C builddir
+          uvx meson setup builddir -Dtbb=disabled
+          uvx meson compile -C builddir
+          uvx meson test -C builddir
 
   wheels:
     name: wheels-${{ matrix.name }}
