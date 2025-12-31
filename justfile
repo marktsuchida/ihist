@@ -209,6 +209,9 @@ cibuildwheel:
     pip --require-virtualenv install cibuildwheel
     CIBW_ARCHS=native cibuildwheel
 
+_java_version builddir:
+    @meson introspect --projectinfo {{builddir}} | jq -r '.version'
+
 # Build Java native library
 java-build-jni:
     #!/usr/bin/env bash
@@ -227,30 +230,40 @@ java-build-jni:
 
 # Build Java bindings
 java-build: java-build-jni
-    cd java && {{cjdk_exec}} mvn compile
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    VERSION=$(just _java_version builddir-jni)
+    {{cjdk_exec}} mvn -f java/pom.xml compile -Drevision="$VERSION-SNAPSHOT"
 
 # Test Java bindings (with Java coverage)
 java-test: java-build-jni
-    cd java && {{cjdk_exec}} mvn verify -Dihist.debug=true \
-        -Dnative.library.path=../builddir-jni/java
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    VERSION=$(just _java_version builddir-jni)
+    {{cjdk_exec}} mvn -f java/pom.xml verify -Dihist.debug=true \
+        -Dnative.library.path=../builddir-jni/java \
+        -Drevision="$VERSION-SNAPSHOT"
 
 # Test Java bindings with C++ coverage
 java-coverage:
+    #!/usr/bin/env bash
+    set -euxo pipefail
     {{cjdk_exec}} meson setup --reconfigure builddir-jni-cov \
         -Djava-bindings=enabled -Db_coverage=true --buildtype=debugoptimized \
         -Dtests=disabled -Dbenchmarks=disabled
     {{cjdk_exec}} meson compile -C builddir-jni-cov
     find builddir-jni-cov/ -name '*.gcda' -exec rm -f {} +
-    cd java && {{cjdk_exec}} mvn package \
-        -Dnative.library.path=../builddir-jni-cov/java
+    VERSION=$(just _java_version builddir-jni-cov)
+    {{cjdk_exec}} mvn -f java/pom.xml package \
+        -Dnative.library.path=../builddir-jni-cov/java \
+        -Drevision="$VERSION-SNAPSHOT"
     mkdir -p coverage
     gcovr builddir-jni-cov/ -f java/src/main/cpp/ihistj_jni.cpp \
         --html-details coverage/java.html
 
 # Clean Java build artifacts
 java-clean:
-    cd java && {{cjdk_exec}} mvn clean 2>/dev/null || true
-    rm -rf java/target/
+    {{cjdk_exec}} mvn -f java/pom.xml clean || true
     if [ -d builddir-jni ]; then \
         {{cjdk_exec}} meson compile --clean -C builddir-jni; \
     fi

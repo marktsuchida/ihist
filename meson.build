@@ -5,7 +5,7 @@
 project(
     'ihist',
     'cpp', 'java',
-    version: '0.1',
+    version: '0.1.0',
     meson_version: '>= 1.3.0',
     default_options: [
         'warning_level=3',
