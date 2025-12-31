@@ -78,6 +78,7 @@ build: _configure_if_not_configured
 clean:
     if [ -d builddir ]; then meson compile --clean -C builddir; fi
     rm -f coverage/cpp.*
+    rmdir coverage/ 2>/dev/null || true
 
 # Wipe build directory and reconfigure using previous options
 wipe:
@@ -195,7 +196,9 @@ py-build:
 
 # Clean Python build artifacts
 py-clean:
-    rm -rf build/ dist/ *.egg-info build-coverage/ coverage/python.* .venv/
+    rm -rf build/ dist/ wheelhouse/ *.egg-info \
+        build-coverage/ coverage/python.* .venv/ .pytest_cache/
+    rmdir coverage/ 2>/dev/null || true
     find python -type d -name __pycache__ -exec rm -rf {} +
     rm -f uv.lock  # For now, we don't pin dependencies
 
@@ -274,3 +277,4 @@ java-clean:
         {{cjdk_exec}} meson compile --clean -C builddir-jni-cov; \
     fi
     rm -rf coverage/java.*
+    rmdir coverage/ 2>/dev/null || true
