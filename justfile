@@ -233,7 +233,7 @@ java-build-jni:
     fi
     uv run --no-project --with=cmake scripts/build_static_tbb.sh
     {{cjdk_exec}} uvx meson setup --reconfigure builddir-jni \
-        --default-library=static -Djava-bindings=enabled \
+        --buildtype=release --default-library=static -Djava-bindings=enabled \
         -Dtests=disabled -Dbenchmarks=disabled
     {{cjdk_exec}} uvx meson compile -C builddir-jni
 
