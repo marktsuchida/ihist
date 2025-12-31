@@ -4,7 +4,7 @@
 
 project(
     'ihist',
-    'cpp', 'java',
+    'cpp',
     version: '0.1.0',
     meson_version: '>= 1.3.0',
     default_options: [
@@ -133,6 +133,7 @@ if get_option('python-bindings').enabled()
 endif
 
 if get_option('java-bindings').enabled()
+    add_languages('java', native: false)
     subdir('java')
 endif
 
