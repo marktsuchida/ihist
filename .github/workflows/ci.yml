@@ -61,8 +61,6 @@ jobs:
       - name: Install tools
         run: |
           uv tool install rust-just
-          uv tool install meson
-          uv tool install ninja
       - name: Install dependencies - macOS
         if: startsWith(matrix.runner, 'macos-')
         run: |
@@ -72,12 +70,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install libtbb-dev libopencv-dev
-      - name: Install dependencies - Windows
+      - name: Install dependencies (Windows)
         if: startsWith(matrix.runner, 'windows-')
-        run: |
-          Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
-          scoop install pkg-config opencv
-          Add-Content -Path $Env:GITHUB_PATH -Value "$HOME\scoop\shims"
+        uses: MinoruSekine/setup-scoop@v4.0.2
+        with:
+          apps: pkg-config opencv
       - name: Build and test
         shell: bash
         run: |
