@@ -182,7 +182,7 @@ py-coverage: py-cov-install
     find build-coverage/ -name '*.gcda' -exec rm -f {} +
     pytest
     mkdir -p coverage
-    gcovr build-coverage/ -f python/src/ihist/_ihist_bindings.cpp \
+    gcovr build-coverage/ -f python/src/ihist/_ihist.cpp \
         --html-details coverage/python.html
 
 # Clean Python build artifacts

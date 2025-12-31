@@ -59,8 +59,8 @@ elif host_machine.system() == 'darwin'
 endif
 
 py.extension_module(
-    '_ihist_bindings',
-    'src/ihist/_ihist_bindings.cpp',
+    '_ihist',
+    'src/ihist/_ihist.cpp',
     dependencies: [
         ihist_dep,
         nanobind_dep,

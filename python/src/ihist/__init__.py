@@ -9,7 +9,7 @@ It supports uint8 and uint16 data types, arbitrary bit depths, multi-component
 images, optional per-pixel masking, and histogram accumulation.
 """
 
-from ihist._ihist_bindings import histogram
+from ihist._ihist import histogram
 
 __all__ = [
     "histogram",

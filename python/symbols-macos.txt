@@ -2,4 +2,4 @@
 # Copyright 2025 Board of Regents of the University of Wisconsin System
 # SPDX-License-Identifier: MIT
 
-_PyInit__ihist_bindings
+_PyInit__ihist

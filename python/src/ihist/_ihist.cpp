@@ -415,7 +415,7 @@ nb::object histogram(nb::ndarray<nb::ro> image,
     return out_array;
 }
 
-NB_MODULE(_ihist_bindings, m) {
+NB_MODULE(_ihist, m) {
     m.doc() = "Fast image histograms";
 
     m.def("histogram", &histogram, nb::arg("image"), nb::kw_only(),
