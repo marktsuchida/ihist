@@ -215,7 +215,7 @@ cibuildwheel:
     if [[ "$UNAME" == MINGW* || "$UNAME" == MSYS* ]]; then
         export CXX=clang-cl
     fi
-    uv run --no-project --with=cmake scripts/build_static_tbb.sh
+    uv run --no-project --with=cmake bash scripts/build_static_tbb.sh
     CIBW_ARCHS=native uvx cibuildwheel
 
 _java_version builddir:
@@ -231,7 +231,7 @@ java-build-jni:
     if [[ "$UNAME" == MINGW* || "$UNAME" == MSYS* ]]; then
         export CXX=clang-cl
     fi
-    uv run --no-project --with=cmake scripts/build_static_tbb.sh
+    uv run --no-project --with=cmake bash scripts/build_static_tbb.sh
     {{cjdk_exec}} uvx meson setup --reconfigure builddir-jni \
         --buildtype=release --default-library=static -Djava-bindings=enabled \
         -Dtests=disabled -Dbenchmarks=disabled

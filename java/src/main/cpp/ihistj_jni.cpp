@@ -2,17 +2,18 @@
 // Copyright 2025 Board of Regents of the University of Wisconsin System
 // SPDX-License-Identifier: MIT
 
+#include "io_github_marktsuchida_ihist_IHistNative.h"
+
 #include <jni.h>
 
 #include <ihist/ihist.h>
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "io_github_marktsuchida_ihist_IHistNative.h"
 
 namespace {
 
@@ -325,7 +326,8 @@ auto validate_params(JNIEnv *env, jint sample_bits, jint height, jint width,
         throw_illegal_argument(env, "height and width must be >= 0");
         return false;
     }
-    if (static_cast<std::int64_t>(width) * height > INT_MAX) {
+    if (static_cast<std::int64_t>(width) * height >
+        std::numeric_limits<jint>::max()) {
         throw_illegal_argument(
             env, "width * height must not exceed Integer.MAX_VALUE");
         return false;
