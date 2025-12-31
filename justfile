@@ -60,6 +60,7 @@ configure BUILD_TYPE *FLAGS:
         DEPS_PATH_OPT=
     fi
     uvx meson setup --reconfigure builddir \
+        ${IHIST_MESON_CROSS_ARGS-} \
         --buildtype=$BUILD_TYPE $SANITIZE_FLAGS \
         $DEPS_PATH_OPT \
         -Dcatch2:tests=false -Dgoogle-benchmark:tests=disabled \
@@ -233,6 +234,7 @@ java-build-jni:
     fi
     uv run --no-project --with=cmake bash scripts/build_static_tbb.sh
     {{cjdk_exec}} uvx meson setup --reconfigure builddir-jni \
+        ${IHIST_MESON_CROSS_ARGS-} \
         --buildtype=release --default-library=static -Djava-bindings=enabled \
         -Dtests=disabled -Dbenchmarks=disabled
     {{cjdk_exec}} uvx meson compile -C builddir-jni
@@ -258,6 +260,7 @@ java-coverage:
     #!/usr/bin/env bash
     set -euxo pipefail
     {{cjdk_exec}} uvx meson setup --reconfigure builddir-jni-cov \
+        ${IHIST_MESON_CROSS_ARGS-} \
         -Djava-bindings=enabled -Db_coverage=true --buildtype=debugoptimized \
         -Dtests=disabled -Dbenchmarks=disabled
     {{cjdk_exec}} uvx meson compile -C builddir-jni-cov
