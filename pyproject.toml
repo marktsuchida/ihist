@@ -27,9 +27,10 @@ classifiers = [
 requires-python = ">=3.10"
 dependencies = ["numpy>=2.0"]
 
-[project.optional-dependencies]
-test = ["pytest>=7.0"]
-dev = ["pytest>=7.0"]
+[dependency-groups]
+dev = [
+    "pytest>=7.0",
+]
 
 [tool.meson-python.args]
 setup = [
@@ -60,5 +61,5 @@ ignore = [
 # For CI, these are set in .github/workflows/ci.yml.
 before-build = "bash ./scripts/build_static_tbb.sh"
 skip = "*-musllinux* *-win32 *-manylinux_i686"
-test-extras = "test"
+test-groups = ["dev"]
 test-command = "pytest {project}/python/tests"

@@ -96,7 +96,7 @@ coverage:
         -Db_coverage=true
     meson test -C builddir-coverage
     mkdir -p coverage
-    gcovr builddir-coverage/ --html-details coverage/cpp.html \
+    uvx gcovr builddir-coverage/ --html-details coverage/cpp.html \
         -e subprojects/ -e tests/
 
 # Run the 'ihist_test' program directly
@@ -154,46 +154,50 @@ benchmark-compare-filters FILTER1 FILTER2 *FLAGS: build test
 run SCRIPT *FLAGS: build
     uv run --no-project "$@"
 
-# Note: We prefer (for now) pip over uv for Python bindings build because uv
-# can sometimes fail to invalidate its cache when used with meson-python.
+# We do NOT use editable installs for Python because they don't work with
+# meson-python + uv (https://github.com/astral-sh/uv/issues/10214,
+# https://github.com/mesonbuild/meson-python/issues/730). (They would work if
+# we used pip, but we use uv also for C++ and Java tasks and it's a bit messy
+# to be using both.)
 
-# Build and install Python bindings (editable install)
+# We need to disable uv's cache so that builds with different options are
+# correctly (re)installed even when there are no changes to files.
+
+# Build and install Python bindings
 py-install:
-    pip --require-virtualenv install meson-python numpy
-    pip --require-virtualenv install -e . --no-build-isolation -v \
-        -C setup-args=-Db_ndebug=false \
+    uv venv --allow-existing
+    uv pip install --no-cache --reinstall --group dev . \
+        -C setup-args=-Db_ndebug=false
 
 # Build and install Python bindings for coverage
 py-cov-install:
-    pip --require-virtualenv install meson-python numpy
-    pip --require-virtualenv install -e . --no-build-isolation -v \
+    uv venv --allow-existing
+    uv pip install --no-cache --reinstall --group dev . \
         -C build-dir=build-coverage \
         -C setup-args=-Db_coverage=true \
         -C setup-args=-Dbuildtype=debugoptimized
 
 # Run Python tests
 py-test: py-install
-    pip --require-virtualenv install pytest
-    pytest
+    uv run --no-sync pytest
 
 # Run Python tests with coverage (coverage/python.html)
 py-coverage: py-cov-install
-    pip --require-virtualenv install pytest gcovr
     find build-coverage/ -name '*.gcda' -exec rm -f {} +
-    pytest
+    uv run --no-sync pytest
     mkdir -p coverage
-    gcovr build-coverage/ -f python/src/ihist/_ihist.cpp \
+    uvx gcovr build-coverage/ -f python/src/ihist/_ihist.cpp \
         --html-details coverage/python.html
+
+# Build Python wheel (for local testing)
+py-build:
+    uv build
 
 # Clean Python build artifacts
 py-clean:
-    rm -rf build/ dist/ *.egg-info build-coverage/ coverage/python.*
-    find python -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-
-# Build Python wheel (for local test)
-py-build:
-    pip --require-virtualenv install build
-    python -m build
+    rm -rf build/ dist/ *.egg-info build-coverage/ coverage/python.* .venv/
+    find python -type d -name __pycache__ -exec rm -rf {} +
+    rm -f uv.lock  # For now, we don't pin dependencies
 
 # Run cibuildwheel locally for native architecture
 cibuildwheel:
@@ -206,8 +210,7 @@ cibuildwheel:
         export CXX=clang-cl
     fi
     scripts/build_static_tbb.sh
-    pip --require-virtualenv install cibuildwheel
-    CIBW_ARCHS=native cibuildwheel
+    CIBW_ARCHS=native uvx cibuildwheel
 
 _java_version builddir:
     @meson introspect --projectinfo {{builddir}} | jq -r '.version'
@@ -258,7 +261,7 @@ java-coverage:
         -Dnative.library.path=../builddir-jni-cov/java \
         -Drevision="$VERSION-SNAPSHOT"
     mkdir -p coverage
-    gcovr builddir-jni-cov/ -f java/src/main/cpp/ihistj_jni.cpp \
+    uvx gcovr builddir-jni-cov/ -f java/src/main/cpp/ihistj_jni.cpp \
         --html-details coverage/java.html
 
 # Clean Java build artifacts
@@ -270,3 +273,4 @@ java-clean:
     if [ -d builddir-jni-cov ]; then \
         {{cjdk_exec}} meson compile --clean -C builddir-jni-cov; \
     fi
+    rm -rf coverage/java.*
