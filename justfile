@@ -5,7 +5,10 @@
 # Show usage
 help:
     @just --list
-    @echo On Windows, Git Bash is required for these to work.
+    @echo
+    @echo Required tools: uv, pkg-config, C and C++ toolchain
+    @echo Required for Java bindings: mvn (>= 3.6.3, < 4)
+    @echo On Windows, Git Bash is required.
 
 exe_suffix := if os() == "windows" { ".exe" } else { "" }
 
@@ -56,7 +59,7 @@ configure BUILD_TYPE *FLAGS:
     else
         DEPS_PATH_OPT=
     fi
-    meson setup --reconfigure builddir \
+    uvx meson setup --reconfigure builddir \
         --buildtype=$BUILD_TYPE $SANITIZE_FLAGS \
         $DEPS_PATH_OPT \
         -Dcatch2:tests=false -Dgoogle-benchmark:tests=disabled \
@@ -72,30 +75,30 @@ _configure_if_not_configured:
 
 # Run full build
 build: _configure_if_not_configured
-    meson compile -C builddir
+    uvx meson compile -C builddir
 
 # Remove build products
 clean:
-    if [ -d builddir ]; then meson compile --clean -C builddir; fi
+    if [ -d builddir ]; then uvx meson compile --clean -C builddir; fi
     rm -f coverage/cpp.*
     rmdir coverage/ 2>/dev/null || true
 
 # Wipe build directory and reconfigure using previous options
 wipe:
-    if [ -d builddir ]; then meson setup --wipe builddir; fi
+    if [ -d builddir ]; then uvx meson setup --wipe builddir; fi
 
 # Run the unit tests
 test: _configure_if_not_configured
-    meson test -C builddir
+    uvx meson test -C builddir
 
 # Run the unit tests with coverage (coverage/cpp.html)
 coverage:
-    meson setup --wipe builddir-coverage \
+    uvx meson setup --wipe builddir-coverage \
         --buildtype=debugoptimized \
         -Dbenchmarks=disabled \
         -Dcatch2:tests=false \
         -Db_coverage=true
-    meson test -C builddir-coverage
+    uvx meson test -C builddir-coverage
     mkdir -p coverage
     uvx gcovr builddir-coverage/ --html-details coverage/cpp.html \
         -e subprojects/ -e tests/
@@ -131,7 +134,7 @@ benchmark-set-baseline: build test
 _benchmark-compare *ARGS:
     #!/usr/bin/env bash
     set -euxo pipefail
-    GB_VERSION=$(meson introspect --dependencies builddir |jq -r \
+    GB_VERSION=$(uvx meson introspect --dependencies builddir |jq -r \
         '.[] | select(.meson_variables[]? == "benchmark_dep") | .version')
     GB_TOOLS=subprojects/benchmark-$GB_VERSION/tools
     uv run --no-project --with=scipy "$GB_TOOLS/compare.py" "$@" \
@@ -212,11 +215,11 @@ cibuildwheel:
     if [[ "$UNAME" == MINGW* || "$UNAME" == MSYS* ]]; then
         export CXX=clang-cl
     fi
-    scripts/build_static_tbb.sh
+    uv run --no-project --with=cmake scripts/build_static_tbb.sh
     CIBW_ARCHS=native uvx cibuildwheel
 
 _java_version builddir:
-    @meson introspect --projectinfo {{builddir}} | jq -r '.version'
+    @uvx meson introspect --projectinfo {{builddir}} | jq -r '.version'
 
 # Build Java native library
 java-build-jni:
@@ -228,11 +231,11 @@ java-build-jni:
     if [[ "$UNAME" == MINGW* || "$UNAME" == MSYS* ]]; then
         export CXX=clang-cl
     fi
-    scripts/build_static_tbb.sh
-    {{cjdk_exec}} meson setup --reconfigure builddir-jni \
+    uv run --no-project --with=cmake scripts/build_static_tbb.sh
+    {{cjdk_exec}} uvx meson setup --reconfigure builddir-jni \
         --default-library=static -Djava-bindings=enabled \
         -Dtests=disabled -Dbenchmarks=disabled
-    {{cjdk_exec}} meson compile -C builddir-jni
+    {{cjdk_exec}} uvx meson compile -C builddir-jni
 
 # Build Java bindings
 java-build: java-build-jni
@@ -254,10 +257,10 @@ java-test: java-build-jni
 java-coverage:
     #!/usr/bin/env bash
     set -euxo pipefail
-    {{cjdk_exec}} meson setup --reconfigure builddir-jni-cov \
+    {{cjdk_exec}} uvx meson setup --reconfigure builddir-jni-cov \
         -Djava-bindings=enabled -Db_coverage=true --buildtype=debugoptimized \
         -Dtests=disabled -Dbenchmarks=disabled
-    {{cjdk_exec}} meson compile -C builddir-jni-cov
+    {{cjdk_exec}} uvx meson compile -C builddir-jni-cov
     find builddir-jni-cov/ -name '*.gcda' -exec rm -f {} +
     VERSION=$(just _java_version builddir-jni-cov)
     {{cjdk_exec}} mvn -f java/pom.xml package \
@@ -271,10 +274,10 @@ java-coverage:
 java-clean:
     {{cjdk_exec}} mvn -f java/pom.xml clean || true
     if [ -d builddir-jni ]; then \
-        {{cjdk_exec}} meson compile --clean -C builddir-jni; \
+        {{cjdk_exec}} uvx meson compile --clean -C builddir-jni; \
     fi
     if [ -d builddir-jni-cov ]; then \
-        {{cjdk_exec}} meson compile --clean -C builddir-jni-cov; \
+        {{cjdk_exec}} uvx meson compile --clean -C builddir-jni-cov; \
     fi
     rm -rf coverage/java.*
     rmdir coverage/ 2>/dev/null || true
