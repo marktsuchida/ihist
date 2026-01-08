@@ -69,7 +69,11 @@ jobs:
         run: uv tool install rust-just
       - name: Install dependencies - macOS
         if: startsWith(matrix.runner, 'macos-')
-        run: brew install tbb opencv
+        run: brew install tbb
+      - name: Install OpenCV - macOS (not Intel)
+        # This is very slow on macos-15-intel so skip there.
+        if: matrix.runner == 'macos-15'
+        run: brew install opencv
       - name: Install dependencies - Ubuntu
         if: startsWith(matrix.runner, 'ubuntu-')
         run: |
