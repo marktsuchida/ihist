@@ -220,7 +220,8 @@ cibuildwheel:
     CIBW_ARCHS=native uvx cibuildwheel
 
 _java_version builddir:
-    @uvx meson introspect --projectinfo {{builddir}} | jq -r '.version'
+    @uvx meson introspect --projectinfo {{builddir}} | jq -r '.version' | \
+        sed 's/\.dev.*/-SNAPSHOT/'
 
 # Build Java native library
 java-build-jni:
@@ -244,16 +245,16 @@ java-build: java-build-jni
     #!/usr/bin/env bash
     set -euxo pipefail
     VERSION=$(just _java_version builddir-jni)
-    {{cjdk_exec}} {{mvn}} -f java/pom.xml compile -Drevision="$VERSION-SNAPSHOT"
+    {{cjdk_exec}} {{mvn}} -f java/pom.xml compile -Drevision="$VERSION"
 
 # Test Java bindings (with Java coverage)
 java-test: java-build-jni
     #!/usr/bin/env bash
     set -euxo pipefail
     VERSION=$(just _java_version builddir-jni)
-    {{cjdk_exec}} {{mvn}} -f java/pom.xml verify -Dihist.debug=true \
-        -Dnative.library.path=../builddir-jni/java \
-        -Drevision="$VERSION-SNAPSHOT"
+    {{cjdk_exec}} {{mvn}} -f java/pom.xml verify -Drevision="$VERSION" \
+        -Dihist.debug=true \
+        -Dnative.library.path=../builddir-jni/java
 
 # Test Java bindings with C++ coverage
 java-coverage:
@@ -266,9 +267,8 @@ java-coverage:
     {{cjdk_exec}} uvx meson compile -C builddir-jni-cov
     find builddir-jni-cov/ -name '*.gcda' -exec rm -f {} +
     VERSION=$(just _java_version builddir-jni-cov)
-    {{cjdk_exec}} {{mvn}} -f java/pom.xml package \
-        -Dnative.library.path=../builddir-jni-cov/java \
-        -Drevision="$VERSION-SNAPSHOT"
+    {{cjdk_exec}} {{mvn}} -f java/pom.xml package -Drevision="$VERSION" \
+        -Dnative.library.path=../builddir-jni-cov/java
     mkdir -p coverage
     uvx gcovr builddir-jni-cov/ -f java/src/main/cpp/ihistj_jni.cpp \
         --html-details coverage/java.html
