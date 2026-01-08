@@ -6,13 +6,17 @@ Copyright 2025 Board of Regents of the University of Wisconsin System
 SPDX-License-Identifier: MIT
 -->
 
-Fast histogram computation for image data.
+Fast histogram computation for image data with APIs in Python, Java, and C.
 
 Currently experimental and API may still change.
 
 ## Python API
 
 ### Quick Start
+
+```sh
+pip install ihist
+```
 
 ```python
 import numpy as np
