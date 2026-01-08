@@ -155,23 +155,27 @@ jobs:
         include:
           - os: ubuntu-24.04
             name: ubuntu-24.04
+            cxx: clang++
           - os: windows-2025
             name: windows-2025
+            cxx: clang-cl
           - os: macos-15
+            name: macos-15-arm64
             arch_flags: -arch arm64
             deployment_target: "11.0"
-            name: macos-15-arm64
+            cxx: clang++
           - os: macos-15
+            name: macos-15-x86_64
             arch_flags: -arch x86_64
             meson_cross_args: --cross-file=scripts/meson-cross-macos-x86_64.txt
             jdk_arch: x86_64
             deployment_target: "10.15"
-            name: macos-15-x86_64
     env:
       MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target }}
       ARCHFLAGS: ${{ matrix.arch_flags }}
       IHIST_MESON_CROSS_ARGS: ${{ matrix.meson_cross_args }}
       CJDK_ARCH: ${{ matrix.jdk_arch }}
+      CXX: ${{ matrix.cxx }}
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
