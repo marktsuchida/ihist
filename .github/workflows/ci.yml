@@ -244,4 +244,5 @@ jobs:
       - run: |
           just java-stage jnijars
           tree java/target/staging-deploy
+          ./scripts/check_jars.sh java/target/staging-deploy
       # TODO Publish if v* tag
