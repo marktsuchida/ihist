@@ -2,6 +2,13 @@
 # Copyright 2025 Board of Regents of the University of Wisconsin System
 # SPDX-License-Identifier: MIT
 
+# The version in project() here is the single source of truth for the version
+# number. Between releases, we use the next expected release version with a
+# .dev0 suffix (which follows Python version number rules). For Java, any .dev0
+# suffix is replaced with -SNAPSHOT. Releases are tagged in Git with the
+# version prefixed by 'v'. The release procedure automatically bumps the
+# version and creates the tag.
+
 project(
   'ihist',
   'cpp',
