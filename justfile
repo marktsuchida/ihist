@@ -256,6 +256,26 @@ java-test: java-build-jni
         -Dihist.debug=true \
         -Dnative.library.path=../builddir-jni/java
 
+# Package Java bindings without JNI libs
+java-package-no-jni:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    VERSION=$(just _java_version meson.build)
+    {{cjdk_exec}} {{mvn}} -f java/pom.xml package -Drevision="$VERSION" \
+        -Dskip.natives=true -DskipTests=true
+
+# Stage Java bindings
+java-stage natives_jars_dir: java-package-no-jni
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    VERSION=$(just _java_version meson.build)
+    STAGEDIR=java/target/staging-deploy/io/github/marktsuchida/ihist/$VERSION
+    mkdir -p $STAGEDIR
+    cp {{natives_jars_dir}}/ihist-$VERSION-natives-*.jar $STAGEDIR/
+    cp java/.flattened-pom.xml $STAGEDIR/ihist-$VERSION.pom
+    cp java/target/ihist-$VERSION.jar $STAGEDIR/
+    cp java/target/ihist-$VERSION-*.jar $STAGEDIR/
+
 # Test Java bindings with C++ coverage
 java-coverage:
     #!/usr/bin/env bash

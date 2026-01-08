@@ -61,12 +61,10 @@ jobs:
         with:
           python-version: 3.14
       - name: Install tools
-        run: |
-          uv tool install rust-just
+        run: uv tool install rust-just
       - name: Install dependencies - macOS
         if: startsWith(matrix.runner, 'macos-')
-        run: |
-          brew install tbb opencv
+        run: brew install tbb opencv
       - name: Install dependencies - Ubuntu
         if: startsWith(matrix.runner, 'ubuntu-')
         run: |
@@ -146,7 +144,29 @@ jobs:
           name: wheels-${{ matrix.name }}
           path: wheelhouse/*.whl
 
-  jni:
+  publish-wheels:
+    needs: [lint, test, test-no-tbb, wheels]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: 3.14
+      - run: uv build --sdist -C setup-args=-Dtbb=disabled
+      - uses: actions/upload-artifact@v6
+        with:
+          name: python-sdist
+          path: dist/ihist-*.tar.gz
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist
+      - run: ls dist
+      - if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  jni-jars:
     name: jars-${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -192,13 +212,36 @@ jobs:
         with:
           apps: pkg-config
       - name: Install tools
-        run: |
-          uv tool install rust-just
+        run: uv tool install rust-just
       - name: Build and test
         shell: bash
-        run: |
-          just java-test
+        run: just java-test
       - uses: actions/upload-artifact@v6
         with:
-          name: jnilib-${{ matrix.name }}
+          name: jni-jars-${{ matrix.name }}
           path: java/target/ihist-*-natives-*.jar
+
+  publish-jars:
+    needs: [lint, test, test-no-tbb, jni-jars]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: 3.14
+      - name: Install tools
+        run: uv tool install rust-just
+      - run: just java-package-no-jni
+      - uses: actions/upload-artifact@v6
+        with:
+          name: java-jars
+          path: java/target/ihist-*.jar
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: jni-jars-*
+          merge-multiple: true
+          path: jnijars
+      - run: |
+          just java-stage jnijars
+          tree java/target/staging-deploy
+      # TODO Publish if v* tag
