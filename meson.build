@@ -3,20 +3,11 @@
 # SPDX-License-Identifier: MIT
 
 project(
-    'ihist',
-    'cpp',
-    # This is the single source of truth for the version number. Between
-    # releases, we use the next expected release version with a .dev0 suffix
-    # (which follows Python version number rules). For Java, any .dev0 suffix
-    # is replaced with -SNAPSHOT. Releases are tagged in Git with the version
-    # prefixed by 'v'.
-    version: '0.1.0.dev0',
-    meson_version: '>= 1.3.0',
-    default_options: [
-        'warning_level=3',
-        'cpp_std=c++17',
-        'werror=true',
-    ],
+  'ihist',
+  'cpp',
+version : '0.1.0',
+  meson_version : '>= 1.3.0',
+  default_options : ['warning_level=3', 'cpp_std=c++17', 'werror=true']
 )
 
 cxx = meson.get_compiler('cpp')
