@@ -209,12 +209,12 @@ hist_striped_st(T const *IHIST_RESTRICT data,
         auto const *block_mask = UseMask ? mask + block * BLOCKSIZE : nullptr;
 
         IHIST_PRAGMA_LOOP_UNROLL_FULL
-        for (std::size_t s = 0; s < NSAMPLES; ++s) {
-            auto const s_index = s_indices[s];
-            IHIST_PRAGMA_LOOP_UNROLL_FULL
-            for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
-                if (!UseMask || block_mask[k]) {
-                    auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
+        for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
+            if (!UseMask || block_mask[k]) {
+                auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
+                IHIST_PRAGMA_LOOP_UNROLL_FULL
+                for (std::size_t s = 0; s < NSAMPLES; ++s) {
+                    auto const s_index = s_indices[s];
                     auto const bin = bins[k * SamplesPerPixel + s_index];
                     ++stripes[(stripe * NSAMPLES + s) * STRIPE_LEN + bin];
                 }
@@ -312,12 +312,12 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
                 UseMask ? row_mask + block * BLOCKSIZE : nullptr;
 
             IHIST_PRAGMA_LOOP_UNROLL_FULL
-            for (std::size_t s = 0; s < NSAMPLES; ++s) {
-                auto const s_index = s_indices[s];
-                IHIST_PRAGMA_LOOP_UNROLL_FULL
-                for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
-                    if (!UseMask || block_mask[k]) {
-                        auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
+            for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
+                if (!UseMask || block_mask[k]) {
+                    auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
+                    IHIST_PRAGMA_LOOP_UNROLL_FULL
+                    for (std::size_t s = 0; s < NSAMPLES; ++s) {
+                        auto const s_index = s_indices[s];
                         auto const bin = bins[k * SamplesPerPixel + s_index];
                         ++stripes[(stripe * NSAMPLES + s) * STRIPE_LEN + bin];
                     }
