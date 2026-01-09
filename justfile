@@ -6,9 +6,9 @@
 help:
     @just --list
     @echo
-    @echo Required tools: uv, pkg-config, C and C++ toolchain
-    @echo Required for Java bindings: mvn (>= 3.6.3, < 4)
-    @echo On Windows, Git Bash is required.
+    @echo 'Required tools: uv, pkg-config, C and C++ toolchain'
+    @echo 'Required for Java bindings: mvn (>= 3.6.3, < 4)'
+    @echo 'On Windows, Git Bash is required.'
 
 exe_suffix := if os() == "windows" { ".exe" } else { "" }
 mvn := if os() == "windows" { "mvn.cmd" } else { "mvn" }
