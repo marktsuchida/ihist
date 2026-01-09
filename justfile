@@ -135,8 +135,8 @@ benchmark-set-baseline: build test
 _benchmark-compare *ARGS:
     #!/usr/bin/env bash
     set -euxo pipefail
-    GB_VERSION=$(uvx meson introspect --dependencies builddir |jq -r \
-        '.[] | select(.meson_variables[]? == "benchmark_dep") | .version')
+    GB_VERSION=$(uvx meson introspect --projectinfo builddir |jq -r \
+        '.subprojects[] | select(.name == "google-benchmark") | .version')
     GB_TOOLS=subprojects/benchmark-$GB_VERSION/tools
     uv run --no-project --with=scipy "$GB_TOOLS/compare.py" "$@" \
         --benchmark_time_unit=ms --benchmark_counters_tabular=true
