@@ -36,7 +36,7 @@ _download-windows-deps:
     TBB_ZIP=oneapi-tbb-{{onetbb_version}}-win.zip
     if [ ! -f $TBB_ZIP ]; then
         curl -LO https://github.com/uxlfoundation/oneTBB/releases/download/v{{onetbb_version}}/$TBB_ZIP
-        unzip $TBB_ZIP
+        unzip -q $TBB_ZIP
     fi
 
 # Configure for development build
