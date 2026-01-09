@@ -36,11 +36,14 @@
 #endif
 
 #ifdef __clang__
-#define IHIST_PRAGMA_DISABLE_LOOP_UNROLL _Pragma("clang loop unroll(disable)")
-#elif defined(__GNUC__)
-#define IHIST_PRAGMA_DISABLE_LOOP_UNROLL _Pragma("GCC unroll 0")
+#define IHIST_PRAGMA_LOOP_UNROLL_DISABLE _Pragma("clang loop unroll(disable)")
+#define IHIST_PRAGMA_LOOP_UNROLL_FULL _Pragma("clang loop unroll(full)")
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#define IHIST_PRAGMA_LOOP_UNROLL_DISABLE _Pragma("GCC unroll 0")
+#define IHIST_PRAGMA_LOOP_UNROLL_FULL _Pragma("GCC unroll 65534")
 #else
-#define IHIST_PRAGMA_DISABLE_LOOP_UNROLL
+#define IHIST_PRAGMA_LOOP_UNROLL_DISABLE
+#define IHIST_PRAGMA_LOOP_UNROLL_FULL
 #endif
 
 namespace ihist {
@@ -93,7 +96,7 @@ hist_unoptimized_st(T const *IHIST_RESTRICT data,
     constexpr std::array<std::size_t, NSAMPLES> s_indices{Sample0Index,
                                                           SampleIndices...};
 
-    IHIST_PRAGMA_DISABLE_LOOP_UNROLL
+    IHIST_PRAGMA_LOOP_UNROLL_DISABLE
     for (std::size_t j = 0; j < size; ++j) {
         auto const i = j * SamplesPerPixel;
         if (!UseMask || mask[j]) {
@@ -128,9 +131,9 @@ template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
     constexpr std::array<std::size_t, NSAMPLES> s_indices{Sample0Index,
                                                           SampleIndices...};
 
-    IHIST_PRAGMA_DISABLE_LOOP_UNROLL
+    IHIST_PRAGMA_LOOP_UNROLL_DISABLE
     for (std::size_t y = 0; y < height; ++y) {
-        IHIST_PRAGMA_DISABLE_LOOP_UNROLL
+        IHIST_PRAGMA_LOOP_UNROLL_DISABLE
         for (std::size_t x = 0; x < width; ++x) {
             auto const j = y * image_stride + x;
             auto const i = j * SamplesPerPixel;
@@ -192,20 +195,23 @@ hist_striped_st(T const *IHIST_RESTRICT data,
     std::uint8_t const *epilog_mask =
         UseMask ? mask + n_blocks * BLOCKSIZE : nullptr;
 
-    IHIST_PRAGMA_DISABLE_LOOP_UNROLL
+    IHIST_PRAGMA_LOOP_UNROLL_DISABLE
     for (std::size_t block = 0; block < n_blocks; ++block) {
         // We pre-compute all the bin indices for the block here, which
         // facilitates experimenting with potential optimizations, but the
         // compiler may well interleave this with the bin increments below.
         std::array<std::size_t, BLOCKSIZE * SamplesPerPixel> bins;
+        IHIST_PRAGMA_LOOP_UNROLL_FULL
         for (std::size_t n = 0; n < BLOCKSIZE * SamplesPerPixel; ++n) {
             auto const i = block * BLOCKSIZE * SamplesPerPixel + n;
             bins[n] = internal::bin_index<T, Bits, LoBit>(data[i]);
         }
         auto const *block_mask = UseMask ? mask + block * BLOCKSIZE : nullptr;
 
+        IHIST_PRAGMA_LOOP_UNROLL_FULL
         for (std::size_t s = 0; s < NSAMPLES; ++s) {
             auto const s_index = s_indices[s];
+            IHIST_PRAGMA_LOOP_UNROLL_FULL
             for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
                 if (!UseMask || block_mask[k]) {
                     auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
@@ -294,9 +300,10 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
             row_data + n_blocks_per_row * BLOCKSIZE * SamplesPerPixel;
         std::uint8_t const *row_epilog_mask =
             UseMask ? row_mask + n_blocks_per_row * BLOCKSIZE : nullptr;
-        IHIST_PRAGMA_DISABLE_LOOP_UNROLL
+        IHIST_PRAGMA_LOOP_UNROLL_DISABLE
         for (std::size_t block = 0; block < n_blocks_per_row; ++block) {
             std::array<std::size_t, BLOCKSIZE * SamplesPerPixel> bins;
+            IHIST_PRAGMA_LOOP_UNROLL_FULL
             for (std::size_t n = 0; n < BLOCKSIZE * SamplesPerPixel; ++n) {
                 auto const i = block * BLOCKSIZE * SamplesPerPixel + n;
                 bins[n] = internal::bin_index<T, Bits, LoBit>(row_data[i]);
@@ -304,8 +311,10 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
             auto const *block_mask =
                 UseMask ? row_mask + block * BLOCKSIZE : nullptr;
 
+            IHIST_PRAGMA_LOOP_UNROLL_FULL
             for (std::size_t s = 0; s < NSAMPLES; ++s) {
                 auto const s_index = s_indices[s];
+                IHIST_PRAGMA_LOOP_UNROLL_FULL
                 for (std::size_t k = 0; k < BLOCKSIZE; ++k) {
                     if (!UseMask || block_mask[k]) {
                         auto const stripe = (block * BLOCKSIZE + k) % NSTRIPES;
