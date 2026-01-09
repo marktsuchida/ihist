@@ -6,9 +6,9 @@
 help:
     @just --list
     @echo
-    @echo Required tools: uv, pkg-config, C and C++ toolchain
-    @echo Required for Java bindings: mvn (>= 3.6.3, < 4)
-    @echo On Windows, Git Bash is required.
+    @echo 'Required tools: uv, pkg-config, C and C++ toolchain'
+    @echo 'Required for Java bindings: mvn (>= 3.6.3, < 4)'
+    @echo 'On Windows, Git Bash is required.'
 
 exe_suffix := if os() == "windows" { ".exe" } else { "" }
 mvn := if os() == "windows" { "mvn.cmd" } else { "mvn" }
@@ -36,7 +36,7 @@ _download-windows-deps:
     TBB_ZIP=oneapi-tbb-{{onetbb_version}}-win.zip
     if [ ! -f $TBB_ZIP ]; then
         curl -LO https://github.com/uxlfoundation/oneTBB/releases/download/v{{onetbb_version}}/$TBB_ZIP
-        unzip $TBB_ZIP
+        unzip -q $TBB_ZIP
     fi
 
 # Configure for development build
@@ -135,8 +135,8 @@ benchmark-set-baseline: build test
 _benchmark-compare *ARGS:
     #!/usr/bin/env bash
     set -euxo pipefail
-    GB_VERSION=$(uvx meson introspect --dependencies builddir |jq -r \
-        '.[] | select(.meson_variables[]? == "benchmark_dep") | .version')
+    GB_VERSION=$(uvx meson introspect --projectinfo builddir |jq -r \
+        '.subprojects[] | select(.name == "google-benchmark") | .version')
     GB_TOOLS=subprojects/benchmark-$GB_VERSION/tools
     uv run --no-project --with=scipy "$GB_TOOLS/compare.py" "$@" \
         --benchmark_time_unit=ms --benchmark_counters_tabular=true
