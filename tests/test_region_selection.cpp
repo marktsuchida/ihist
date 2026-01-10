@@ -31,25 +31,25 @@ TEMPLATE_LIST_TEST_CASE("ROI selection via pointer offset and dimensions", "",
     constexpr auto HALF_NBINS = 1 << HALF_BITS;
     constexpr auto HALF_SHIFT = FULL_BITS / 4;
 
-    std::size_t const width = GENERATE(1, 3, 100);
-    std::size_t const height = GENERATE(1, 7);
+    unsigned const width = GENERATE(1, 3, 100);
+    unsigned const height = GENERATE(1, 7);
     auto const quad_x = GENERATE_COPY(
         filter([=](auto x) { return x < width; },
-               values<std::size_t>({0, 1, width > 2 ? width - 1 : 9999})));
+               values<unsigned>({0, 1, width > 2 ? width - 1 : 9999})));
     auto const quad_y = GENERATE_COPY(
         filter([=](auto y) { return y < height; },
-               values<std::size_t>({0, 1, height > 2 ? height - 1 : 9999})));
+               values<unsigned>({0, 1, height > 2 ? height - 1 : 9999})));
     auto const quad_width = GENERATE_COPY(
         filter([=](auto w) { return w <= width - quad_x; },
-               values<std::size_t>(
+               values<unsigned>(
                    {1, width - quad_x > 2 ? width - quad_x - 1 : 9999})));
     auto const quad_height = GENERATE_COPY(
         filter([=](auto h) { return h <= height - quad_y; },
-               values<std::size_t>(
+               values<unsigned>(
                    {1, height - quad_y > 2 ? height - quad_y - 1 : 9999})));
     CAPTURE(width, height, quad_x, quad_y, quad_width, quad_height);
 
-    std::size_t const quad_size = quad_width * quad_height;
+    auto const quad_size = quad_width * quad_height;
 
     T const value_in_roi = 1;
     T const value_not_in_roi = 63;
@@ -156,26 +156,26 @@ TEMPLATE_LIST_TEST_CASE("mask selection includes only non-zero mask pixels",
     constexpr auto HALF_NBINS = 1 << HALF_BITS;
     constexpr auto HALF_SHIFT = FULL_BITS / 4;
 
-    std::size_t const width = GENERATE(1, 3, 100);
-    std::size_t const height = GENERATE(1, 7);
+    unsigned const width = GENERATE(1, 3, 100);
+    unsigned const height = GENERATE(1, 7);
     auto const quad_x = GENERATE_COPY(
         filter([=](auto x) { return x < width; },
-               values<std::size_t>({0, 1, width > 2 ? width - 1 : 9999})));
+               values<unsigned>({0, 1, width > 2 ? width - 1 : 9999})));
     auto const quad_y = GENERATE_COPY(
         filter([=](auto y) { return y < height; },
-               values<std::size_t>({0, 1, height > 2 ? height - 1 : 9999})));
+               values<unsigned>({0, 1, height > 2 ? height - 1 : 9999})));
     auto const quad_width = GENERATE_COPY(
         filter([=](auto w) { return w <= width - quad_x; },
-               values<std::size_t>(
+               values<unsigned>(
                    {1, width - quad_x > 2 ? width - quad_x - 1 : 9999})));
     auto const quad_height = GENERATE_COPY(
         filter([=](auto h) { return h <= height - quad_y; },
-               values<std::size_t>(
+               values<unsigned>(
                    {1, height - quad_y > 2 ? height - quad_y - 1 : 9999})));
     CAPTURE(width, height, quad_x, quad_y, quad_width, quad_height);
 
-    std::size_t const size = width * height;
-    std::size_t const quad_size = quad_width * quad_height;
+    unsigned const size = width * height;
+    unsigned const quad_size = quad_width * quad_height;
 
     T const value_in_roi = 1;
     T const value_not_in_roi = 63;
@@ -205,7 +205,8 @@ TEMPLATE_LIST_TEST_CASE("mask selection includes only non-zero mask pixels",
     std::vector<std::uint8_t> const quad_mask = [&] {
         std::vector<std::uint8_t> mask(size);
         for (std::size_t y = quad_y; y < quad_y + quad_height; ++y) {
-            std::fill_n(mask.begin() + y * width + quad_x, quad_width, 1);
+            std::fill_n(mask.begin() + y * width + quad_x, quad_width,
+                        std::uint8_t{1});
         }
         return mask;
     }();
@@ -345,25 +346,25 @@ TEMPLATE_LIST_TEST_CASE("combined ROI and mask selection", "",
     constexpr auto HALF_NBINS = 1 << HALF_BITS;
     constexpr auto HALF_SHIFT = FULL_BITS / 4;
 
-    std::size_t const width = GENERATE(1, 3, 100);
-    std::size_t const height = GENERATE(1, 7);
+    unsigned const width = GENERATE(1, 3, 100);
+    unsigned const height = GENERATE(1, 7);
     auto const quad_x = GENERATE_COPY(
         filter([=](auto x) { return x < width; },
-               values<std::size_t>({0, 1, width > 2 ? width - 1 : 9999})));
+               values<unsigned>({0, 1, width > 2 ? width - 1 : 9999})));
     auto const quad_y = GENERATE_COPY(
         filter([=](auto y) { return y < height; },
-               values<std::size_t>({0, 1, height > 2 ? height - 1 : 9999})));
+               values<unsigned>({0, 1, height > 2 ? height - 1 : 9999})));
     auto const quad_width = GENERATE_COPY(
         filter([=](auto w) { return w <= width - quad_x; },
-               values<std::size_t>(
+               values<unsigned>(
                    {1, width - quad_x > 2 ? width - quad_x - 1 : 9999})));
     auto const quad_height = GENERATE_COPY(
         filter([=](auto h) { return h <= height - quad_y; },
-               values<std::size_t>(
+               values<unsigned>(
                    {1, height - quad_y > 2 ? height - quad_y - 1 : 9999})));
     CAPTURE(width, height, quad_x, quad_y, quad_width, quad_height);
 
-    std::size_t const quad_size = quad_width * quad_height;
+    auto const quad_size = quad_width * quad_height;
 
     T const value_in_roi = 1;
     T const value_not_in_roi = 63;
@@ -393,7 +394,8 @@ TEMPLATE_LIST_TEST_CASE("combined ROI and mask selection", "",
     std::vector<std::uint8_t> const quad_mask = [&] {
         std::vector<std::uint8_t> mask(width * height);
         for (std::size_t y = quad_y; y < quad_y + quad_height; ++y) {
-            std::fill_n(mask.begin() + y * width + quad_x, quad_width, 1);
+            std::fill_n(mask.begin() + y * width + quad_x, quad_width,
+                        std::uint8_t{1});
         }
         return mask;
     }();
@@ -472,26 +474,26 @@ TEMPLATE_LIST_TEST_CASE("dynamic histogram region selection", "",
 
     constexpr std::size_t indices[] = {0, 1};
 
-    std::size_t const width = GENERATE(1, 3, 100);
-    std::size_t const height = GENERATE(1, 7);
+    unsigned const width = GENERATE(1, 3, 100);
+    unsigned const height = GENERATE(1, 7);
     auto const quad_x = GENERATE_COPY(
         filter([=](auto x) { return x < width; },
-               values<std::size_t>({0, 1, width > 2 ? width - 1 : 9999})));
+               values<unsigned>({0, 1, width > 2 ? width - 1 : 9999})));
     auto const quad_y = GENERATE_COPY(
         filter([=](auto y) { return y < height; },
-               values<std::size_t>({0, 1, height > 2 ? height - 1 : 9999})));
+               values<unsigned>({0, 1, height > 2 ? height - 1 : 9999})));
     auto const quad_width = GENERATE_COPY(
         filter([=](auto w) { return w <= width - quad_x; },
-               values<std::size_t>(
+               values<unsigned>(
                    {1, width - quad_x > 2 ? width - quad_x - 1 : 9999})));
     auto const quad_height = GENERATE_COPY(
         filter([=](auto h) { return h <= height - quad_y; },
-               values<std::size_t>(
+               values<unsigned>(
                    {1, height - quad_y > 2 ? height - quad_y - 1 : 9999})));
     CAPTURE(width, height, quad_x, quad_y, quad_width, quad_height);
 
-    std::size_t const size = width * height;
-    std::size_t const quad_size = quad_width * quad_height;
+    auto const size = width * height;
+    auto const quad_size = quad_width * quad_height;
 
     constexpr auto FULL_BITS = 8 * sizeof(T);
     constexpr auto FULL_NBINS = 1 << FULL_BITS;
@@ -516,7 +518,8 @@ TEMPLATE_LIST_TEST_CASE("dynamic histogram region selection", "",
     std::vector<std::uint8_t> const quad_mask = [&] {
         std::vector<std::uint8_t> mask(size);
         for (std::size_t y = quad_y; y < quad_y + quad_height; ++y) {
-            std::fill_n(mask.begin() + y * width + quad_x, quad_width, 1);
+            std::fill_n(mask.begin() + y * width + quad_x, quad_width,
+                        std::uint8_t{1});
         }
         return mask;
     }();
@@ -651,7 +654,7 @@ TEMPLATE_LIST_TEST_CASE("image stride larger than width handles padding", "",
     SECTION("mask") {
         std::vector<std::uint8_t> mask(stride * height, 0);
         for (std::size_t y = 0; y < height; ++y) {
-            std::fill_n(mask.begin() + y * stride, width, 1);
+            std::fill_n(mask.begin() + y * stride, width, std::uint8_t{1});
         }
         constexpr auto *histxy_func =
             traits::template histxy_func<true, BITS, 0, 1, 0>;
@@ -673,7 +676,7 @@ TEMPLATE_LIST_TEST_CASE("different image and mask strides", "",
     constexpr std::size_t height = 4;
 
     T const value = 42;
-    std::size_t masked_count = 0;
+    unsigned masked_count = 0;
     for (std::size_t y = 0; y < height; ++y) {
         for (std::size_t x = 0; x < width; x += 2) {
             ++masked_count;

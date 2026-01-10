@@ -102,7 +102,7 @@ void bm_hist(benchmark::State &state, hist_func<T> *func, std::size_t bits,
     auto const grain_size = static_cast<std::size_t>(state.range(2));
     auto const data = generate_data<T>(bits, size * n_components, spread_frac);
     auto const mask = generate_circle_mask(width, height);
-    std::vector<u32> hist(n_hist_components * (1 << bits));
+    std::vector<u32> hist(n_hist_components * (1uLL << bits));
     for ([[maybe_unused]] auto _ : state) {
         std::fill(hist.begin(), hist.end(), 0);
         func(data.data(), mask.data(), size, hist.data(), grain_size);
@@ -111,11 +111,12 @@ void bm_hist(benchmark::State &state, hist_func<T> *func, std::size_t bits,
     state.SetBytesProcessed(static_cast<i64>(state.iterations()) * size *
                             n_components * sizeof(T));
     state.counters["samples_per_second"] = benchmark::Counter(
-        static_cast<i64>(state.iterations()) * size * n_hist_components,
+        static_cast<double>(static_cast<i64>(state.iterations()) * size *
+                            n_hist_components),
         benchmark::Counter::kIsRate);
-    state.counters["pixels_per_second"] =
-        benchmark::Counter(static_cast<i64>(state.iterations()) * size,
-                           benchmark::Counter::kIsRate);
+    state.counters["pixels_per_second"] = benchmark::Counter(
+        static_cast<double>(static_cast<i64>(state.iterations()) * size),
+        benchmark::Counter::kIsRate);
 }
 
 template <typename T>
@@ -131,7 +132,7 @@ void bm_histxy(benchmark::State &state, histxy_func<T> *func, std::size_t bits,
     auto const roi_size = width * height;
     auto const data = generate_data<T>(bits, size * n_components, spread_frac);
     auto const mask = generate_circle_mask(width, height);
-    std::vector<u32> hist(n_hist_components * (1 << bits));
+    std::vector<u32> hist(n_hist_components * (1uLL << bits));
     for ([[maybe_unused]] auto _ : state) {
         std::fill(hist.begin(), hist.end(), 0);
         func(data.data(), mask.data(), height, width, width, width,
@@ -141,11 +142,12 @@ void bm_histxy(benchmark::State &state, histxy_func<T> *func, std::size_t bits,
     state.SetBytesProcessed(static_cast<i64>(state.iterations()) * roi_size *
                             n_components * sizeof(T));
     state.counters["samples_per_second"] = benchmark::Counter(
-        static_cast<i64>(state.iterations()) * roi_size * n_hist_components,
+        static_cast<double>(static_cast<i64>(state.iterations()) * roi_size *
+                            n_hist_components),
         benchmark::Counter::kIsRate);
-    state.counters["pixels_per_second"] =
-        benchmark::Counter(static_cast<i64>(state.iterations()) * roi_size,
-                           benchmark::Counter::kIsRate);
+    state.counters["pixels_per_second"] = benchmark::Counter(
+        static_cast<double>(static_cast<i64>(state.iterations()) * roi_size),
+        benchmark::Counter::kIsRate);
 }
 
 // The spread of the data affects performance: if narrow, a simple
@@ -242,7 +244,6 @@ constexpr auto static_hist_func() {
             }
         }
     }
-    throw;
 }
 
 template <typename Dim, typename T, std::size_t Bits, pixel_type PixelType,
@@ -391,7 +392,7 @@ auto main(int argc, char **argv) -> int {
     // Limit threading (for testing and tuning purposes).
 #ifdef IHIST_USE_TBB
     auto const max_threads_str = get_env_var("IHIST_BENCH_MAX_THREADS");
-    int const max_threads =
+    std::size_t const max_threads =
         max_threads_str.empty()
             ? tbb::global_control::active_value(
                   tbb::global_control::parameter::max_allowed_parallelism)

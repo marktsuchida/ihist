@@ -24,7 +24,7 @@ auto generate_data(std::size_t bits, std::size_t count, float spread_frac)
     std::size_t const mean = maximum / 2;
 
     if (spread_frac <= 0.0f) {
-        return std::vector<T>(count, mean);
+        return std::vector<T>(count, T(mean));
     }
 
     auto const half_spread = std::clamp<std::size_t>(

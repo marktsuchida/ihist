@@ -85,7 +85,7 @@ hist_unoptimized_st(T const *IHIST_RESTRICT data,
                     std::uint32_t *IHIST_RESTRICT histogram, std::size_t = 0) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
 
-    static_assert(std::max({Sample0Index, SampleIndices...}) <
+    static_assert(std::max<std::size_t>({Sample0Index, SampleIndices...}) <
                   SamplesPerPixel);
 
     constexpr std::size_t NBINS = 1uLL << Bits;
@@ -120,7 +120,7 @@ template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
     assert(width * height < std::numeric_limits<std::uint32_t>::max());
     assert(width <= image_stride);
 
-    static_assert(std::max({Sample0Index, SampleIndices...}) <
+    static_assert(std::max<std::size_t>({Sample0Index, SampleIndices...}) <
                   SamplesPerPixel);
 
     constexpr std::size_t NBINS = 1uLL << Bits;
@@ -158,7 +158,7 @@ hist_striped_st(T const *IHIST_RESTRICT data,
                 std::uint32_t *IHIST_RESTRICT histogram, std::size_t = 0) {
     assert(size < std::numeric_limits<std::uint32_t>::max());
 
-    static_assert(std::max({Sample0Index, SampleIndices...}) <
+    static_assert(std::max<std::size_t>({Sample0Index, SampleIndices...}) <
                   SamplesPerPixel);
 
     constexpr std::size_t NSTRIPES =
@@ -246,7 +246,7 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
     assert(width * height < std::numeric_limits<std::uint32_t>::max());
     assert(width <= image_stride);
 
-    static_assert(std::max({Sample0Index, SampleIndices...}) <
+    static_assert(std::max<std::size_t>({Sample0Index, SampleIndices...}) <
                   SamplesPerPixel);
 
     constexpr std::size_t NSTRIPES =
