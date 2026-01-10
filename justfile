@@ -59,7 +59,7 @@ configure BUILD_TYPE *FLAGS:
     else
         DEPS_PATH_OPT=
     fi
-    uvx meson setup --reconfigure builddir \
+    uvx meson setup --reconfigure builddir --vsenv \
         ${IHIST_MESON_CROSS_ARGS-} \
         --buildtype=$BUILD_TYPE $SANITIZE_FLAGS \
         $DEPS_PATH_OPT \

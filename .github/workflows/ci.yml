@@ -26,36 +26,28 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner:
-          - ubuntu-24.04
-          - windows-2025
-          - macos-15-intel
-          - macos-15
-        compiler:
-          - platform
-          - clang
-        exclude:
-          - runner: macos-15-intel
-            compiler: clang  # Redundant with platform
-          - runner: macos-15
-            compiler: clang  # Redundant with platform
-          - runner: ubuntu-24.04
-            compiler: platform  # g++ currently has problems with oneTBB build
-          - runner: windows-2025
-            compiler: platform  # CMake problem(?) in oneTBB build with 'cl'
         include:
           - runner: ubuntu-24.04
-            compiler: clang
+            compiler: Clang
             cxx: clang++
+          - runner: ubuntu-24.04
+            compiler: GCC
+            cxx: g++-14
           - runner: windows-2025
-            compiler: clang
+            compiler: Clang
             cxx: clang-cl
             opts: -Dgoogle-benchmark:werror=false
-          - runner: macos-15-intel
-            cxx: clang++
+          - runner: windows-2025
+            compiler: MSVC
+            cxx: cl
+            opts: -Dgoogle-benchmark:werror=false
           - runner: macos-15
+            compiler: Clang
             cxx: clang++
-    name: cpp-test-${{ matrix.runner }}-${{ matrix.cxx }}
+          - runner: macos-15-intel
+            compiler: Clang
+            cxx: clang++
+    name: cpp-test-${{ matrix.runner }}-${{ matrix.compiler }}
     runs-on: ${{ matrix.runner }}
     env:
       CXX: ${{ matrix.cxx }}
@@ -79,6 +71,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install libtbb-dev libopencv-dev
+      - name: Install GCC-14 - Ubuntu
+        if: startsWith(matrix.runner, 'ubuntu-') && matrix.compiler == 'GCC'
+        run: |
+           sudo apt-get install g++-14
       - name: Install dependencies (Windows)
         if: startsWith(matrix.runner, 'windows-')
         uses: MinoruSekine/setup-scoop@v4.0.2
