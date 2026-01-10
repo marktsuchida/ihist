@@ -46,7 +46,7 @@ void bm_ihist_api(benchmark::State &state, ihist_api_func<T> *func,
     auto const spread_frac = static_cast<float>(state.range(1)) / 100.0f;
     auto const data = generate_data<T>(bits, size * n_components, spread_frac);
     auto const mask = generate_circle_mask(width, height);
-    std::vector<u32> hist(n_hist_components * (1 << bits));
+    std::vector<u32> hist(n_hist_components * (1uLL << bits));
     for ([[maybe_unused]] auto _ : state) {
         func(bits, data.data(), masked ? mask.data() : nullptr, height, width,
              width, width, n_components, n_hist_components, component_indices,
@@ -56,11 +56,12 @@ void bm_ihist_api(benchmark::State &state, ihist_api_func<T> *func,
     state.SetBytesProcessed(static_cast<i64>(state.iterations()) * size *
                             n_components * sizeof(T));
     state.counters["samples_per_second"] = benchmark::Counter(
-        static_cast<i64>(state.iterations()) * size * n_hist_components,
+        static_cast<double>(static_cast<i64>(state.iterations()) * size *
+                            n_hist_components),
         benchmark::Counter::kIsRate);
-    state.counters["pixels_per_second"] =
-        benchmark::Counter(static_cast<i64>(state.iterations()) * size,
-                           benchmark::Counter::kIsRate);
+    state.counters["pixels_per_second"] = benchmark::Counter(
+        static_cast<double>(static_cast<i64>(state.iterations()) * size),
+        benchmark::Counter::kIsRate);
 }
 
 template <typename T>
@@ -78,7 +79,7 @@ void bm_ihist_internal(benchmark::State &state, ihist_internal_func<T> *func,
     auto const spread_frac = static_cast<float>(state.range(1)) / 100.0f;
     auto const data = generate_data<T>(bits, size * n_components, spread_frac);
     auto const mask = generate_circle_mask(width, height);
-    std::vector<u32> hist(n_hist_components * (1 << bits));
+    std::vector<u32> hist(n_hist_components * (1uLL << bits));
     for ([[maybe_unused]] auto _ : state) {
         func(data.data(), masked ? mask.data() : nullptr, height, width, width,
              width, hist.data(), 0);
@@ -87,11 +88,12 @@ void bm_ihist_internal(benchmark::State &state, ihist_internal_func<T> *func,
     state.SetBytesProcessed(static_cast<i64>(state.iterations()) * size *
                             n_components * sizeof(T));
     state.counters["samples_per_second"] = benchmark::Counter(
-        static_cast<i64>(state.iterations()) * size * n_hist_components,
+        static_cast<double>(static_cast<i64>(state.iterations()) * size *
+                            n_hist_components),
         benchmark::Counter::kIsRate);
-    state.counters["pixels_per_second"] =
-        benchmark::Counter(static_cast<i64>(state.iterations()) * size,
-                           benchmark::Counter::kIsRate);
+    state.counters["pixels_per_second"] = benchmark::Counter(
+        static_cast<double>(static_cast<i64>(state.iterations()) * size),
+        benchmark::Counter::kIsRate);
 }
 
 #if IHIST_HAVE_OPENCV
@@ -101,7 +103,7 @@ void opencv_histogram(T const *data, u8 const *mask, std::size_t height,
                       std::size_t width, std::size_t bits,
                       std::size_t n_components, std::size_t n_hist_components,
                       u32 *histogram) {
-    auto const mat_type = [](int s) {
+    int const mat_type = [](auto s) {
         if constexpr (std::is_same_v<T, u8>) {
             return CV_8UC(s);
         } else if constexpr (std::is_same_v<T, u16>) {
@@ -109,14 +111,16 @@ void opencv_histogram(T const *data, u8 const *mask, std::size_t height,
         } else {
             throw;
         }
-    }(n_components);
-    cv::Mat const data_mat(height, width, mat_type, const_cast<T *>(data));
+    }(int(n_components));
+    auto iheight = int(height);
+    auto iwidth = int(width);
+    cv::Mat const data_mat(iheight, iwidth, mat_type, const_cast<T *>(data));
     cv::Mat mask_mat;
     if (mask != nullptr) {
-        mask_mat = cv::Mat(height, width, CV_8UC1, const_cast<u8 *>(mask));
+        mask_mat = cv::Mat(iheight, iwidth, CV_8UC1, const_cast<u8 *>(mask));
     }
 
-    std::size_t const n_bins = 1 << bits;
+    std::size_t const n_bins = 1uLL << bits;
     int const hist_size[] = {int(n_bins)};
     float const hist_range_0[] = {0, float(n_bins)};
     float const *hist_range[] = {hist_range_0};
@@ -150,7 +154,7 @@ void bm_opencv(benchmark::State &state, std::size_t bits,
     auto const spread_frac = static_cast<float>(state.range(1)) / 100.0f;
     auto const data = generate_data<T>(bits, size * n_components, spread_frac);
     auto const mask = generate_circle_mask(width, height);
-    std::vector<u32> hist(n_hist_components * (1 << bits));
+    std::vector<u32> hist(n_hist_components * (1uLL << bits));
     for ([[maybe_unused]] auto _ : state) {
         opencv_histogram(data.data(), masked ? mask.data() : nullptr, height,
                          width, bits, n_components, n_hist_components,
@@ -160,11 +164,12 @@ void bm_opencv(benchmark::State &state, std::size_t bits,
     state.SetBytesProcessed(static_cast<i64>(state.iterations()) * size *
                             n_components * sizeof(T));
     state.counters["samples_per_second"] = benchmark::Counter(
-        static_cast<i64>(state.iterations()) * size * n_hist_components,
+        static_cast<double>(static_cast<i64>(state.iterations()) * size *
+                            n_hist_components),
         benchmark::Counter::kIsRate);
-    state.counters["pixels_per_second"] =
-        benchmark::Counter(static_cast<i64>(state.iterations()) * size,
-                           benchmark::Counter::kIsRate);
+    state.counters["pixels_per_second"] = benchmark::Counter(
+        static_cast<double>(static_cast<i64>(state.iterations()) * size),
+        benchmark::Counter::kIsRate);
     cv::setNumThreads(save_nthreads);
 }
 

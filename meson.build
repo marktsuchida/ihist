@@ -27,6 +27,11 @@ if host_machine.system() == 'darwin' and \
     add_global_arguments('-U_LIBCPP_ENABLE_ASSERTIONS', language: 'cpp')
     add_global_arguments('-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST', language: 'cpp')
 endif
+if cxx.get_id() == 'msvc'
+    # Disable warning C4127: conditional expression is constant (we have
+    # conditional expressions that are conditionally constant...).
+    add_project_arguments('/wd4127', language: 'cpp')
+endif
 
 # We do not build oneTBB as a wrap/subproject, because when using as a C++
 # library, oneTBB should be dynamically linked (if other parts of the
@@ -66,9 +71,17 @@ if not get_option('benchmarks').disabled()
     )
 
     # E.g., Homebrew has opencv4 (pkg-config), Scoop has OpenCV (cmake).
-    opencv_dep = dependency('opencv4', required: false)
+    opencv_dep = dependency(
+        'opencv4',
+        required: false,
+        include_type: 'system',
+    )
     if not opencv_dep.found()
-        opencv_dep = dependency('OpenCV', required: false)
+        opencv_dep = dependency(
+            'OpenCV',
+            required: false,
+            include_type: 'system',
+        )
     endif
 
     opencv_cpp_args = []
