@@ -230,18 +230,22 @@ void throw_null_pointer(JNIEnv *env, char const *message) {
 
 // Convert Java int[] to vector<size_t>, checking for negative values.
 // Returns nullopt if an exception was thrown.
+// Uses GetIntArrayRegion directly since component_indices is typically tiny.
 [[nodiscard]] auto to_size_t_vector(JNIEnv *env, jintArray arr)
     -> std::optional<std::vector<std::size_t>> {
     if (arr == nullptr) {
         return std::vector<std::size_t>{};
     }
     jsize const len = env->GetArrayLength(arr);
-    std::vector<std::size_t> result(static_cast<std::size_t>(len));
-    array_access<jint> access(env, arr);
-    if (!access) {
+    if (len == 0) {
+        return std::vector<std::size_t>{};
+    }
+    std::vector<jint> elements(static_cast<std::size_t>(len));
+    env->GetIntArrayRegion(arr, 0, len, elements.data());
+    if (env->ExceptionCheck()) {
         return {};
     }
-    jint const *elements = access.get();
+    std::vector<std::size_t> result(static_cast<std::size_t>(len));
     for (jsize i = 0; i < len; ++i) {
         if (elements[i] < 0) {
             throw_illegal_argument(env, "component index cannot be negative");
