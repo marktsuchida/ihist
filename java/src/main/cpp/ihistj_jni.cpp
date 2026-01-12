@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -63,77 +64,139 @@ template <typename T> class local_ref {
     }
 };
 
-// RAII wrapper for GetPrimitiveArrayCritical access.
+// Base class for type-erased array access lifetime management.
+class array_access_base {
+  public:
+    virtual ~array_access_base() = default;
+};
+
+// Traits for JNI array region operations, mapping element types to the
+// appropriate Get*ArrayRegion and Set*ArrayRegion functions.
+template <typename ElementT> struct jni_array_region_traits;
+
+template <> struct jni_array_region_traits<jbyte> {
+    static void get_region(JNIEnv *env, jarray array, jsize start, jsize len,
+                           jbyte *buf) {
+        env->GetByteArrayRegion(static_cast<jbyteArray>(array), start, len,
+                                buf);
+    }
+    static void set_region(JNIEnv *env, jarray array, jsize start, jsize len,
+                           jbyte const *buf) {
+        env->SetByteArrayRegion(static_cast<jbyteArray>(array), start, len,
+                                buf);
+    }
+};
+
+template <> struct jni_array_region_traits<jshort> {
+    static void get_region(JNIEnv *env, jarray array, jsize start, jsize len,
+                           jshort *buf) {
+        env->GetShortArrayRegion(static_cast<jshortArray>(array), start, len,
+                                 buf);
+    }
+    static void set_region(JNIEnv *env, jarray array, jsize start, jsize len,
+                           jshort const *buf) {
+        env->SetShortArrayRegion(static_cast<jshortArray>(array), start, len,
+                                 buf);
+    }
+};
+
+template <> struct jni_array_region_traits<jint> {
+    static void get_region(JNIEnv *env, jarray array, jsize start, jsize len,
+                           jint *buf) {
+        env->GetIntArrayRegion(static_cast<jintArray>(array), start, len, buf);
+    }
+    static void set_region(JNIEnv *env, jarray array, jsize start, jsize len,
+                           jint const *buf) {
+        env->SetIntArrayRegion(static_cast<jintArray>(array), start, len, buf);
+    }
+};
+
+// RAII wrapper for JNI array access with fallback.
+// Tries GetPrimitiveArrayCritical first; if that fails (and no exception is
+// pending), falls back to Get*ArrayRegion with a temporary buffer.
 // Supports two modes:
 // - Non-owning: array ref managed by caller (e.g., parameter from Java)
 // - Owning: takes ownership of a local_ref<jarray>, deletes after release
-class critical_array_access {
+template <typename ElementT> class array_access : public array_access_base {
+    using traits = jni_array_region_traits<ElementT>;
+
     JNIEnv *env_ = nullptr;
     jarray array_ = nullptr;
     std::optional<local_ref<jarray>> owned_array_;
-    void *critical_ptr_ = nullptr;
+    ElementT *data_ptr_ = nullptr;
+    std::vector<ElementT> fallback_buffer_;
+    bool using_fallback_ = false;
     jint release_mode_ = JNI_ABORT;
 
+    void init_access() {
+        if (array_ == nullptr) {
+            return;
+        }
+        void *critical = env_->GetPrimitiveArrayCritical(array_, nullptr);
+        if (critical != nullptr) {
+            data_ptr_ = static_cast<ElementT *>(critical);
+            return;
+        }
+        if (env_->ExceptionCheck()) {
+            return;
+        }
+        // Critical access failed without exception; fall back to region copy.
+        jsize const len = env_->GetArrayLength(array_);
+        if (env_->ExceptionCheck() || len < 0) {
+            return;
+        }
+        fallback_buffer_.resize(static_cast<std::size_t>(len));
+        traits::get_region(env_, array_, 0, len, fallback_buffer_.data());
+        if (env_->ExceptionCheck()) {
+            fallback_buffer_.clear();
+            return;
+        }
+        data_ptr_ = fallback_buffer_.data();
+        using_fallback_ = true;
+    }
+
   public:
-    critical_array_access() = default;
+    array_access() = default;
 
     // Non-owning: array ref managed by caller.
-    critical_array_access(JNIEnv *env, jarray array, jint mode = JNI_ABORT)
+    array_access(JNIEnv *env, jarray array, jint mode = JNI_ABORT)
         : env_(env), array_(array), release_mode_(mode) {
-        if (array_ != nullptr) {
-            critical_ptr_ = env_->GetPrimitiveArrayCritical(array_, nullptr);
-        }
+        init_access();
     }
 
     // Owning: takes ownership of local ref.
-    critical_array_access(JNIEnv *env, local_ref<jarray> &&array, jint mode)
+    array_access(JNIEnv *env, local_ref<jarray> &&array, jint mode)
         : env_(env), array_(array.get()), owned_array_(std::move(array)),
           release_mode_(mode) {
-        if (array_ != nullptr) {
-            critical_ptr_ = env_->GetPrimitiveArrayCritical(array_, nullptr);
-        }
+        init_access();
     }
 
-    ~critical_array_access() {
-        if (critical_ptr_ != nullptr) {
-            env_->ReleasePrimitiveArrayCritical(array_, critical_ptr_,
+    ~array_access() override {
+        if (data_ptr_ == nullptr) {
+            return;
+        }
+        if (using_fallback_) {
+            if (release_mode_ != JNI_ABORT) {
+                jsize const len = static_cast<jsize>(fallback_buffer_.size());
+                traits::set_region(env_, array_, 0, len,
+                                   fallback_buffer_.data());
+                // Clear any exception from set_region; cannot propagate from
+                // destructor.
+                env_->ExceptionClear();
+            }
+        } else {
+            env_->ReleasePrimitiveArrayCritical(array_, data_ptr_,
                                                 release_mode_);
         }
     }
 
-    critical_array_access(critical_array_access const &) = delete;
-    critical_array_access &operator=(critical_array_access const &) = delete;
+    array_access(array_access const &) = delete;
+    array_access &operator=(array_access const &) = delete;
+    array_access(array_access &&) = delete;
+    array_access &operator=(array_access &&) = delete;
 
-    critical_array_access(critical_array_access &&other) noexcept
-        : env_(other.env_), array_(other.array_),
-          owned_array_(std::move(other.owned_array_)),
-          critical_ptr_(other.critical_ptr_),
-          release_mode_(other.release_mode_) {
-        other.env_ = nullptr;
-        other.array_ = nullptr;
-        other.critical_ptr_ = nullptr;
-    }
-
-    critical_array_access &operator=(critical_array_access &&other) noexcept {
-        if (this != &other) {
-            if (critical_ptr_ != nullptr) {
-                env_->ReleasePrimitiveArrayCritical(array_, critical_ptr_,
-                                                    release_mode_);
-            }
-            env_ = other.env_;
-            array_ = other.array_;
-            owned_array_ = std::move(other.owned_array_);
-            critical_ptr_ = other.critical_ptr_;
-            release_mode_ = other.release_mode_;
-            other.env_ = nullptr;
-            other.array_ = nullptr;
-            other.critical_ptr_ = nullptr;
-        }
-        return *this;
-    }
-
-    void *get() const { return critical_ptr_; }
-    explicit operator bool() const { return critical_ptr_ != nullptr; }
+    ElementT *get() const { return data_ptr_; }
+    explicit operator bool() const { return data_ptr_ != nullptr; }
 };
 
 struct cached_ids {
@@ -167,18 +230,22 @@ void throw_null_pointer(JNIEnv *env, char const *message) {
 
 // Convert Java int[] to vector<size_t>, checking for negative values.
 // Returns nullopt if an exception was thrown.
+// Uses GetIntArrayRegion directly since component_indices is typically tiny.
 [[nodiscard]] auto to_size_t_vector(JNIEnv *env, jintArray arr)
     -> std::optional<std::vector<std::size_t>> {
     if (arr == nullptr) {
         return std::vector<std::size_t>{};
     }
     jsize const len = env->GetArrayLength(arr);
-    std::vector<std::size_t> result(static_cast<std::size_t>(len));
-    critical_array_access access(env, arr);
-    if (!access) {
+    if (len == 0) {
+        return std::vector<std::size_t>{};
+    }
+    std::vector<jint> elements(static_cast<std::size_t>(len));
+    env->GetIntArrayRegion(arr, 0, len, elements.data());
+    if (env->ExceptionCheck()) {
         return {};
     }
-    auto *elements = static_cast<jint const *>(access.get());
+    std::vector<std::size_t> result(static_cast<std::size_t>(len));
     for (jsize i = 0; i < len; ++i) {
         if (elements[i] < 0) {
             throw_illegal_argument(env, "component index cannot be negative");
@@ -360,9 +427,9 @@ auto validate_params(JNIEnv *env, jint sample_bits, jint height, jint width,
 }
 
 // RAII wrapper for access to a Java buffer.
-// Composes critical_array_access for array-backed buffers.
+// Composes array_access for array-backed buffers.
 class buffer_access {
-    std::optional<critical_array_access> critical_;
+    std::unique_ptr<array_access_base> array_access_;
     void *data_ptr_ = nullptr;
 
   public:
@@ -370,8 +437,10 @@ class buffer_access {
     explicit buffer_access(void *data_ptr) : data_ptr_(data_ptr) {}
 
     // For array-backed buffers
-    buffer_access(critical_array_access &&critical, void *data_ptr)
-        : critical_(std::move(critical)), data_ptr_(data_ptr) {}
+    template <typename ElementT>
+    buffer_access(std::unique_ptr<array_access<ElementT>> access,
+                  void *data_ptr)
+        : array_access_(std::move(access)), data_ptr_(data_ptr) {}
 
     void *ptr() const { return data_ptr_; }
 };
@@ -443,8 +512,9 @@ auto get_buffer_access(JNIEnv *env, jobject buffer,
             return {};
         }
         if (*arr) {
-            critical_array_access access(env, std::move(*arr), release_mode);
-            if (access) {
+            auto access = std::make_unique<array_access<ElementT>>(
+                env, std::move(*arr), release_mode);
+            if (*access) {
                 auto array_offset = get_array_offset(env, buffer);
                 if (!array_offset) {
                     return {};
@@ -453,8 +523,7 @@ auto get_buffer_access(JNIEnv *env, jobject buffer,
                 if (!position) {
                     return {};
                 }
-                void *data_ptr = static_cast<ElementT *>(access.get()) +
-                                 *array_offset + *position;
+                void *data_ptr = access->get() + *array_offset + *position;
                 return buffer_access(std::move(access), data_ptr);
             }
         }
