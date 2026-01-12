@@ -219,8 +219,9 @@ cibuildwheel:
     uv run --no-project --with=cmake bash scripts/build_static_tbb.sh
     CIBW_ARCHS=native uvx cibuildwheel
 
-_java_version builddir:
-    @uvx meson introspect --projectinfo {{builddir}} | jq -r '.version' | \
+# Print the project version in Maven format
+java-version:
+    @uvx meson introspect --projectinfo meson.build | jq -r '.version' | \
         sed 's/\.dev.*/-SNAPSHOT/'
 
 # Build Java native library
@@ -244,14 +245,14 @@ java-build-jni:
 java-build: java-build-jni
     #!/usr/bin/env bash
     set -euxo pipefail
-    VERSION=$(just _java_version builddir-jni)
+    VERSION=$(just java-version)
     {{cjdk_exec}} {{mvn}} -f java/pom.xml compile -Drevision="$VERSION"
 
 # Test Java bindings (with Java coverage)
 java-test: java-build-jni
     #!/usr/bin/env bash
     set -euxo pipefail
-    VERSION=$(just _java_version builddir-jni)
+    VERSION=$(just java-version)
     {{cjdk_exec}} {{mvn}} -f java/pom.xml verify -Drevision="$VERSION" \
         -Dihist.debug=true \
         -Dnative.library.path=../builddir-jni/java
@@ -260,7 +261,7 @@ java-test: java-build-jni
 java-package-no-jni:
     #!/usr/bin/env bash
     set -euxo pipefail
-    VERSION=$(just _java_version meson.build)
+    VERSION=$(just java-version)
     {{cjdk_exec}} {{mvn}} -f java/pom.xml package -Drevision="$VERSION" \
         -Dskip.natives=true -DskipTests=true
 
@@ -268,7 +269,7 @@ java-package-no-jni:
 java-stage natives_jars_dir: java-package-no-jni
     #!/usr/bin/env bash
     set -euxo pipefail
-    VERSION=$(just _java_version meson.build)
+    VERSION=$(just java-version)
     STAGEDIR=java/target/staging-deploy/io/github/marktsuchida/ihist/$VERSION
     mkdir -p $STAGEDIR
     cp {{natives_jars_dir}}/ihist-$VERSION-natives-*.jar $STAGEDIR/
@@ -286,7 +287,7 @@ java-coverage:
         -Dtests=disabled -Dbenchmarks=disabled
     {{cjdk_exec}} uvx meson compile -C builddir-jni-cov
     find builddir-jni-cov/ -name '*.gcda' -exec rm -f {} +
-    VERSION=$(just _java_version builddir-jni-cov)
+    VERSION=$(just java-version)
     {{cjdk_exec}} {{mvn}} -f java/pom.xml package -Drevision="$VERSION" \
         -Dnative.library.path=../builddir-jni-cov/java
     mkdir -p coverage
