@@ -30,20 +30,21 @@ jobs:
           - runner: ubuntu-24.04
             compiler: Clang
             cxx: clang++
+            opts: -Db_sanitize=address,undefined -Db_lundef=false
           - runner: ubuntu-24.04
             compiler: GCC
             cxx: g++-14
           - runner: windows-2025
             compiler: Clang
             cxx: clang-cl
-            opts: -Dgoogle-benchmark:werror=false
+            opts: -Db_sanitize=address,undefined
           - runner: windows-2025
             compiler: MSVC
             cxx: cl
-            opts: -Dgoogle-benchmark:werror=false
           - runner: macos-15
             compiler: Clang
             cxx: clang++
+            opts: -Db_sanitize=address,undefined -Db_lundef=false
           - runner: macos-15-intel
             compiler: Clang
             cxx: clang++
@@ -83,6 +84,7 @@ jobs:
       - name: Build and test
         shell: bash
         run: |
+          just configure release ${{ matrix.opts }}
           just build  # Make sure benchmarks build, too
           just test
 
