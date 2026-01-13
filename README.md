@@ -10,6 +10,9 @@ Fast histogram computation for image data with APIs in Python, Java, and C.
 
 Currently experimental and API may still change.
 
+Only 64-bit platforms are currently supported (let us know in an issue if you
+have a use case requiring 32-bit support).
+
 ## Python API
 
 ### Quick Start
