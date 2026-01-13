@@ -171,6 +171,10 @@ hist_striped_st(T const *IHIST_RESTRICT data,
     constexpr std::array<std::size_t, NSAMPLES> s_indices{Sample0Index,
                                                           SampleIndices...};
 
+    if (size == 0) {
+        return;
+    }
+
     // Use extra bin for overflows if applicable.
     constexpr auto STRIPE_LEN =
         NBINS + static_cast<std::size_t>(Bits + LoBit < 8 * sizeof(T));
@@ -261,6 +265,10 @@ histxy_striped_st(T const *IHIST_RESTRICT data,
     constexpr std::size_t NSAMPLES = 1 + sizeof...(SampleIndices);
     constexpr std::array<std::size_t, NSAMPLES> s_indices{Sample0Index,
                                                           SampleIndices...};
+
+    if (height == 0 || width == 0) {
+        return;
+    }
 
     // Simplify to single row if full-width.
     if (width == image_stride && (!UseMask || width == mask_stride) &&
