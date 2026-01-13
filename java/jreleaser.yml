@@ -16,6 +16,8 @@ signing:
 
 release:
   github:
+    owner: marktsuchida
+    name: ihist
     skipRelease: true
     skipTag: true
 
