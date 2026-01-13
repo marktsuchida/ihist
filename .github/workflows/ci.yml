@@ -248,11 +248,27 @@ jobs:
           pattern: jni-jars-*
           merge-multiple: true
           path: jnijars
-      - run: |
+      - id: check-jars
+        run: |
           just java-stage jnijars
           tree java/target/staging-deploy
           ./scripts/check_jars.sh java/target/staging-deploy
-      # TODO Publish if v* tag
+          echo "version=$(just java-version)" >> $GITHUB_OUTPUT
+      - name: Deploy to Maven Central
+        uses: jreleaser/release-action@v2
+        timeout-minutes: 15
+        with:
+          arguments: deploy ${{ !startsWith(github.ref, 'refs/tags/v') && '--dry-run' || '' }}
+          working-directory: java
+        env:
+          JRELEASER_PROJECT_VERSION: ${{ steps.check-jars.outputs.version }}
+          JRELEASER_GITHUB_TOKEN: unused
+          JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.MAVENCENTRAL_USERNAME }}
+          JRELEASER_MAVENCENTRAL_TOKEN: ${{ secrets.MAVENCENTRAL_TOKEN }}
+          JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.MAVEN_GPG_PUBLIC_KEY }}
+          JRELEASER_GPG_SECRET_KEY: ${{ secrets.MAVEN_GPG_SECRET_KEY }}
+          JRELEASER_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+      - run: cat java/out/jreleaser/output.properties
 
   create-release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
