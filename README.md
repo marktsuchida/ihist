@@ -242,6 +242,14 @@ dependencies {
 
 </details>
 
+### Java Version Compatibility
+
+The library targets Java 8 and works with all later versions:
+
+- **Java 8**: Use as a regular classpath dependency
+- **Java 9+**: Can be used on the classpath or as an automatic module with
+  name `io.github.marktsuchida.ihist`
+
 ### Quick Start
 
 ```java
