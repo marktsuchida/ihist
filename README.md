@@ -344,14 +344,56 @@ The Java API supports both arrays and NIO buffers:
 
 ## C API
 
+### C Installation
+
+**Dependencies:** [oneTBB](https://github.com/oneapi-src/oneTBB) (optional but
+recommended for parallelization). TBB should be installed as a shared library
+and discoverable via pkg-config. (TBB as a static library works but is not
+recommended unless ihist is the only code using TBB in your application.)
+
+**Build and install:**
+
+```sh
+meson setup builddir --prefix=/your/install/path
+meson compile -C builddir
+meson install -C builddir
+```
+
+On Windows, add `--vsenv` to have Meson set up the Visual Studio environment.
+
+Building with Clang (`CXX=clang++` or, on Windows, `CXX=clang-cl`) is
+recommended for best performance, as benchmarking and tuning were done with
+Clang.
+
+To build without TBB, add `-Dtbb=disabled` to the `meson setup` command.
+
+([`just`](https://just.systems) and the provided `justfile` can be used for
+development builds but is not recommended for production builds.)
+
+**Using in your project:**
+
+Meson:
+
+```meson
+ihist_dep = dependency('ihist')
+```
+
+CMake:
+
+```cmake
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(IHIST REQUIRED IMPORTED_TARGET ihist)
+target_link_libraries(your_target PkgConfig::IHIST)
+```
+
+### C Functions
+
 The C API provides two functions for computing histograms of 2D image data:
 
 - `ihist_hist8_2d()` - for 8-bit samples (`uint8_t`)
 - `ihist_hist16_2d()` - for 16-bit samples (`uint16_t`)
 
 Both functions have identical behavior except for the sample data type.
-
-### C Functions
 
 ```c
 #include <ihist/ihist.h>
