@@ -28,8 +28,7 @@ final class NativeLibraryLoader {
      *
      * A single resource path is searched: {@code /natives/<os>/<arch>}, where
      * {@code <os>} is one of {@code linux}, {@code macos}, or {@code windows}
-     * and {@code <arch>} is one of {@code arm64}, {@code arm32}, or {@code
-     * x86_64}.
+     * and {@code <arch>} is one of {@code arm64} or {@code x86_64}.
      *
      * If the library was not found as a resource or could not be extracted,
      * try to load from {@code java.library.path}. This is intended for testing
@@ -113,9 +112,6 @@ final class NativeLibraryLoader {
         }
         if (arch.equals("aarch64")) {
             return "arm64";
-        }
-        if (arch.equals("arm") || arch.startsWith("armv7")) {
-            return "arm32";
         }
         return null;
     }
