@@ -8,14 +8,17 @@ SPDX-License-Identifier: MIT
 
 Fast histogram computation for image data with APIs in Python, Java, and C.
 
-Currently experimental and API may still change.
+Currently in early development and API may change.
 
-Only 64-bit platforms are currently supported (let us know in an issue if you
-have a use case requiring 32-bit support).
+Only 64-bit platforms are supported (let us know in an issue if you have a use
+case requiring 32-bit support).
+
+Jump to: [Python API](#python-api), [Java API](#java-api), [C API](#c-api),
+[Performance notes](#performance).
 
 ## Python API
 
-### Quick Start
+### Python Quick Start
 
 ```sh
 pip install ihist
@@ -38,7 +41,7 @@ mask = np.ones((100, 100), dtype=np.uint8)
 hist = ihist.histogram(image, mask=mask)
 ```
 
-### Function
+### Python Function
 
 The Python API provides a single function for computing histograms:
 
@@ -50,7 +53,7 @@ histogram = ihist.histogram(image, bits=None, mask=None,
                             accumulate=False, parallel=True)
 ```
 
-### Parameters
+### Python Parameters
 
 **`image`** : *array_like*
 Input image data. Must be uint8 or uint16, and 1D, 2D, or 3D.
@@ -102,7 +105,7 @@ values. No effect if `out` is not given.
 If `True` (default), allows automatic multi-threaded execution for large images.
 If `False`, guarantees single-threaded execution.
 
-### Returns
+### Python Return Value
 
 **histogram** : *ndarray*
 Histogram(s) as uint32 array.
@@ -115,7 +118,7 @@ Histogram(s) as uint32 array.
 
 ## Java API
 
-### Installation
+### Java Installation
 
 The Java bindings are available on [Maven
 Central](https://central.sonatype.com/artifact/io.github.marktsuchida/ihist).
@@ -250,7 +253,7 @@ The library targets Java 8 and works with all later versions:
 - **Java 9+**: Can be used on the classpath or as an automatic module with
   name `io.github.marktsuchida.ihist`
 
-### Quick Start
+### Java Quick Start
 
 ```java
 import io.github.marktsuchida.ihist.HistogramRequest;
@@ -274,7 +277,7 @@ IntBuffer hist = HistogramRequest.forImage(image, 100, 100)
     .compute();
 ```
 
-### Classes
+### Java Classes
 
 **`HistogramRequest`** - Builder-style interface:
 
@@ -311,7 +314,7 @@ IHistNative.histogram8(sampleBits, imageBuffer, maskBuffer,
 
 (And, similarly, `histogram16()` for 16-bit images.)
 
-### Input Types
+### Java Input Types
 
 The Java API supports both arrays and NIO buffers:
 
@@ -320,25 +323,7 @@ The Java API supports both arrays and NIO buffers:
 - **Mask**: `byte[]` or `ByteBuffer`
 - **Histogram output**: `int[]` or `IntBuffer`
 
-### Performance: Zero-Copy vs Copy
-
-| Input Type | IHistNative | HistogramRequest | Notes |
-|------------|-------------|------------------|-------|
-| Array (`byte[]`, `short[]`, `int[]`) | N/A (wrap first) | Zero-copy | Wrapped as heap buffer |
-| Direct buffer | Zero-copy | Zero-copy | `GetDirectBufferAddress` |
-| Array-backed buffer (`ByteBuffer.wrap()`) | Zero-copy | Zero-copy | `GetPrimitiveArrayCritical` |
-| View buffer (e.g., `asReadOnlyBuffer()`) | Rejected | Copy | Copied to temp direct buffer |
-| Read-only heap buffer | Rejected | Copy (input only) | Rejected for histogram output |
-
-**IHistNative** requires buffers to be either direct or array-backed. View
-buffers and other buffer types are rejected with `IllegalArgumentException`.
-
-**HistogramRequest** handles all buffer types automatically. Arrays are wrapped
-in heap buffers (zero-copy). Unsupported buffer types are silently copied to
-temporary direct buffers, which incurs a performance overhead but ensures all
-input types work.
-
-### Notes
+### Java Notes
 
 - **Signed types**: Java `byte` is signed (-128 to 127), but pixel values are
   interpreted as unsigned (0 to 255). The native code correctly handles this.
@@ -359,14 +344,56 @@ input types work.
 
 ## C API
 
+### C Installation
+
+**Dependencies:** [oneTBB](https://github.com/oneapi-src/oneTBB) (optional but
+recommended for parallelization). TBB should be installed as a shared library
+and discoverable via pkg-config. (TBB as a static library works but is not
+recommended unless ihist is the only code using TBB in your application.)
+
+**Build and install:**
+
+```sh
+meson setup builddir --prefix=/your/install/path
+meson compile -C builddir
+meson install -C builddir
+```
+
+On Windows, add `--vsenv` to have Meson set up the Visual Studio environment.
+
+Building with Clang (`CXX=clang++` or, on Windows, `CXX=clang-cl`) is
+recommended for best performance, as benchmarking and tuning were done with
+Clang.
+
+To build without TBB, add `-Dtbb=disabled` to the `meson setup` command.
+
+([`just`](https://just.systems) and the provided `justfile` can be used for
+development builds but is not recommended for production builds.)
+
+**Using in your project:**
+
+Meson:
+
+```meson
+ihist_dep = dependency('ihist')
+```
+
+CMake:
+
+```cmake
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(IHIST REQUIRED IMPORTED_TARGET ihist)
+target_link_libraries(your_target PkgConfig::IHIST)
+```
+
+### C Functions
+
 The C API provides two functions for computing histograms of 2D image data:
 
 - `ihist_hist8_2d()` - for 8-bit samples (`uint8_t`)
 - `ihist_hist16_2d()` - for 16-bit samples (`uint16_t`)
 
 Both functions have identical behavior except for the sample data type.
-
-### Function Signatures
 
 ```c
 #include <ihist/ihist.h>
@@ -400,8 +427,6 @@ void ihist_hist16_2d(
     bool maybe_parallel);
 ```
 
-### Overview
-
 These functions compute histograms for one or more components (stored as
 interleaved multi-sample pixels) from image data. They support:
 
@@ -412,7 +437,7 @@ interleaved multi-sample pixels) from image data. They support:
 - Automatic parallelization for large images
 - Arbitrary bit depths (not just full 8 or 16 bits)
 
-### Parameters
+### C Parameters
 
 **`sample_bits`**
 Number of significant bits per sample. Valid range: 1-8 for `ihist_hist8_2d()`,
@@ -512,3 +537,72 @@ Controls parallelization.
 - `true` - Allows automatic multi-threaded execution for large images, if ihist
   was built with parallelization support (TBB).
 - `false` - Guarantees single-threaded execution.
+
+## Performance
+
+The library uses cache-conscious algorithms with platform-specific tuning for
+x86_64 and Apple ARM64. The details below are subject to change upon future
+tuning.
+
+### Parallelization
+
+When built with TBB support (default for released binaries), histogram
+computation automatically parallelizes for large images (currently ≥ 1 M
+pixels). Only physical CPU cores are used (hyperthreads are excluded) because
+histogramming is almost always backend-bound (that is, bottlenecked by CPU
+resources that are shared between logical cores).
+
+Although minimizing latency is a goal, we also want to maintain efficiency: CPU
+time should not be consumed when it does not contribute much to speedup. This
+is the reason for the relatively large parallelization threshold; we also
+increase the thread count only gradually above the threshold.
+
+Use `parallel=False` (Python), `.parallel(false)` (Java), or
+`maybe_parallel=false` (C) to force single-threaded execution.
+
+### Optimized Pixel Formats
+
+The following pixel formats have specialized optimized code paths:
+
+- Grayscale (1 component)
+- RGB (3 components, histogramming all)
+- RGBx (or BGRx, RGBA, etc.; 4 components, histogramming first 3)
+- xRGB (or xBGR, ARGB, etc.; 4 components, histogramming last 3)
+
+Other component selections (e.g., histogramming only the red and blue channels
+of an RGB image) fall back to a slower generic implementation. More optimized
+pixel formats could be added, subject to tradeoffs with binary size and tuning
+effort.
+
+### Bit Depth
+
+- 8-bit images use 256-bin histograms
+- 16-bit images with 12 or fewer significant bits use 4096-bin histograms
+- 16-bit images with more than 12 significant bits use 65536-bin histograms
+
+When a bit depth other than 8 (for 8-bit images) or 12 or 16 (for 16-bit
+images) is requested, the resulting histogram is simply truncated.
+
+### Memory Layout
+
+Contiguous images are the fastest but 2D strided images are also optimized, so
+that histogramming rectangular regions of interest does not require copying the
+image or mask.
+
+### Zero-copy Language Bindings
+
+The Python and Java bindings try to avoid copying the input and output arrays
+as much as possible. However, there are cases where this cannot be avoided:
+
+- Python: C-contiguous arrays are used directly, as are 2D (single-component)
+  Fortran-contiguous arrays. 3D Fortran-contiguous arrays require a copy
+  because color components must be interleaved in memory. Sliced views where
+  neither spatial axis is contiguous (such as `arr[:, ::2]` on a row-major
+  array) are also copied.
+
+- Java: Buffers that are not direct and whose `.hasArray()` method returns
+  `false` (this includes read-only heap buffers and `ShortBuffer`/`IntBuffer`
+  that are views of heap byte buffers) cannot be accessed via JNI; these are
+  copied to temporary direct buffers. Direct buffers are preferred if you have
+  the choice, especially for large images, because pinning heap buffers for JNI
+  access can interfere with the smooth operation of the garbage collector.
