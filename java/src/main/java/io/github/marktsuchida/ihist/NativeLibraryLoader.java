@@ -17,26 +17,48 @@ import java.util.Locale;
  */
 final class NativeLibraryLoader {
 
-    private static final String LIBRARY_NAME = "ihistj";
-
     private NativeLibraryLoader() {}
 
-    static void load() {
-        // Try extraction and fall back to java.library.path. But if extraction
-        // succeeds yet load fails, we let the UnsatisfiedLinkError propagate.
+    /**
+     * Load a native library.
+     *
+     * First, try to find the library as a resource. If found, extract and
+     * load. This method works even if the same {@code libName} is loaded from
+     * multiple class loaders.
+     *
+     * A single resource path is searched: {@code /natives/<os>/<arch>}, where
+     * {@code <os>} is one of {@code linux}, {@code macos}, or {@code windows}
+     * and {@code <arch>} is one of {@code arm64}, {@code arm32}, or {@code
+     * x86_64}.
+     *
+     * If the library was not found as a resource or could not be extracted,
+     * try to load from {@code java.library.path}. This is intended for testing
+     * and development only.
+     *
+     * (If the library was found as a resource and was successfully extracted
+     * but loading failed, then {@code java.library.path} is not tried.)
+     *
+     * @param libName the name of the native library, without prefix or suffix
+     * @throws UnsatisfiedLinkError if the native library could not be loaded
+     * @throws NullPointerException if libName is null
+     */
+    static void load(String libName) {
+        if (libName == null) {
+            throw new NullPointerException("libName cannot be null");
+        }
         try {
-            loadPackaged();
-        } catch (Exception e1) {
+            loadPackaged(libName);
+        } catch (Exception e1) { // Do not catch UnsatisfiedLinkError
             try {
-                System.loadLibrary(LIBRARY_NAME);
-            } catch (Throwable e2) {
+                System.loadLibrary(libName);
+            } catch (UnsatisfiedLinkError e2) {
                 e2.addSuppressed(e1);
                 throw e2;
             }
         }
     }
 
-    private static void loadPackaged() throws Exception {
+    private static void loadPackaged(String libName) throws Exception {
         String os = detectOs();
         String arch = detectArch();
         if (os == null || arch == null) {
@@ -48,9 +70,9 @@ final class NativeLibraryLoader {
         // We use a unique filename for the extracted library, so that the
         // library can be loaded more than once from multiple class loaders.
         String extractedLibName =
-            System.mapLibraryName(LIBRARY_NAME + "-" + randomHex(12));
+            System.mapLibraryName(libName + "-" + randomHex(12));
 
-        String resourceLibName = System.mapLibraryName(LIBRARY_NAME);
+        String resourceLibName = System.mapLibraryName(libName);
         String resourcePath =
             "/natives/" + os + "/" + arch + "/" + resourceLibName;
 
@@ -62,9 +84,10 @@ final class NativeLibraryLoader {
             }
 
             if ("windows".equals(os)) {
-                loadPackagedWindows(in, extractedLibName);
+                loadPackagedWindows(in, extractedLibName,
+                                    libName + "-jnilibs");
             } else {
-                loadPackagedUnix(in, extractedLibName);
+                loadPackagedUnix(in, extractedLibName, libName + "-jnilib-");
             }
         }
     }
@@ -107,15 +130,15 @@ final class NativeLibraryLoader {
         return sb.substring(0, length);
     }
 
-    private static void loadPackagedUnix(InputStream in, String libName)
-        throws IOException {
+    private static void loadPackagedUnix(InputStream in, String libName,
+                                         String dirPrefix) throws IOException {
         // On Unix-like systems, the temporary directory might be shared and
         // world-writable. We use a private temporary directory just while we
         // load the library, and remove the extracted library as soon as we're
         // done. (Usually the temporary directory is on a filesystem with POSIX
         // semantics, so we can delete an open file.)
 
-        File nativesDir = createUnixTempDirectory();
+        File nativesDir = Files.createTempDirectory(dirPrefix).toFile();
         File libFile = new File(nativesDir, libName);
 
         try {
@@ -127,7 +150,8 @@ final class NativeLibraryLoader {
         }
     }
 
-    private static void loadPackagedWindows(InputStream in, String libName)
+    private static void loadPackagedWindows(InputStream in, String libName,
+                                            String dirName)
         throws IOException {
         // On Windows, we cannot remove the extracted library from the current
         // process (not even with deleteOnExit()), because it won't be unloaded
@@ -135,7 +159,7 @@ final class NativeLibraryLoader {
         // the next time we load. This should be safe because the temporary
         // directory is per-user on Windows.
 
-        File nativesDir = getWindowsNativesDirectory();
+        File nativesDir = getWindowsNativesDirectory(dirName);
         File libFile = new File(nativesDir, libName);
 
         // A lock directory is used to prevent races with cleanup
@@ -160,13 +184,10 @@ final class NativeLibraryLoader {
         cleanupWindows(libFile, nativesDir);
     }
 
-    private static File createUnixTempDirectory() throws IOException {
-        return Files.createTempDirectory("ihist-").toFile();
-    }
-
-    private static File getWindowsNativesDirectory() throws IOException {
+    private static File getWindowsNativesDirectory(String dirName)
+        throws IOException {
         String tmpdir = System.getProperty("java.io.tmpdir");
-        File nativesDir = new File(tmpdir, "ihist-natives");
+        File nativesDir = new File(tmpdir, dirName);
         if (!nativesDir.isDirectory() && !nativesDir.mkdirs()) {
             throw new IOException("Failed to create natives directory: " +
                                   nativesDir.getAbsolutePath());

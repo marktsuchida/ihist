@@ -55,7 +55,7 @@ public final class IHistNative {
      */
     public static synchronized void loadNativeLibrary() {
         if (!loaded) {
-            NativeLibraryLoader.load();
+            NativeLibraryLoader.load("ihistj");
             loaded = true;
         }
     }
