@@ -183,20 +183,11 @@ final class NativeLibraryLoader {
     }
 
     private static File createUnixTempDirectory() throws IOException {
-        String tmpdir = System.getProperty("ihist.tmpdir");
-        if (tmpdir != null) {
-            return Files
-                .createTempDirectory(new File(tmpdir).toPath(), "ihist-")
-                .toFile();
-        }
         return Files.createTempDirectory("ihist-").toFile();
     }
 
     private static File getWindowsNativesDirectory() throws IOException {
-        String tmpdir = System.getProperty("ihist.tmpdir");
-        if (tmpdir == null) {
-            tmpdir = System.getProperty("java.io.tmpdir");
-        }
+        String tmpdir = System.getProperty("java.io.tmpdir");
         File nativesDir = new File(tmpdir, "ihist-natives");
         if (!nativesDir.isDirectory() && !nativesDir.mkdirs()) {
             throw new IOException("Failed to create natives directory: " +
