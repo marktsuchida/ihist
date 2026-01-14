@@ -115,6 +115,133 @@ Histogram(s) as uint32 array.
 
 ## Java API
 
+### Installation
+
+The Java bindings are available on [Maven
+Central](https://central.sonatype.com/artifact/io.github.marktsuchida/ihist).
+You need both the main JAR and a platform-specific natives JAR containing the
+JNI library. The native library is automatically extracted and loaded at
+runtime.
+
+Available platforms: Linux x86_64, macOS arm64, macOS x86_64, Windows x86_64.
+
+<details>
+<summary>Maven</summary>
+
+```xml
+<properties>
+    <ihist.version>0.1.2</ihist.version>
+</properties>
+
+<dependencies>
+    <dependency>
+        <groupId>io.github.marktsuchida</groupId>
+        <artifactId>ihist</artifactId>
+        <version>${ihist.version}</version>
+    </dependency>
+    <dependency>
+        <groupId>io.github.marktsuchida</groupId>
+        <artifactId>ihist</artifactId>
+        <version>${ihist.version}</version>
+        <classifier>${ihist.natives.classifier}</classifier>
+    </dependency>
+</dependencies>
+
+<profiles>
+    <profile>
+        <id>natives-linux-x86_64</id>
+        <activation>
+            <os><name>Linux</name><arch>amd64</arch></os>
+        </activation>
+        <properties>
+            <ihist.natives.classifier>natives-linux-x86_64</ihist.natives.classifier>
+        </properties>
+    </profile>
+    <profile>
+        <id>natives-macos-arm64</id>
+        <activation>
+            <os><family>mac</family><arch>aarch64</arch></os>
+        </activation>
+        <properties>
+            <ihist.natives.classifier>natives-macos-arm64</ihist.natives.classifier>
+        </properties>
+    </profile>
+    <profile>
+        <id>natives-macos-x86_64</id>
+        <activation>
+            <os><family>mac</family><arch>x86_64</arch></os>
+        </activation>
+        <properties>
+            <ihist.natives.classifier>natives-macos-x86_64</ihist.natives.classifier>
+        </properties>
+    </profile>
+    <profile>
+        <id>natives-windows-x86_64</id>
+        <activation>
+            <os><family>windows</family><arch>amd64</arch></os>
+        </activation>
+        <properties>
+            <ihist.natives.classifier>natives-windows-x86_64</ihist.natives.classifier>
+        </properties>
+    </profile>
+</profiles>
+```
+
+</details>
+
+<details>
+<summary>Gradle (Kotlin DSL)</summary>
+
+```kotlin
+plugins {
+    id("com.google.osdetector") version "1.7.3"
+}
+
+val ihistVersion = "0.1.2"
+val ihistNativesClassifier = when {
+    osdetector.os == "linux" && osdetector.arch == "x86_64" -> "natives-linux-x86_64"
+    osdetector.os == "osx" && osdetector.arch == "aarch_64" -> "natives-macos-arm64"
+    osdetector.os == "osx" && osdetector.arch == "x86_64" -> "natives-macos-x86_64"
+    osdetector.os == "windows" && osdetector.arch == "x86_64" -> "natives-windows-x86_64"
+    else -> throw GradleException("Unsupported platform: ${osdetector.os}-${osdetector.arch}")
+}
+
+dependencies {
+    implementation("io.github.marktsuchida:ihist:$ihistVersion")
+    runtimeOnly("io.github.marktsuchida:ihist:$ihistVersion:$ihistNativesClassifier")
+}
+```
+
+</details>
+
+<details>
+<summary>Gradle (Groovy DSL)</summary>
+
+```groovy
+plugins {
+    id 'com.google.osdetector' version '1.7.3'
+}
+
+def ihistVersion = '0.1.2'
+def ihistNativesClassifier
+switch ("${osdetector.os}-${osdetector.arch}") {
+    case 'linux-x86_64': ihistNativesClassifier = 'natives-linux-x86_64'; break
+    case 'osx-aarch_64': ihistNativesClassifier = 'natives-macos-arm64'; break
+    case 'osx-x86_64': ihistNativesClassifier = 'natives-macos-x86_64'; break
+    case 'windows-x86_64': ihistNativesClassifier = 'natives-windows-x86_64'; break
+    default:
+        throw new GradleException(
+            "Unsupported platform: ${osdetector.os}-${osdetector.arch}")
+}
+
+dependencies {
+    implementation "io.github.marktsuchida:ihist:$ihistVersion"
+    runtimeOnly "io.github.marktsuchida:ihist:$ihistVersion:$ihistNativesClassifier"
+}
+```
+
+</details>
+
 ### Quick Start
 
 ```java
