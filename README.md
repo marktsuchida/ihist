@@ -128,6 +128,10 @@ runtime.
 
 Available platforms: Linux x86_64, macOS arm64, macOS x86_64, Windows x86_64.
 
+**Windows note:** The Windows native library requires the Microsoft Visual C++
+Redistributable. Most systems have this installed. If you get an error, install
+it from https://aka.ms/vc14/vc_redist.x64.exe.
+
 <details>
 <summary>Maven</summary>
 

@@ -241,20 +241,26 @@ java-build-jni:
         -Dtests=disabled -Dbenchmarks=disabled
     {{cjdk_exec}} uvx meson compile -C builddir-jni
 
-# Build Java bindings
-java-build: java-build-jni
+# Build Java bindings assuming native library is built
+java-only-build:
     #!/usr/bin/env bash
     set -euxo pipefail
     VERSION=$(just java-version)
     {{cjdk_exec}} {{mvn}} -f java/pom.xml compile -Drevision="$VERSION"
 
-# Test Java bindings (with Java coverage)
-java-test: java-build-jni
+# Build Java bindings
+java-build: java-build-jni java-only-build
+
+# Test Java bindings assuming native library is built
+java-only-test:
     #!/usr/bin/env bash
     set -euxo pipefail
     VERSION=$(just java-version)
     {{cjdk_exec}} {{mvn}} -f java/pom.xml verify -Drevision="$VERSION" \
         -Dnative.library.path=../builddir-jni/java
+
+# Test Java bindings (with Java coverage)
+java-test: java-build-jni java-only-test
 
 # Package Java bindings without JNI libs
 java-package-no-jni:

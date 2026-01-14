@@ -183,18 +183,17 @@ jobs:
       matrix:
         include:
           - os: ubuntu-24.04
-            name: ubuntu-24.04
-            cxx: clang++
+            name: linux-x86_64
           - os: windows-2025
-            name: windows-2025
+            name: windows-x86_64
             cxx: clang-cl
           - os: macos-15
-            name: macos-15-arm64
+            name: macos-arm64
             arch_flags: -arch arm64
             deployment_target: "11.0"
             cxx: clang++
           - os: macos-15
-            name: macos-15-x86_64
+            name: macos-x86_64
             arch_flags: -arch x86_64
             meson_cross_args: --cross-file=scripts/meson-cross-macos-x86_64.txt
             jdk_arch: x86_64
@@ -222,9 +221,19 @@ jobs:
           apps: pkg-config
       - name: Install tools
         run: uv tool install rust-just
-      - name: Build and test
+      - name: Build JNI library in manylinux container
+        if: startsWith(matrix.os, 'ubuntu-')
+        run: |
+          docker run --rm -v "${{ github.workspace }}":/work -w /work \
+            quay.io/pypa/manylinux_2_28_x86_64 \
+            bash scripts/build_jni_linux.sh
+      - name: Build JNI library (non-Linux)
+        if: "!startsWith(matrix.os, 'ubuntu-')"
         shell: bash
-        run: just java-test
+        run: just java-build-jni
+      - name: Build JARs and test
+        shell: bash
+        run: just java-only-test
       - uses: actions/upload-artifact@v6
         with:
           name: jni-jars-${{ matrix.name }}

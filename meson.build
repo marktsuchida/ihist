@@ -44,12 +44,15 @@ onetbb_dep = dependency(
 )
 
 tbb_cpp_args = []
+tbb_extra_deps = []
 if onetbb_dep.found()
     tbb_cpp_args += '-DIHIST_USE_TBB=1'
+    # Needed on older Linux when oneTBB is static:
+    tbb_extra_deps += dependency('threads')
 endif
 
 onetbb_dep = declare_dependency(
-    dependencies: onetbb_dep,
+    dependencies: [onetbb_dep] + tbb_extra_deps,
     compile_args: tbb_cpp_args,
 )
 
