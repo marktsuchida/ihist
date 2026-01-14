@@ -258,12 +258,22 @@ Or set -Dskip.natives=true to build only the main JAR.
                 </executions>
             </plugin>
 
-            <!-- Package natives JAR -->
+            <!-- Package main and natives JARs -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>3.5.0</version>
                 <executions>
+                    <execution>
+                        <id>main-jar</id>
+                        <configuration>
+                            <archive>
+                                <manifestEntries>
+                                    <Automatic-Module-Name>io.github.marktsuchida.ihist</Automatic-Module-Name>
+                                </manifestEntries>
+                            </archive>
+                        </configuration>
+                    </execution>
                     <execution>
                         <id>natives-jar</id>
                         <phase>package</phase>
