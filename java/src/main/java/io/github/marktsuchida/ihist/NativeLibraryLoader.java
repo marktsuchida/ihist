@@ -18,19 +18,21 @@ import java.util.Locale;
 final class NativeLibraryLoader {
 
     private static final String LIBRARY_NAME = "ihistj";
-    private static final boolean DEBUG = Boolean.getBoolean("ihist.debug");
 
     private NativeLibraryLoader() {}
 
     static void load() {
-        // Try extraction and fallback to java.library.path. But if extraction
-        // succeeds yet load fails, we do _not_ catch the UnsatisfiedLinkError.
+        // Try extraction and fall back to java.library.path. But if extraction
+        // succeeds yet load fails, we let the UnsatisfiedLinkError propagate.
         try {
             loadPackaged();
-        } catch (Exception e) {
-            debug("Native library extraction failed: " + e);
-            debug("Falling back to java.library.path");
-            System.loadLibrary(LIBRARY_NAME);
+        } catch (Exception e1) {
+            try {
+                System.loadLibrary(LIBRARY_NAME);
+            } catch (Throwable e2) {
+                e2.addSuppressed(e1);
+                throw e2;
+            }
         }
     }
 
@@ -51,7 +53,6 @@ final class NativeLibraryLoader {
         String resourceLibName = System.mapLibraryName(LIBRARY_NAME);
         String resourcePath =
             "/natives/" + os + "/" + arch + "/" + resourceLibName;
-        debug("Looking for resource: " + resourcePath);
 
         try (InputStream in =
                  NativeLibraryLoader.class.getResourceAsStream(resourcePath)) {
@@ -116,28 +117,13 @@ final class NativeLibraryLoader {
 
         File nativesDir = createUnixTempDirectory();
         File libFile = new File(nativesDir, libName);
-        boolean keepForDebug = false;
 
         try {
-            debug("Extracting to: " + libFile.getAbsolutePath());
             extractLibrary(in, libFile);
-
-            debug("Loading native library");
             System.load(libFile.getAbsolutePath());
-        } catch (UnsatisfiedLinkError e) {
-            keepForDebug = DEBUG;
-            throw e;
         } finally {
-            if (keepForDebug) {
-                debug("Load failed; keeping extracted library for debugging");
-            } else {
-                if (libFile.delete()) {
-                    debug("Deleted extracted library");
-                }
-                if (nativesDir.delete()) {
-                    debug("Deleted temp directory");
-                }
-            }
+            libFile.delete();
+            nativesDir.delete();
         }
     }
 
@@ -160,19 +146,11 @@ final class NativeLibraryLoader {
         }
 
         try {
-            debug("Extracting to: " + libFile.getAbsolutePath());
             extractLibrary(in, libFile);
-
-            debug("Loading native library");
             try {
                 System.load(libFile.getAbsolutePath());
             } catch (UnsatisfiedLinkError e) {
-                if (DEBUG) {
-                    debug("Load failed; keeping extracted library for "
-                          + "debugging");
-                } else {
-                    libFile.delete();
-                }
+                libFile.delete();
                 throw e;
             }
         } finally {
@@ -234,9 +212,7 @@ final class NativeLibraryLoader {
             // while extraction and loading of the library.
             if (file.isDirectory() && file.getName().endsWith(".lock")) {
                 if (now - file.lastModified() > lockAgeThreshold) {
-                    if (file.delete()) {
-                        debug("Deleted old lock: " + file.getName());
-                    }
+                    file.delete(); // Ignore failure
                 }
                 continue;
             }
@@ -245,16 +221,8 @@ final class NativeLibraryLoader {
                 if (lockDir.isDirectory()) {
                     continue;
                 }
-                if (file.delete()) {
-                    debug("Deleted old library: " + file.getName());
-                }
+                file.delete(); // Ignore failure
             }
-        }
-    }
-
-    private static void debug(String msg) {
-        if (DEBUG) {
-            System.err.println("[ihist] " + msg);
         }
     }
 }

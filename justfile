@@ -254,7 +254,6 @@ java-test: java-build-jni
     set -euxo pipefail
     VERSION=$(just java-version)
     {{cjdk_exec}} {{mvn}} -f java/pom.xml verify -Drevision="$VERSION" \
-        -Dihist.debug=true \
         -Dnative.library.path=../builddir-jni/java
 
 # Package Java bindings without JNI libs
