@@ -24,6 +24,8 @@ namespace {
 
 #if defined(__APPLE__) && defined(__aarch64__)
 #include "tuning_apple_arm64.h"
+#elif defined(__aarch64__)
+#include "tuning_cortex_a72.h"
 #elif defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) ||       \
     defined(__amd64) || defined(_M_X64)
 #include "tuning_x86_64.h"
