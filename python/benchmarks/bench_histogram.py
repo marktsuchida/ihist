@@ -145,11 +145,12 @@ def bench_gray_uint8(sizes: list[int], repeats: int) -> list[BenchResult]:
                 f, bins=256, range=[0, 256]
             ),
             "boost-histogram": lambda f=img_flat, h=_make_bh_int_hist(256): (
-                h.reset(), h.fill(f)
+                h.reset(),
+                h.fill(f),
             )[-1],
             "boost-histogram (threaded)": lambda f=img_flat, h=_make_bh_int_hist(256): (
-                h.reset(), h.fill(f, threads=0)
-            )[-1],
+                (h.reset(), h.fill(f, threads=0))[-1]
+            ),
         }
 
         for name, func in benchmarks.items():
@@ -248,11 +249,12 @@ def bench_gray_uint16(sizes: list[int], repeats: int) -> list[BenchResult]:
                 f, bins=4096, range=[0, 4096]
             ),
             "boost-histogram": lambda f=img_flat, h=_make_bh_int_hist(4096): (
-                h.reset(), h.fill(f)
+                h.reset(),
+                h.fill(f),
             )[-1],
             "boost-histogram (threaded)": lambda f=img_flat, h=_make_bh_int_hist(4096): (
-                h.reset(), h.fill(f, threads=0)
-            )[-1],
+                (h.reset(), h.fill(f, threads=0))[-1]
+            ),
         }
 
         for name, func in benchmarks.items():
@@ -309,11 +311,12 @@ def bench_gray_uint16_full(
                 f, bins=65536, range=[0, 65536]
             ),
             "boost-histogram": lambda f=img_flat, h=_make_bh_int_hist(65536): (
-                h.reset(), h.fill(f)
+                h.reset(),
+                h.fill(f),
             )[-1],
             "boost-histogram (threaded)": lambda f=img_flat, h=_make_bh_int_hist(65536): (
-                h.reset(), h.fill(f, threads=0)
-            )[-1],
+                (h.reset(), h.fill(f, threads=0))[-1]
+            ),
         }
 
         for name, func in benchmarks.items():
