@@ -78,6 +78,14 @@ class BenchResult:
     times_us: list[float] = field(default_factory=list)
 
 
+def _make_bh_int_hist(nbins: int) -> bh.Histogram:
+    """Create a boost-histogram with Integer axis (O(1) lookup, no float math)."""
+    return bh.Histogram(
+        bh.axis.Integer(0, nbins, underflow=False, overflow=False),
+        storage=bh.storage.Int64(),
+    )
+
+
 def _bench(func: Callable[[], None], repeats: int) -> float:
     """Return median execution time in microseconds."""
     for _ in range(WARMUP_RUNS):
@@ -109,6 +117,7 @@ def bench_gray_uint8(sizes: list[int], repeats: int) -> list[BenchResult]:
             "skimage.exposure.histogram",
             "fast_histogram",
             "boost-histogram",
+            "boost-histogram (threaded)",
         ]
     }
 
@@ -133,11 +142,14 @@ def bench_gray_uint8(sizes: list[int], repeats: int) -> list[BenchResult]:
                 skimage.exposure.histogram(i, nbins=256)
             ),
             "fast_histogram": lambda f=img_flat: fast_histogram.histogram1d(
-                f.astype(np.float64), bins=256, range=[0, 256]
+                f, bins=256, range=[0, 256]
             ),
-            "boost-histogram": lambda f=img_flat: bh.numpy.histogram(
-                f, bins=256, range=(0, 256)
-            ),
+            "boost-histogram": lambda f=img_flat, h=_make_bh_int_hist(256): (
+                h.reset(), h.fill(f)
+            )[-1],
+            "boost-histogram (threaded)": lambda f=img_flat, h=_make_bh_int_hist(256): (
+                h.reset(), h.fill(f, threads=0)
+            )[-1],
         }
 
         for name, func in benchmarks.items():
@@ -204,6 +216,7 @@ def bench_gray_uint16(sizes: list[int], repeats: int) -> list[BenchResult]:
             "skimage.exposure.histogram",
             "fast_histogram",
             "boost-histogram",
+            "boost-histogram (threaded)",
         ]
     }
 
@@ -232,11 +245,14 @@ def bench_gray_uint16(sizes: list[int], repeats: int) -> list[BenchResult]:
                 skimage.exposure.histogram(f, nbins=4096)
             ),
             "fast_histogram": lambda f=img_flat: fast_histogram.histogram1d(
-                f.astype(np.float64), bins=4096, range=[0, 4096]
+                f, bins=4096, range=[0, 4096]
             ),
-            "boost-histogram": lambda f=img_flat: bh.numpy.histogram(
-                f, bins=4096, range=(0, 4096)
-            ),
+            "boost-histogram": lambda f=img_flat, h=_make_bh_int_hist(4096): (
+                h.reset(), h.fill(f)
+            )[-1],
+            "boost-histogram (threaded)": lambda f=img_flat, h=_make_bh_int_hist(4096): (
+                h.reset(), h.fill(f, threads=0)
+            )[-1],
         }
 
         for name, func in benchmarks.items():
@@ -263,6 +279,7 @@ def bench_gray_uint16_full(
             "skimage.exposure.histogram",
             "fast_histogram",
             "boost-histogram",
+            "boost-histogram (threaded)",
         ]
     }
 
@@ -289,11 +306,14 @@ def bench_gray_uint16_full(
                 skimage.exposure.histogram(f, nbins=65536)
             ),
             "fast_histogram": lambda f=img_flat: fast_histogram.histogram1d(
-                f.astype(np.float64), bins=65536, range=[0, 65536]
+                f, bins=65536, range=[0, 65536]
             ),
-            "boost-histogram": lambda f=img_flat: bh.numpy.histogram(
-                f, bins=65536, range=(0, 65536)
-            ),
+            "boost-histogram": lambda f=img_flat, h=_make_bh_int_hist(65536): (
+                h.reset(), h.fill(f)
+            )[-1],
+            "boost-histogram (threaded)": lambda f=img_flat, h=_make_bh_int_hist(65536): (
+                h.reset(), h.fill(f, threads=0)
+            )[-1],
         }
 
         for name, func in benchmarks.items():
@@ -370,6 +390,7 @@ COLORS = {
     "skimage.exposure.histogram": "#9467bd",
     "fast_histogram": "#ff7f0e",
     "boost-histogram": "#8c564b",
+    "boost-histogram (threaded)": "#c49c94",
 }
 
 MARKERS = {
@@ -391,6 +412,7 @@ MARKERS = {
     "skimage.exposure.histogram": "p",
     "fast_histogram": "h",
     "boost-histogram": "H",
+    "boost-histogram (threaded)": "X",
 }
 
 
