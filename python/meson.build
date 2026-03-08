@@ -58,7 +58,7 @@ elif host_machine.system() == 'darwin'
     symbol_hide_link_depends += [files('symbols-macos.txt')]
 endif
 
-py.extension_module(
+ext_module = py.extension_module(
     '_ihist',
     'src/ihist/_ihist.cpp',
     dependencies: [
@@ -73,8 +73,43 @@ py.extension_module(
     install_tag: 'python-runtime',
 )
 
+# Generate .pyi type stubs using nanobind.stubgen
+stub_target = custom_target(
+    'generate_stubs',
+    input: [ext_module],
+    output: '_ihist.pyi',
+    command: [
+        py.full_path(),
+        meson.project_source_root() / 'scripts' / 'build_stubs.py',
+        '@INPUT@',
+        '@OUTPUT@',
+    ],
+    build_by_default: true,
+    install: true,
+    install_dir: py.get_install_dir() / py_package_name,
+    install_tag: 'python-runtime',
+    depends: ext_module,
+)
+
+# Copy stub to source tree for development (so type checkers can find it)
+custom_target(
+    'copy_stubs_to_src',
+    input: stub_target,
+    output: 'stub_copied_marker',
+    command: [
+        py.full_path(),
+        '-c',
+        'import shutil; shutil.copy(r"@INPUT@", r"@0@")'.format(
+            meson.current_source_dir() / 'src' / 'ihist' / '_ihist.pyi'
+        ),
+    ],
+    build_by_default: true,
+    depends: stub_target,
+)
+
 py.install_sources(
     'src/ihist/__init__.py',
+    'src/ihist/py.typed',
     subdir: py_package_name,
     install_tag: 'python-runtime',
 )
