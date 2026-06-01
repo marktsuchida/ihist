@@ -17,3 +17,4 @@ __pycache__/
 .flattened-pom.xml
 
 /coverage/
+python/src/ihist/_ihist.pyi
