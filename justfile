@@ -14,7 +14,7 @@ exe_suffix := if os() == "windows" { ".exe" } else { "" }
 mvn := if os() == "windows" { "mvn.cmd" } else { "mvn" }
 cjdk_exec := 'uvx cjdk -j zulu:8 exec --'
 
-onetbb_version := '2022.3.0'
+onetbb_version := '2023.0.0'
 
 # On Windows, put DLLs on path so that tests and benchmarks can run.
 export PATH := if os() == "windows" {
