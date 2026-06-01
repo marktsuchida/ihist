@@ -20,7 +20,7 @@
 
 set -euxo pipefail
 
-tbb_version='2022.3.0'
+tbb_version='2023.0.0'
 tbb_tgz="oneapi-tbb-$tbb_version.tar.gz"
 tbb_dir="oneTBB-$tbb_version"
 
