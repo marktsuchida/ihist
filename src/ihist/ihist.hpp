@@ -496,6 +496,14 @@ IHIST_NOINLINE void histxy_unoptimized_mt(
     std::size_t mask_stride, std::uint32_t *IHIST_RESTRICT histogram,
     std::size_t grain_size = 1) {
 #ifdef IHIST_USE_TBB
+    // Contiguous (incl. 1D): flatten to a pixel range so parallelism is not
+    // capped by the row count.
+    if (image_stride == width && (!UseMask || mask_stride == width)) {
+        return hist_unoptimized_mt<T, UseMask, Bits, LoBit, SamplesPerPixel,
+                                   Sample0Index, SampleIndices...>(
+            data, UseMask ? mask : nullptr, height * width, histogram,
+            grain_size);
+    }
     constexpr auto NSAMPLES = 1 + sizeof...(SampleIndices);
     internal::histxy_mt<T, SamplesPerPixel, (1uLL << Bits) * NSAMPLES>(
         histxy_unoptimized_st<T, UseMask, Bits, LoBit, SamplesPerPixel,
@@ -522,6 +530,15 @@ IHIST_NOINLINE void histxy_striped_mt(T const *IHIST_RESTRICT data,
                                       std::uint32_t *IHIST_RESTRICT histogram,
                                       std::size_t grain_size = 1) {
 #ifdef IHIST_USE_TBB
+    // Contiguous (incl. 1D): flatten to a pixel range so parallelism is not
+    // capped by the row count.
+    if (image_stride == width && (!UseMask || mask_stride == width)) {
+        return hist_striped_mt<Tuning, T, UseMask, Bits, LoBit,
+                               SamplesPerPixel, Sample0Index,
+                               SampleIndices...>(
+            data, UseMask ? mask : nullptr, height * width, histogram,
+            grain_size);
+    }
     constexpr auto NSAMPLES = 1 + sizeof...(SampleIndices);
     internal::histxy_mt<T, SamplesPerPixel, (1uLL << Bits) * NSAMPLES>(
         histxy_striped_st<Tuning, T, UseMask, Bits, LoBit, SamplesPerPixel,
@@ -534,6 +551,36 @@ IHIST_NOINLINE void histxy_striped_mt(T const *IHIST_RESTRICT data,
                       Sample0Index, SampleIndices...>(
         data, mask, height, width, image_stride, mask_stride, histogram, 0);
 #endif
+}
+
+// We could implement striping for dynamic components, perhaps only for the
+// cases of 2-4 components being histogrammed. But keep it simple for now
+// because these are meant to be uncommon cases; if a very common case comes to
+// light, we can add a static implementation for it.
+template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
+          unsigned LoBit = 0>
+/* not noinline */ void
+hist_dynamic_st(T const *IHIST_RESTRICT data,
+                std::uint8_t const *IHIST_RESTRICT mask, std::size_t size,
+                std::size_t n_components, std::size_t n_hist_components,
+                std::size_t const *IHIST_RESTRICT component_indices,
+                std::uint32_t *IHIST_RESTRICT histogram) {
+    assert(size < std::numeric_limits<std::uint32_t>::max());
+    assert(component_indices != nullptr || n_hist_components == 0);
+    constexpr std::size_t NBINS = 1uLL << Bits;
+    for (std::size_t j = 0; j < size; ++j) {
+        auto const i = j * n_components;
+        if (!UseMask || mask[j]) {
+            for (std::size_t s = 0; s < n_hist_components; ++s) {
+                auto const s_index = component_indices[s];
+                auto const bin =
+                    internal::bin_index<T, Bits, LoBit>(data[i + s_index]);
+                if (bin != NBINS) {
+                    ++histogram[s * NBINS + bin];
+                }
+            }
+        }
+    }
 }
 
 template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
@@ -550,38 +597,64 @@ histxy_dynamic_st(T const *IHIST_RESTRICT data,
     assert(width <= image_stride);
     assert(component_indices != nullptr || n_hist_components == 0);
 
-    constexpr std::size_t NBINS = 1uLL << Bits;
-
-    // Simplify to single row if full-width.
-    if (width == image_stride && (!UseMask || width == mask_stride) &&
-        height > 1) {
-        auto const size = height * width;
-        return histxy_dynamic_st<T, UseMask, Bits, LoBit>(
-            data, mask, 1, size, size, size, n_components, n_hist_components,
-            component_indices, histogram);
+    // Contiguous: flatten to a single run.
+    if (width == image_stride && (!UseMask || width == mask_stride)) {
+        return hist_dynamic_st<T, UseMask, Bits, LoBit>(
+            data, UseMask ? mask : nullptr, height * width, n_components,
+            n_hist_components, component_indices, histogram);
     }
 
-    // We could implement striping for dynamic components, perhaps only for the
-    // cases of 2-4 components being histogrammed. But keep it simple for now
-    // because these are meant to be uncommon cases; if a very common case
-    // comes to light, we can add a static implementation for it.
-
+    // Strided: one contiguous run per row.
     for (std::size_t y = 0; y < height; ++y) {
-        for (std::size_t x = 0; x < width; ++x) {
-            auto const j = y * image_stride + x;
-            auto const i = j * n_components;
-            if (!UseMask || mask[y * mask_stride + x]) {
-                for (std::size_t s = 0; s < n_hist_components; ++s) {
-                    auto const s_index = component_indices[s];
-                    auto const bin =
-                        internal::bin_index<T, Bits, LoBit>(data[i + s_index]);
-                    if (bin != NBINS) {
-                        ++histogram[s * NBINS + bin];
-                    }
-                }
-            }
-        }
+        hist_dynamic_st<T, UseMask, Bits, LoBit>(
+            data + y * image_stride * n_components,
+            UseMask ? mask + y * mask_stride : nullptr, width, n_components,
+            n_hist_components, component_indices, histogram);
     }
+}
+
+template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
+          unsigned LoBit = 0>
+IHIST_NOINLINE void hist_dynamic_mt(
+    T const *IHIST_RESTRICT data, std::uint8_t const *IHIST_RESTRICT mask,
+    std::size_t size, std::size_t n_components, std::size_t n_hist_components,
+    std::size_t const *IHIST_RESTRICT component_indices,
+    std::uint32_t *IHIST_RESTRICT histogram, std::size_t grain_size = 1) {
+#ifdef IHIST_USE_TBB
+    constexpr std::size_t NBINS = 1uLL << Bits;
+    std::size_t const hist_size = n_hist_components * NBINS;
+
+    using hist_vec = std::vector<std::uint32_t>;
+    tbb::combinable<hist_vec> local_hists(
+        [hist_size] { return hist_vec(hist_size, 0); });
+
+    // Histogramming scales very poorly with simultaneous multithreading
+    // (Hyper-Threading), so only schedule 1 thread per physical core.
+    int const n_phys_cores = internal::get_physical_core_count();
+    auto arena =
+        n_phys_cores > 0 ? tbb::task_arena(n_phys_cores) : tbb::task_arena();
+
+    arena.execute([&] {
+        tbb::parallel_for(tbb::blocked_range<std::size_t>(0, size, grain_size),
+                          [&](tbb::blocked_range<std::size_t> const &r) {
+                              auto &h = local_hists.local();
+                              hist_dynamic_st<T, UseMask, Bits, LoBit>(
+                                  data + r.begin() * n_components,
+                                  mask ? mask + r.begin() : nullptr, r.size(),
+                                  n_components, n_hist_components,
+                                  component_indices, h.data());
+                          });
+    });
+
+    local_hists.combine_each([&](hist_vec const &h) {
+        std::transform(h.begin(), h.end(), histogram, histogram, std::plus{});
+    });
+#else
+    (void)grain_size;
+    hist_dynamic_st<T, UseMask, Bits, LoBit>(data, mask, size, n_components,
+                                             n_hist_components,
+                                             component_indices, histogram);
+#endif
 }
 
 template <typename T, bool UseMask = false, unsigned Bits = 8 * sizeof(T),
@@ -594,6 +667,13 @@ IHIST_NOINLINE void histxy_dynamic_mt(
     std::size_t const *IHIST_RESTRICT component_indices,
     std::uint32_t *IHIST_RESTRICT histogram, std::size_t grain_size = 1) {
 #ifdef IHIST_USE_TBB
+    // Contiguous (incl. 1D): flatten to a pixel range so parallelism is not
+    // capped by the row count.
+    if (image_stride == width && (!UseMask || mask_stride == width)) {
+        return hist_dynamic_mt<T, UseMask, Bits, LoBit>(
+            data, UseMask ? mask : nullptr, height * width, n_components,
+            n_hist_components, component_indices, histogram, grain_size);
+    }
     constexpr std::size_t NBINS = 1uLL << Bits;
     std::size_t const hist_size = n_hist_components * NBINS;
 
