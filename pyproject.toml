@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 [build-system]
-requires = ["meson-python", "numpy"]
+requires = ["meson-python", "nanobind", "numpy", "ruff"]
 build-backend = "mesonpy"
 
 [project]
