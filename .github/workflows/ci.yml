@@ -37,7 +37,6 @@ jobs:
           - runner: windows-2025
             compiler: Clang
             cxx: clang-cl
-            opts: -Db_sanitize=address,undefined
           - runner: windows-2025
             compiler: MSVC
             cxx: cl

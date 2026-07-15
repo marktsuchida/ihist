@@ -96,6 +96,12 @@ if not get_option('benchmarks').disabled()
         if cxx.get_id() in ['clang-cl', 'msvc']
             opencv_cpp_args += '-D_CRT_SECURE_NO_WARNINGS'
         endif
+        if cxx.get_id() == 'msvc'
+            # Suppress C4864 (spurious "expected 'template' keyword before
+            # dependent template name") emitted by newer MSVC for correct C++17
+            # code in OpenCV 5.0.0 headers (opencv2/core/mat.inl.hpp).
+            opencv_cpp_args += '/wd4864'
+        endif
     endif
 
     opencv_dep = declare_dependency(
