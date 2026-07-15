@@ -6,11 +6,13 @@
 
 #include <ihist.hpp>
 
+#include "gen_data.hpp"
 #include "parameterization.hpp"
 
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -203,6 +205,18 @@ TEMPLATE_LIST_TEST_CASE("dynamic histogram empty input", "",
                 hist.data());
             CHECK(hist == expected);
         }
+        SECTION("1d zero-size data") {
+            traits::template hist_dynamic<false, FULL_BITS, 0>(
+                nullptr, nullptr, 0, 2, 2, indices, hist.data());
+            CHECK(hist == expected);
+        }
+        SECTION("1d all-zero mask") {
+            std::vector<T> data(2 * 6);
+            std::vector<std::uint8_t> mask(6);
+            traits::template hist_dynamic<true, FULL_BITS, 0>(
+                data.data(), mask.data(), 6, 2, 2, indices, hist.data());
+            CHECK(hist == expected);
+        }
     }
 
     SECTION("halfbits") {
@@ -229,6 +243,60 @@ TEMPLATE_LIST_TEST_CASE("dynamic histogram empty input", "",
                 hist.data());
             CHECK(hist == expected);
         }
+        SECTION("1d zero-size data") {
+            traits::template hist_dynamic<false, HALF_BITS, HALF_SHIFT>(
+                nullptr, nullptr, 0, 2, 2, indices, hist.data());
+            CHECK(hist == expected);
+        }
+        SECTION("1d all-zero mask") {
+            std::vector<T> data(2 * 6);
+            std::vector<std::uint8_t> mask(6);
+            traits::template hist_dynamic<true, HALF_BITS, HALF_SHIFT>(
+                data.data(), mask.data(), 6, 2, 2, indices, hist.data());
+            CHECK(hist == expected);
+        }
+    }
+}
+
+TEMPLATE_LIST_TEST_CASE("1d dynamic histogram matches reference", "",
+                        dynamic_test_traits_list) {
+    using traits = TestType;
+    using T = typename traits::value_type;
+
+    constexpr std::size_t indices[] = {0, 1};
+    constexpr std::size_t n_components = 2;
+    constexpr std::size_t size = 4099;
+
+    constexpr auto BITS = 8 * sizeof(T);
+    constexpr auto NBINS = 1 << BITS;
+
+    auto const data = test_data<T>(n_components * size);
+    auto const mask = test_data<std::uint8_t, 1>(size);
+
+    SECTION("nomask") {
+        std::vector<std::uint32_t> ref(n_components * NBINS);
+        constexpr auto *ref_func =
+            hist_unoptimized_st<T, false, BITS, 0, n_components, 0, 1>;
+        ref_func(data.data(), nullptr, size, ref.data(), 1);
+
+        std::vector<std::uint32_t> hist(n_components * NBINS);
+        traits::template hist_dynamic<false, BITS, 0>(
+            data.data(), nullptr, size, n_components, n_components, indices,
+            hist.data());
+        CHECK(hist == ref);
+    }
+
+    SECTION("mask") {
+        std::vector<std::uint32_t> ref(n_components * NBINS);
+        constexpr auto *ref_func =
+            hist_unoptimized_st<T, true, BITS, 0, n_components, 0, 1>;
+        ref_func(data.data(), mask.data(), size, ref.data(), 1);
+
+        std::vector<std::uint32_t> hist(n_components * NBINS);
+        traits::template hist_dynamic<true, BITS, 0>(
+            data.data(), mask.data(), size, n_components, n_components,
+            indices, hist.data());
+        CHECK(hist == ref);
     }
 }
 

@@ -11,9 +11,11 @@
 
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include <cstddef>
 #include <cstdint>
+#include <tuple>
 #include <vector>
 
 namespace ihist {
@@ -338,6 +340,58 @@ TEMPLATE_LIST_TEST_CASE("large input near parallelization threshold", "",
     constexpr std::size_t width = 1024;
     constexpr std::size_t height = 1024;
     constexpr std::size_t size = width * height;
+
+    auto const data = test_data<T>(size);
+    auto const mask = test_data<std::uint8_t, 1>(size);
+
+    SECTION("nomask") {
+        std::vector<std::uint32_t> ref(NBINS);
+        constexpr auto *ref_func = histxy_unoptimized_st<T>;
+        ref_func(data.data(), nullptr, height, width, width, width, ref.data(),
+                 1);
+
+        std::vector<std::uint32_t> hist(NBINS);
+        constexpr auto *histxy_func =
+            traits::template histxy_func<false, BITS, 0, 1, 0>;
+        histxy_func(data.data(), nullptr, height, width, width, width,
+                    hist.data(), 1);
+        CHECK(hist == ref);
+    }
+
+    SECTION("mask") {
+        std::vector<std::uint32_t> ref(NBINS);
+        constexpr auto *ref_func = histxy_unoptimized_st<T, true>;
+        ref_func(data.data(), mask.data(), height, width, width, width,
+                 ref.data(), 1);
+
+        std::vector<std::uint32_t> hist(NBINS);
+        constexpr auto *histxy_func =
+            traits::template histxy_func<true, BITS, 0, 1, 0>;
+        histxy_func(data.data(), mask.data(), height, width, width, width,
+                    hist.data(), 1);
+        CHECK(hist == ref);
+    }
+}
+
+TEMPLATE_LIST_TEST_CASE("contiguous 2d image flattens to pixel range", "",
+                        test_traits_list) {
+    using traits = TestType;
+    using T = typename traits::value_type;
+
+    constexpr auto BITS = 8 * sizeof(T);
+    constexpr auto NBINS = 1 << BITS;
+
+    // Full-width contiguous shapes (image_stride == width) exercise the
+    // flatten branch in histxy_*_mt. Include a height==1 row to represent a 1D
+    // array.
+    auto const shape = GENERATE(table<std::size_t, std::size_t>({
+        {1, 40000},
+        {8, 5001},
+        {123, 321},
+    }));
+    std::size_t const height = std::get<0>(shape);
+    std::size_t const width = std::get<1>(shape);
+    std::size_t const size = width * height;
 
     auto const data = test_data<T>(size);
     auto const mask = test_data<std::uint8_t, 1>(size);

@@ -102,6 +102,23 @@ template <typename T, bool MT> struct dynamic_function_traits {
                 n_components, n_hist_components, component_indices, histogram);
         }
     }
+
+    template <bool UseMask, unsigned Bits, unsigned LoBit>
+    static void hist_dynamic(T const *data, std::uint8_t const *mask,
+                             std::size_t size, std::size_t n_components,
+                             std::size_t n_hist_components,
+                             std::size_t const *component_indices,
+                             std::uint32_t *histogram) {
+        if constexpr (MT) {
+            hist_dynamic_mt<T, UseMask, Bits, LoBit>(
+                data, mask, size, n_components, n_hist_components,
+                component_indices, histogram);
+        } else {
+            hist_dynamic_st<T, UseMask, Bits, LoBit>(
+                data, mask, size, n_components, n_hist_components,
+                component_indices, histogram);
+        }
+    }
 };
 
 // For use with TEMPLATE_LIST_TEST_CASE() for dynamic histogram tests.
