@@ -1,0 +1,26 @@
+# Conda environment for running ihist benchmarks.
+#
+# Create:  micromamba create -f python/benchmarks/environment.yml
+# Run:     micromamba run -n ihist-bench python python/benchmarks/bench_histogram.py
+#
+# Notes:
+# - BLAS backend (MKL/OpenBLAS/Accelerate) does NOT affect histogram
+#   performance — histograms are counting operations, not linear algebra.
+# - On x86_64, conda-forge opencv includes IPP-ICV (SIMD-optimized paths
+#   for calcHist and other image ops). On ARM64 macOS this is a no-op.
+# - ihist is not on conda-forge, so it is installed from PyPI.
+name: ihist-bench
+channels:
+  - conda-forge
+
+dependencies:
+  - python >=3.10
+  - numpy
+  - opencv
+  - scikit-image
+  - matplotlib-base
+  - fast-histogram
+  - boost-histogram
+  - pip
+  - pip:
+      - ihist
