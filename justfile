@@ -237,8 +237,8 @@ java-build-jni:
     uv run --no-project --with=cmake bash scripts/build_static_tbb.sh
     {{cjdk_exec}} uvx meson setup --reconfigure builddir-jni \
         ${IHIST_MESON_CROSS_ARGS-} \
-        --buildtype=release --default-library=static -Djava-bindings=enabled \
-        -Dtests=disabled -Dbenchmarks=disabled
+        --buildtype=release --default-library=static -Db_vscrt=mt \
+        -Djava-bindings=enabled -Dtests=disabled -Dbenchmarks=disabled
     {{cjdk_exec}} uvx meson compile -C builddir-jni
 
 # Build Java bindings assuming native library is built

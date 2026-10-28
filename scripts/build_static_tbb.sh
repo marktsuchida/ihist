@@ -50,6 +50,17 @@ else
     cmake_osx_arch=()
 fi
 
+# On Windows, use the static C++ runtime (/MT) to match b_vscrt=mt in our
+# Python and Java builds.
+if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
+    cmake_msvc_runtime=(
+        -DCMAKE_POLICY_DEFAULT_CMP0091=NEW
+        -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+    )
+else
+    cmake_msvc_runtime=()
+fi
+
 cd $(dirname "$0")/..
 mkdir -p dependencies
 cd dependencies
@@ -61,7 +72,8 @@ tar xf "$tbb_tgz"
 cd "$tbb_dir"
 mkdir -p build
 # Set CMAKE_INSTALL_LIBDIR in case default is lib64.
-cmake "${cmake_generator[@]}" "${cmake_osx_arch[@]}" -S . -B build \
+cmake "${cmake_generator[@]}" "${cmake_osx_arch[@]}" \
+    "${cmake_msvc_runtime[@]}" -S . -B build \
     -DCMAKE_INSTALL_PREFIX="$install_prefix" \
     -DCMAKE_INSTALL_LIBDIR=lib \
     -DCMAKE_BUILD_TYPE="$cmake_build_type" \
