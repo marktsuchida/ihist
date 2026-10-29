@@ -77,6 +77,12 @@ elif host_machine.system() == 'darwin'
     symbol_hide_link_depends += [files('symbols-macos.txt')]
 endif
 
+# Hybrid CRT: static C++ runtime and vcruntime, but dynamic UCRT.
+crt_link_args = []
+if cxx.get_argument_syntax() == 'msvc' and get_option('b_vscrt') == 'mt'
+    crt_link_args += ['/NODEFAULTLIB:libucrt.lib', '/DEFAULTLIB:ucrt.lib']
+endif
+
 py.extension_module(
     '_ihist',
     'src/ihist/_ihist.cpp',
@@ -85,7 +91,7 @@ py.extension_module(
         nanobind_dep,
         numpy_dep,
     ],
-    link_args: symbol_hide_link_args,
+    link_args: symbol_hide_link_args + crt_link_args,
     link_depends: symbol_hide_link_depends,
     install: true,
     subdir: py_package_name,
