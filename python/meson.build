@@ -10,16 +10,35 @@ py = import('python').find_installation(pure: false)
 # breaking the build, we compile nanobind as a separate static library with
 # werror=false.
 nanobind_orig_dep = dependency('nanobind', include_type: 'system')
+
+# On macOS, nanobind's link_args include a response file of -U flags for the
+# Python C API. These are redundant with the -undefined dynamic_lookup added by
+# extension_module(), and ld's warning about it is fatal under werror. So drop
+# nanobind's link_args and add back its strip flags.
+nanobind_lib_dep = nanobind_orig_dep
+nanobind_link_args = []
+if host_machine.system() == 'darwin'
+    nanobind_lib_dep = nanobind_orig_dep.partial_dependency(
+        compile_args: true,
+        includes: true,
+        sources: true,
+    )
+    if not get_option('debug')
+        nanobind_link_args += ['-Wl,-dead_strip', '-Wl,-x', '-Wl,-S']
+    endif
+endif
+
 nanobind_lib = static_library(
     '_nanobind',
-    dependencies: nanobind_orig_dep,
+    dependencies: nanobind_lib_dep,
     override_options: ['werror=false'],
 )
 nanobind_dep = declare_dependency(
     link_with: nanobind_lib,
+    link_args: nanobind_link_args,
     dependencies: [
-        # Only include compile_args and includes; link_args and links are
-        # already propagated transitively through nanobind_lib.
+        # Only include compile_args and includes; link_args and links (if any)
+        # are propagated transitively through nanobind_lib.
         nanobind_orig_dep.partial_dependency(
             compile_args: true,
             includes: true,
