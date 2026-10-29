@@ -72,8 +72,10 @@ tar xf "$tbb_tgz"
 cd "$tbb_dir"
 mkdir -p build
 # Set CMAKE_INSTALL_LIBDIR in case default is lib64.
-cmake "${cmake_generator[@]}" "${cmake_osx_arch[@]}" \
-    "${cmake_msvc_runtime[@]}" -S . -B build \
+cmake ${cmake_generator[@]+"${cmake_generator[@]}"} \
+    ${cmake_osx_arch[@]+"${cmake_osx_arch[@]}"} \
+    ${cmake_msvc_runtime[@]+"${cmake_msvc_runtime[@]}"} \
+    -S . -B build \
     -DCMAKE_INSTALL_PREFIX="$install_prefix" \
     -DCMAKE_INSTALL_LIBDIR=lib \
     -DCMAKE_BUILD_TYPE="$cmake_build_type" \
